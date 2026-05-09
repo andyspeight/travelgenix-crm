@@ -1,6 +1,6 @@
 # Luna Work — Travelgenix CRM
 
-The travel-native CRM, built on Supabase, Next.js, and Claude.
+The travel-native CRM, built on Supabase, Next.js, and Claude. 
 
 > _"HubSpot for travel agencies, with AI doing the work nobody has time for."_
 
