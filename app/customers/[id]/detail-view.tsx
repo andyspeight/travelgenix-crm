@@ -17,6 +17,11 @@ import {
   ClockIcon,
   PlaneIcon,
 } from "@/components/ui/icons";
+import {
+  STAGE_META,
+  formatMoney,
+  formatDate,
+} from "@/lib/trips/presentation";
 import type {
   Household,
   Contact,
@@ -58,17 +63,6 @@ function initials(name: string): string {
   const second = parts.find((p, i) => i > 0 && /^[A-Z]/.test(p))?.[0] ?? parts[1]?.[0] ?? "";
   return (first + second).toUpperCase().slice(0, 2);
 }
-function formatMoney(n: number | null | undefined): string {
-  if (n == null) return "—";
-  if (n >= 1000) return `£${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return `£${n.toLocaleString("en-GB")}`;
-}
-function formatDate(s: string | null | undefined): string {
-  if (!s) return "—";
-  return new Date(s).toLocaleDateString("en-GB", {
-    day: "numeric", month: "short", year: "numeric",
-  });
-}
 function relativeDate(iso: string): string {
   const then = new Date(iso);
   const diffMs = then.getTime() - Date.now();
@@ -85,17 +79,10 @@ function relativeDate(iso: string): string {
 }
 
 // ─── Stage colours ─────────────────────────────────────────────────────
+// Colours + labels come from the shared STAGE_META so the pill here and the
+// Trips Kanban can never drift apart. This wrapper just renders them as JSX.
 function stagePill(stage: string) {
-  const map: Record<string, { bg: string; fg: string; label: string }> = {
-    enquiry: { bg: "rgba(245, 158, 11, 0.1)", fg: "var(--warning)", label: "Enquiry" },
-    quoted: { bg: "rgba(59, 130, 246, 0.1)", fg: "var(--info)", label: "Quoted" },
-    booked: { bg: "rgba(16, 185, 129, 0.1)", fg: "var(--success)", label: "Booked" },
-    pre_departure: { bg: "rgba(245, 158, 11, 0.12)", fg: "var(--warning)", label: "Pre-departure" },
-    travelling: { bg: "rgba(16, 185, 129, 0.12)", fg: "var(--success)", label: "Travelling" },
-    returned: { bg: "var(--bg-subtle)", fg: "var(--text-muted)", label: "Returned" },
-    cancelled: { bg: "rgba(239, 68, 68, 0.08)", fg: "var(--error)", label: "Cancelled" },
-  };
-  const s = map[stage] ?? map.enquiry;
+  const s = STAGE_META[stage as keyof typeof STAGE_META] ?? STAGE_META.enquiry;
   return (
     <span
       style={{
