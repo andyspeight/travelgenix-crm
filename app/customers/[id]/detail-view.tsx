@@ -22,6 +22,7 @@ import {
   formatMoney,
   formatDate,
 } from "@/lib/trips/presentation";
+import { BriefActions } from "./brief-actions";
 import type {
   Household,
   Contact,
@@ -42,6 +43,7 @@ type Props = {
   trips: Trip[];
   interactions: Interaction[];
   preferences: Preference[];
+  predictionCards?: PredictionCard[];
 };
 
 // Sarah Thompson's UUID changes per seed; we identify the exemplar by name
@@ -116,6 +118,7 @@ export function CustomerDetailView({
   trips,
   interactions,
   preferences,
+  predictionCards,
 }: Props) {
   const exemplar = isExemplar(household);
   const lead = contacts.find((c) => c.role === "lead") ?? contacts[0];
@@ -154,7 +157,7 @@ export function CustomerDetailView({
         <div>
           <HeaderCard household={household} contacts={contacts} lead={lead} />
           <AIBrief household={household} exemplar={exemplar} />
-          <PredictionsRow exemplar={exemplar} />
+          <PredictionsRow exemplar={exemplar} cards={predictionCards} />
           <Timeline interactions={interactions} />
           <ListeningFooter exemplar={exemplar} />
         </div>
@@ -461,95 +464,86 @@ function AIBrief({
         {briefText}
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 6,
-          marginTop: 14,
-          paddingTop: 12,
-          borderTop: "1px solid var(--border)",
-        }}
-      >
-        {["Draft a reply", "Add note", "Schedule call", "Refresh brief"].map(
-          (a) => (
-            <button
-              key={a}
-              style={{
-                background: "var(--bg-subtle)",
-                border: "1px solid var(--border)",
-                color: "var(--text-muted)",
-                borderRadius: 6,
-                padding: "5px 11px",
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
-            >
-              {a}
-            </button>
-          )
-        )}
-      </div>
+      <BriefActions householdId={household.id} />
     </div>
   );
 }
 
 // ─── Predictions ────────────────────────────────────────────────────────
-function PredictionsRow({ exemplar }: { exemplar: boolean }) {
-  const cards = exemplar
-    ? [
-        {
-          tag: "Opportunity",
-          confidence: "78%",
-          fill: 78,
-          title: "Likely to book Q4 2026",
-          reason: "Pattern: every Oct/Nov for half-term. Two anchor signals.",
-          variant: "opportunity" as const,
-        },
-        {
-          tag: "Trip match",
-          confidence: "82%",
-          fill: 82,
-          title: "Amalfi Coast — strong fit",
-          reason:
-            "Boutique hotels, water access, food-led. The Patels loved it last year.",
-          variant: "match" as const,
-        },
-        {
-          tag: "Risk",
-          confidence: "Low",
-          fill: 18,
-          title: "Passports OK through 2029",
-          reason: "All four valid · 6+ months on every planned trip date.",
-          variant: "risk" as const,
-        },
-      ]
-    : [
-        {
-          tag: "Opportunity",
-          confidence: "—",
-          fill: 0,
-          title: "Likely next booking",
-          reason: "Insufficient history to predict yet — needs 3+ bookings.",
-          variant: "opportunity" as const,
-        },
-        {
-          tag: "Trip match",
-          confidence: "—",
-          fill: 0,
-          title: "Awaiting preference signals",
-          reason: "Build preferences over time to surface ideas here.",
-          variant: "match" as const,
-        },
-        {
-          tag: "Risk",
-          confidence: "Low",
-          fill: 18,
-          title: "No flags",
-          reason: "Passport, supplier history, and compliance all clear.",
-          variant: "risk" as const,
-        },
-      ];
+type PredictionCard = {
+  tag: string;
+  confidence: string;
+  fill: number;
+  title: string;
+  reason: string;
+  variant: "opportunity" | "match" | "risk";
+};
+
+function PredictionsRow({
+  exemplar,
+  cards: realCards,
+}: {
+  exemplar: boolean;
+  cards?: PredictionCard[];
+}) {
+  // Real computed cards take precedence. Fall back to the exemplar demo (Sarah)
+  // or the empty-state placeholders when no scores have been computed yet.
+  const cards: PredictionCard[] =
+    realCards ??
+    (exemplar
+      ? [
+          {
+            tag: "Opportunity",
+            confidence: "78%",
+            fill: 78,
+            title: "Likely to book Q4 2026",
+            reason: "Pattern: every Oct/Nov for half-term. Two anchor signals.",
+            variant: "opportunity" as const,
+          },
+          {
+            tag: "Trip match",
+            confidence: "82%",
+            fill: 82,
+            title: "Amalfi Coast, strong fit",
+            reason:
+              "Boutique hotels, water access, food-led. The Patels loved it last year.",
+            variant: "match" as const,
+          },
+          {
+            tag: "Risk",
+            confidence: "Low",
+            fill: 18,
+            title: "Passports OK through 2029",
+            reason: "All four valid · 6+ months on every planned trip date.",
+            variant: "risk" as const,
+          },
+        ]
+      : [
+          {
+            tag: "Opportunity",
+            confidence: "—",
+            fill: 0,
+            title: "Likely next booking",
+            reason: "Insufficient history to predict yet, needs 3+ bookings.",
+            variant: "opportunity" as const,
+          },
+          {
+            tag: "Trip match",
+            confidence: "—",
+            fill: 0,
+            title: "Awaiting preference signals",
+            reason: "Build preferences over time to surface ideas here.",
+            variant: "match" as const,
+          },
+          {
+            tag: "Risk",
+            confidence: "Low",
+            fill: 18,
+            title: "No flags",
+            reason: "Passport, supplier history and compliance all clear.",
+            variant: "risk" as const,
+          },
+        ]);
 
   return (
     <div
