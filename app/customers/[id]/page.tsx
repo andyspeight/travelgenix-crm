@@ -23,6 +23,7 @@ import {
   ClockIcon,
 } from "@/components/ui/icons";
 import { CustomerDetailView } from "./detail-view";
+import { computeRisk, computeOpportunity } from "@/lib/scoring/customer";
 import type {
   Household,
   Contact,
@@ -82,10 +83,69 @@ export default async function CustomerDetailPage({
       .eq("household_id", params.id),
   ]);
 
+  const householdRow = household as Household;
+  const contactRows = (contactsRes.data ?? []) as Contact[];
+  const tripRows = (tripsRes.data ?? []) as Trip[];
+  const prefRows = (prefsRes.data ?? []) as Preference[];
+
+  // ─── Deterministic prediction cards (the trustworthy half) ──────────
+  // Computed from real data. We leave Sarah Thompson on her hand-built demo
+  // cards (detail-view falls back when predictionCards is undefined) so the
+  // showcase record stays pristine; every other customer gets real scores.
+  const isSarah = householdRow.display_name === "Sarah & James Thompson";
+
+  let predictionCards;
+  if (!isSarah) {
+    const risk = computeRisk(contactRows, tripRows);
+    const opp = computeOpportunity(householdRow, tripRows);
+
+    // Trip match is derived honestly from recorded preferences for now; the
+    // richer AI match reasoning lands in a later iteration and feeds the brief.
+    const prefValues = prefRows.map((p) => p.value).filter(Boolean);
+    const matchCard =
+      prefValues.length > 0
+        ? {
+            tag: "Trip match",
+            confidence: "From prefs",
+            fill: 60,
+            title: "Matched to recorded preferences",
+            reason: `Based on: ${prefValues.slice(0, 3).join(", ")}.`,
+            variant: "match" as const,
+          }
+        : {
+            tag: "Trip match",
+            confidence: "—",
+            fill: 0,
+            title: "Awaiting preference signals",
+            reason: "Build preferences over time to surface ideas here.",
+            variant: "match" as const,
+          };
+
+    predictionCards = [
+      {
+        tag: "Opportunity",
+        confidence: opp.confidence != null ? `${opp.confidence}%` : "—",
+        fill: opp.fill,
+        title: opp.title,
+        reason: opp.reason,
+        variant: "opportunity" as const,
+      },
+      matchCard,
+      {
+        tag: "Risk",
+        confidence: risk.level,
+        fill: risk.fill,
+        title: risk.title,
+        reason: risk.reason,
+        variant: "risk" as const,
+      },
+    ];
+  }
+
   return (
     <>
       <Topbar
-        title={(household as Household).display_name}
+        title={householdRow.display_name}
         actions={
           <Link
             href="/customers"
@@ -106,11 +166,12 @@ export default async function CustomerDetailPage({
       />
 
       <CustomerDetailView
-        household={household as Household}
-        contacts={(contactsRes.data ?? []) as Contact[]}
-        trips={(tripsRes.data ?? []) as Trip[]}
+        household={householdRow}
+        contacts={contactRows}
+        trips={tripRows}
         interactions={(interactionsRes.data ?? []) as Interaction[]}
-        preferences={(prefsRes.data ?? []) as Preference[]}
+        preferences={prefRows}
+        predictionCards={predictionCards}
       />
     </>
   );
