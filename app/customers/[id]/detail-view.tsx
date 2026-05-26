@@ -664,7 +664,13 @@ function PredictionsRow({
 
 // ─── Timeline ───────────────────────────────────────────────────────────
 function Timeline({ interactions }: { interactions: Interaction[] }) {
-  if (interactions.length === 0) {
+  // Internal audit entries (kind: 'system') record things like brief
+  // regeneration for our own diagnostics. They must never appear in the
+  // customer-facing activity feed, both because the detail (model names etc.)
+  // is internal, and because the brand the client sees is always "Luna".
+  const visible = interactions.filter((ix) => ix.kind !== "system");
+
+  if (visible.length === 0) {
     return (
       <Panel title="Timeline">
         <div
@@ -684,7 +690,7 @@ function Timeline({ interactions }: { interactions: Interaction[] }) {
   return (
     <Panel title="Timeline" extra="All activity →">
       <div style={{ padding: 16 }}>
-        {interactions.map((ix) => {
+        {visible.map((ix) => {
           const occurred = new Date(ix.occurred_at);
           const dateLabel = occurred.toLocaleDateString("en-GB", {
             day: "numeric",
