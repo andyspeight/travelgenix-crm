@@ -116,15 +116,19 @@ export async function POST(
   }
 
   // ─── Persist brief + scores + match (agency-scoped) ─────────────────
+  // Note: we store "Luna AI" as the engine label rather than the underlying
+  // model string. The brand the customer ever sees is always Luna, and these
+  // records sit on the customer row. The actual model is kept in server logs
+  // (not customer-attached) for our own diagnostics.
   const generatedAt = new Date().toISOString();
   const predictions = {
     opportunity: scores.opportunity,
     risk: scores.risk,
     generated_at: generatedAt,
-    model: BRIEF_MODEL,
+    engine: "Luna AI",
   };
   const matchRecord = match
-    ? { ...match, generated_at: generatedAt, model: MATCH_MODEL }
+    ? { ...match, generated_at: generatedAt, engine: "Luna AI" }
     : null;
 
   const { error: writeErr } = await supabase
@@ -161,7 +165,7 @@ export async function POST(
       kind: "system",
       direction: "internal",
       subject: "Luna brief generated",
-      body_summary: `Brief refreshed via ${BRIEF_MODEL}. Risk: ${scores.risk.level}. Opportunity: ${scores.opportunity.confidence ?? "n/a"}%. Match: ${match?.headline ?? "none"}.`,
+      body_summary: `Brief refreshed by Luna AI. Risk: ${scores.risk.level}. Opportunity: ${scores.opportunity.confidence ?? "n/a"}%. Match: ${match?.headline ?? "none"}.`,
     });
   } catch {
     // Audit failure must not fail the request.
