@@ -47,6 +47,12 @@ export type Household = {
   owner_user_id: string | null;
   ai_brief: string | null;
   ai_brief_at: string | null;
+  ai_match: {
+    headline: string;
+    suggestions: { destination: string; reason: string; fit: number }[];
+    generated_at?: string;
+    model?: string;
+  } | null;
   created_at: string;
   updated_at: string;
 };
