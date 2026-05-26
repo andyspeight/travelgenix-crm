@@ -99,27 +99,45 @@ export default async function CustomerDetailPage({
     const risk = computeRisk(contactRows, tripRows);
     const opp = computeOpportunity(householdRow, tripRows);
 
-    // Trip match is derived honestly from recorded preferences for now; the
-    // richer AI match reasoning lands in a later iteration and feeds the brief.
-    const prefValues = prefRows.map((p) => p.value).filter(Boolean);
-    const matchCard =
-      prefValues.length > 0
-        ? {
-            tag: "Trip match",
-            confidence: "From prefs",
-            fill: 60,
-            title: "Matched to recorded preferences",
-            reason: `Based on: ${prefValues.slice(0, 3).join(", ")}.`,
-            variant: "match" as const,
-          }
-        : {
-            tag: "Trip match",
-            confidence: "—",
-            fill: 0,
-            title: "Awaiting preference signals",
-            reason: "Build preferences over time to surface ideas here.",
-            variant: "match" as const,
-          };
+    // Trip match: use the cached AI suggestion if one has been generated,
+    // otherwise fall back to an honest deterministic card from preferences.
+    const aiMatch = householdRow.ai_match;
+    let matchCard;
+    if (aiMatch && aiMatch.suggestions?.length > 0) {
+      const top = aiMatch.suggestions[0];
+      const extra =
+        aiMatch.suggestions.length > 1
+          ? ` Also worth a look: ${aiMatch.suggestions[1].destination}.`
+          : "";
+      matchCard = {
+        tag: "Trip match",
+        confidence: `${top.fit}%`,
+        fill: top.fit,
+        title: aiMatch.headline || `${top.destination}, a strong fit`,
+        reason: `${top.reason}${extra}`,
+        variant: "match" as const,
+      };
+    } else {
+      const prefValues = prefRows.map((p) => p.value).filter(Boolean);
+      matchCard =
+        prefValues.length > 0
+          ? {
+              tag: "Trip match",
+              confidence: "From prefs",
+              fill: 60,
+              title: "Matched to recorded preferences",
+              reason: `Based on: ${prefValues.slice(0, 3).join(", ")}.`,
+              variant: "match" as const,
+            }
+          : {
+              tag: "Trip match",
+              confidence: "—",
+              fill: 0,
+              title: "Refresh brief to generate a match",
+              reason: "Luna suggests destinations from trip history and tags.",
+              variant: "match" as const,
+            };
+    }
 
     predictionCards = [
       {
