@@ -1,119 +1,304 @@
+"use client";
+
 /**
- * PATCH /api/customers/[id]/household
- *
- * Agent edits to the core household record: display name, type, city, postcode.
- *
- * Scope is deliberately narrow. This route will NOT write:
- *   - lifetime_value, trips_count, last_booking_at (derived from bookings)
- *   - ai_brief / ai_match / ai_predictions (owned by the brief engine)
- *   - any compliance / passport / consent data (sensitive, edited elsewhere
- *     with its own audit treatment)
- * Only the descriptive fields an agent legitimately corrects by hand.
- *
- * Security (travelgenix-security skill):
- *   - Agency-scoped update (can't touch another agency's record).
- *   - Each field validated and length-capped; household_type whitelisted.
- *   - Only known fields are accepted; anything else is ignored, so the client
- *     cannot smuggle in an update to a protected column.
- *   - Fails closed, generic client errors.
+ * Editable Preferences panel. Agents add, edit and remove a household's travel
+ * preferences here. Each change calls /api/customers/[id]/preferences and
+ * updates optimistically, rolling back on failure. Preferences feed the AI
+ * brief and Trip Match, so this is also how Luna gets smarter over time.
  */
 
-import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+type Pref = { id: string; category: string; value: string };
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CATEGORIES = [
+  { key: "style", label: "Style" },
+  { key: "airline", label: "Airline" },
+  { key: "seat", label: "Seat" },
+  { key: "room", label: "Room" },
+  { key: "dietary", label: "Dietary" },
+  { key: "budget", label: "Budget" },
+  { key: "avoid", label: "Avoid" },
+  { key: "other", label: "Other" },
+];
 
-const HOUSEHOLD_TYPES = ["solo", "couple", "family", "group", "other"] as const;
-type HouseholdType = (typeof HOUSEHOLD_TYPES)[number];
+const labelFor = (cat: string) =>
+  CATEGORIES.find((c) => c.key === cat)?.label ?? cat;
 
-const LIMITS = { display_name: 120, city: 80, postcode: 16 };
+export function PreferencesPanelEditable({
+  householdId,
+  initial,
+}: {
+  householdId: string;
+  initial: Pref[];
+}) {
+  const router = useRouter();
+  const [prefs, setPrefs] = useState<Pref[]>(initial);
+  const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newCat, setNewCat] = useState("style");
+  const [newVal, setNewVal] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const householdId = params.id;
-  if (!UUID_RE.test(householdId)) {
-    return NextResponse.json({ ok: false, error: "Invalid customer id" }, { status: 400 });
-  }
+  const base = `/api/customers/${householdId}/preferences`;
 
-  const body = await request.json().catch(() => null);
-  if (!body || typeof body !== "object") {
-    return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
-  }
-
-  // Build the update from ONLY the known, allowed fields. Anything else the
-  // client sends is silently ignored (can't reach protected columns).
-  const update: Record<string, string> = { updated_at: new Date().toISOString() };
-  const b = body as Record<string, unknown>;
-
-  if (b.display_name !== undefined) {
-    if (typeof b.display_name !== "string" || !b.display_name.trim()) {
-      return NextResponse.json({ ok: false, error: "Name required" }, { status: 400 });
+  async function add() {
+    const value = newVal.trim();
+    if (!value) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(base, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: newCat, value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to add");
+      setPrefs((p) => [...p, data.preference]);
+      setNewVal("");
+      setAdding(false);
+      router.refresh(); // so the brief/match can pick up the new signal
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add");
+    } finally {
+      setBusy(false);
     }
-    update.display_name = b.display_name.trim().slice(0, LIMITS.display_name);
   }
 
-  if (b.household_type !== undefined) {
-    if (!HOUSEHOLD_TYPES.includes(b.household_type as HouseholdType)) {
-      return NextResponse.json({ ok: false, error: "Unknown type" }, { status: 400 });
+  async function remove(prefId: string) {
+    const prev = prefs;
+    setPrefs((p) => p.filter((x) => x.id !== prefId)); // optimistic
+    try {
+      const res = await fetch(base, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prefId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to remove");
+      router.refresh();
+    } catch (e) {
+      setPrefs(prev); // rollback
+      setError(e instanceof Error ? e.message : "Failed to remove");
     }
-    update.household_type = b.household_type as string;
   }
 
-  if (b.city !== undefined) {
-    if (typeof b.city !== "string") {
-      return NextResponse.json({ ok: false, error: "Invalid city" }, { status: 400 });
+  async function saveEdit(prefId: string, value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    const prev = prefs;
+    setPrefs((p) => p.map((x) => (x.id === prefId ? { ...x, value: trimmed } : x)));
+    try {
+      const res = await fetch(base, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prefId, value: trimmed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to update");
+    } catch (e) {
+      setPrefs(prev);
+      setError(e instanceof Error ? e.message : "Failed to update");
     }
-    update.city = b.city.trim().slice(0, LIMITS.city);
   }
 
-  if (b.postcode !== undefined) {
-    if (typeof b.postcode !== "string") {
-      return NextResponse.json({ ok: false, error: "Invalid postcode" }, { status: 400 });
-    }
-    update.postcode = b.postcode.trim().slice(0, LIMITS.postcode);
-  }
+  const rowStyle: React.CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "6px 0",
+    gap: 12,
+    borderBottom: "1px solid var(--border)",
+  };
 
-  // Nothing to do beyond the timestamp? Reject rather than write a no-op.
-  if (Object.keys(update).length === 1) {
-    return NextResponse.json({ ok: false, error: "No changes provided" }, { status: 400 });
-  }
+  const inputStyle: React.CSSProperties = {
+    fontSize: 12,
+    padding: "4px 7px",
+    border: "1px solid var(--border)",
+    borderRadius: 5,
+    background: "var(--surface)",
+    color: "var(--text)",
+    width: "100%",
+  };
 
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("households")
-    .update(update)
-    .eq("id", householdId)
-    .eq("agency_id", AGENCY_ID)
-    .select("id, display_name, household_type, city, postcode")
-    .maybeSingle();
+  return (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 12,
+        marginBottom: 16,
+      }}
+    >
+      {/* header */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "12px 16px",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+          Preferences
+        </span>
+        <button
+          onClick={() => setEditing((v) => !v)}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--tg-accent-dark)",
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+          }}
+        >
+          {editing ? "Done" : "Edit →"}
+        </button>
+      </div>
 
-  if (error) {
-    console.error("[household] update failed:", error.message);
-    return NextResponse.json({ ok: false, error: "Couldn't save changes" }, { status: 500 });
-  }
-  if (!data) {
-    return NextResponse.json({ ok: false, error: "Customer not found" }, { status: 404 });
-  }
+      <div style={{ padding: "10px 16px 14px" }}>
+        {prefs.length === 0 && !adding && (
+          <div style={{ fontSize: 12, color: "var(--text-subtle)", padding: "6px 0" }}>
+            No preferences recorded yet.
+          </div>
+        )}
 
-  // Audit (best-effort).
-  try {
-    await supabase.from("interactions").insert({
-      agency_id: AGENCY_ID,
-      household_id: householdId,
-      kind: "system",
-      direction: "internal",
-      subject: "Customer details updated",
-      body_summary: `Agent edited: ${Object.keys(update).filter((k) => k !== "updated_at").join(", ")}.`,
-    });
-  } catch {
-    // never block the write
-  }
+        {prefs.map((p) => (
+          <div key={p.id} style={rowStyle}>
+            <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500, flexShrink: 0 }}>
+              {labelFor(p.category)}
+            </span>
+            {editing ? (
+              <span style={{ display: "flex", gap: 6, alignItems: "center", flex: 1, justifyContent: "flex-end" }}>
+                <input
+                  defaultValue={p.value}
+                  onBlur={(e) => {
+                    if (e.target.value.trim() !== p.value) saveEdit(p.id, e.target.value);
+                  }}
+                  style={{ ...inputStyle, maxWidth: 150 }}
+                />
+                <button
+                  onClick={() => remove(p.id)}
+                  aria-label={`Remove ${labelFor(p.category)} preference`}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--error)",
+                    fontSize: 14,
+                    cursor: "pointer",
+                    padding: "0 2px",
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ) : (
+              <span style={{ fontSize: 12, color: "var(--text)", textAlign: "right" }}>
+                {p.value}
+              </span>
+            )}
+          </div>
+        ))}
 
-  return NextResponse.json({ ok: true, household: data });
+        {/* add row */}
+        {editing && !adding && (
+          <button
+            onClick={() => setAdding(true)}
+            style={{
+              marginTop: 10,
+              background: "var(--bg-subtle)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              padding: "5px 11px",
+              fontSize: 12,
+              fontWeight: 500,
+              color: "var(--text-muted)",
+              cursor: "pointer",
+            }}
+          >
+            + Add preference
+          </button>
+        )}
+
+        {adding && (
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 7 }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <select
+                value={newCat}
+                onChange={(e) => setNewCat(e.target.value)}
+                style={{ ...inputStyle, width: 110, flexShrink: 0 }}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={newVal}
+                onChange={(e) => setNewVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") add();
+                  if (e.key === "Escape") {
+                    setAdding(false);
+                    setNewVal("");
+                  }
+                }}
+                placeholder="e.g. BA, window seat, no long-haul"
+                autoFocus
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                onClick={add}
+                disabled={busy || !newVal.trim()}
+                style={{
+                  background: "var(--tg-primary)",
+                  border: "1px solid var(--tg-primary)",
+                  borderRadius: 6,
+                  padding: "5px 12px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "white",
+                  cursor: busy ? "wait" : "pointer",
+                  opacity: !newVal.trim() ? 0.6 : 1,
+                }}
+              >
+                {busy ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={() => {
+                  setAdding(false);
+                  setNewVal("");
+                  setError(null);
+                }}
+                style={{
+                  background: "none",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "5px 12px",
+                  fontSize: 12,
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div style={{ fontSize: 11.5, color: "var(--error)", marginTop: 8 }}>{error}</div>
+        )}
+      </div>
+    </div>
+  );
 }
