@@ -33,9 +33,9 @@ type AskResponse = {
 };
 
 const EXAMPLES = [
-  "Who's travelling this weekend?",
-  "Who is travelling to Greece?",
-  "How much revenue did we book last month?",
+  "Who's travelling in the next 3 months?",
+  "Who's going to Spain?",
+  "How much have we booked this year?",
 ];
 
 export function LunaAsk() {
@@ -44,6 +44,54 @@ export function LunaAsk() {
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState<AskResponse | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Draggable button position. null = default (bottom-right). Once dragged,
+  // we store an explicit {x, y} in viewport pixels.
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragState = useRef<{ dragging: boolean; moved: boolean; offX: number; offY: number }>({
+    dragging: false,
+    moved: false,
+    offX: 0,
+    offY: 0,
+  });
+
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    dragState.current = {
+      dragging: true,
+      moved: false,
+      offX: e.clientX - rect.left,
+      offY: e.clientY - rect.top,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+
+  const onPointerMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragState.current.dragging) return;
+    // Treat as a drag once it moves a few px (so a click still opens it).
+    dragState.current.moved = true;
+    const x = e.clientX - dragState.current.offX;
+    const y = e.clientY - dragState.current.offY;
+    // Keep it within the viewport.
+    const maxX = window.innerWidth - 60;
+    const maxY = window.innerHeight - 60;
+    setPos({
+      x: Math.max(8, Math.min(x, maxX)),
+      y: Math.max(8, Math.min(y, maxY)),
+    });
+  }, []);
+
+  const onPointerUp = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const wasDrag = dragState.current.moved;
+    dragState.current.dragging = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    // Only open if it was a click, not a drag.
+    if (!wasDrag) setOpen(true);
+  }, []);
 
   // Cmd/Ctrl+K to open, Esc to close.
   useEffect(() => {
@@ -83,32 +131,57 @@ export function LunaAsk() {
 
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button — draggable, with an Alexa/Siri-style glow + pulse */}
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          aria-label="Ask Luna"
-          style={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            zIndex: 900,
-            display: "flex",
-            alignItems: "center",
-            gap: 9,
-            background: "var(--tg-primary)",
-            color: "white",
-            border: "none",
-            borderRadius: 999,
-            padding: "12px 18px",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "var(--shadow-lg)",
-          }}
-        >
-          <Spark /> Ask Luna
-        </button>
+        <>
+          <style>{`
+            @keyframes lunaPulse {
+              0%   { box-shadow: 0 0 0 0 rgba(0,180,216,0.55), 0 8px 24px rgba(0,0,0,0.18); }
+              70%  { box-shadow: 0 0 0 14px rgba(0,180,216,0), 0 8px 24px rgba(0,0,0,0.18); }
+              100% { box-shadow: 0 0 0 0 rgba(0,180,216,0), 0 8px 24px rgba(0,0,0,0.18); }
+            }
+            @keyframes lunaGlow {
+              0%, 100% { filter: drop-shadow(0 0 6px rgba(0,180,216,0.6)); }
+              50%      { filter: drop-shadow(0 0 16px rgba(0,180,216,0.9)); }
+            }
+            .luna-fab {
+              animation: lunaPulse 2.6s ease-out infinite, lunaGlow 2.6s ease-in-out infinite;
+            }
+            .luna-fab:hover { animation-play-state: paused; }
+            @media (prefers-reduced-motion: reduce) {
+              .luna-fab { animation: none; }
+            }
+          `}</style>
+          <button
+            className="luna-fab"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            aria-label="Ask Luna"
+            style={{
+              position: "fixed",
+              ...(pos
+                ? { left: pos.x, top: pos.y, bottom: "auto", right: "auto" }
+                : { bottom: 24, right: 24 }),
+              zIndex: 900,
+              display: "flex",
+              alignItems: "center",
+              gap: 9,
+              background: "linear-gradient(135deg, var(--tg-primary), var(--tg-accent))",
+              color: "white",
+              border: "none",
+              borderRadius: 999,
+              padding: "12px 18px",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "grab",
+              touchAction: "none",
+              userSelect: "none",
+            }}
+          >
+            <Spark /> Ask Luna
+          </button>
+        </>
       )}
 
       {open && (
