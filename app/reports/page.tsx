@@ -13,7 +13,7 @@
 
 import { Topbar } from "@/components/layout/topbar";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
-import { ReportsView, type ReportTrip } from "./reports-view";
+import { ReportsView, type ReportTrip, type ReportHousehold } from "./reports-view";
 import { ChartIcon } from "@/components/ui/icons";
 import type { Trip } from "@/lib/supabase/types";
 
@@ -25,7 +25,7 @@ export default async function ReportsPage() {
   const { data: trips, error } = await supabase
     .from("trips")
     .select(
-      "id, stage, destination, destination_country, total_value, source, depart_date, created_at"
+      "id, household_id, stage, destination, destination_country, total_value, source, depart_date, return_date, created_at"
     )
     .eq("agency_id", AGENCY_ID);
 
@@ -54,8 +54,14 @@ export default async function ReportsPage() {
 
   const rows = (trips ?? []) as Pick<
     Trip,
-    "id" | "stage" | "destination" | "destination_country" | "total_value" | "source" | "depart_date" | "created_at"
+    "id" | "household_id" | "stage" | "destination" | "destination_country" | "total_value" | "source" | "depart_date" | "return_date" | "created_at"
   >[];
+
+  // Household summaries for the customer-mix reports (new vs repeat, value bands).
+  const { data: households } = await supabase
+    .from("households")
+    .select("id, customer_since, lifetime_value, trips_count")
+    .eq("agency_id", AGENCY_ID);
 
   if (rows.length === 0) {
     return (
@@ -94,6 +100,7 @@ export default async function ReportsPage() {
 
   const reportTrips: ReportTrip[] = rows.map((t) => ({
     id: t.id,
+    householdId: t.household_id,
     stage: t.stage,
     destination: t.destination,
     country: t.destination_country,
@@ -101,12 +108,24 @@ export default async function ReportsPage() {
     source: t.source,
     // Prefer depart_date for time-bucketing; fall back to created_at.
     date: t.depart_date ?? t.created_at,
+    departDate: t.depart_date,
+    returnDate: t.return_date,
+    createdAt: t.created_at,
   }));
+
+  const reportHouseholds: ReportHousehold[] = (households ?? []).map(
+    (h: { id: string; customer_since: string | null; lifetime_value: number | null; trips_count: number | null }) => ({
+      id: h.id,
+      customerSince: h.customer_since,
+      lifetimeValue: h.lifetime_value ?? 0,
+      tripsCount: h.trips_count ?? 0,
+    })
+  );
 
   return (
     <>
       <Topbar title="Reports" />
-      <ReportsView trips={reportTrips} />
+      <ReportsView trips={reportTrips} households={reportHouseholds} />
     </>
   );
 }
