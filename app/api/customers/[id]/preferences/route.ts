@@ -1,304 +1,239 @@
-"use client";
-
 /**
- * Editable Preferences panel. Agents add, edit and remove a household's travel
- * preferences here. Each change calls /api/customers/[id]/preferences and
- * updates optimistically, rolling back on failure. Preferences feed the AI
- * brief and Trip Match, so this is also how Luna gets smarter over time.
+ * /api/customers/[id]/preferences
+ *
+ * Agent-facing writes to a household's travel preferences. Preferences feed the
+ * AI brief and Trip Match, so capturing them well makes Luna sharper over time.
+ *
+ * Methods:
+ *   POST   { category, value }            -> add a preference
+ *   PATCH  { prefId, category?, value? }  -> update a preference
+ *   DELETE { prefId }                     -> remove a preference
+ *
+ * Security (travelgenix-security skill):
+ *   - Agency-scoped: every write checks the preference belongs to a household
+ *     in AGENCY_ID, so a guessed id from another agency can't be touched.
+ *   - category is whitelisted (never trust the client string).
+ *   - value is trimmed and length-capped (no unbounded writes).
+ *   - Fails closed, generic client errors, no internal detail leaked.
+ *
+ * Soft-delete note: DELETE here is a real row delete, which is fine for a
+ * preference (low-stakes, easily re-added). It is NOT a destructive action on
+ * core customer data.
  */
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { NextResponse } from "next/server";
+import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 
-type Pref = { id: string; category: string; value: string };
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Intended preference categories (schema documents these). Whitelisted so the
+// client can't write arbitrary category strings.
 const CATEGORIES = [
-  { key: "style", label: "Style" },
-  { key: "airline", label: "Airline" },
-  { key: "seat", label: "Seat" },
-  { key: "room", label: "Room" },
-  { key: "dietary", label: "Dietary" },
-  { key: "budget", label: "Budget" },
-  { key: "avoid", label: "Avoid" },
-  { key: "other", label: "Other" },
-];
+  "style",
+  "airline",
+  "seat",
+  "room",
+  "dietary",
+  "budget",
+  "avoid",
+  "other",
+] as const;
+type Category = (typeof CATEGORIES)[number];
 
-const labelFor = (cat: string) =>
-  CATEGORIES.find((c) => c.key === cat)?.label ?? cat;
+const MAX_VALUE_LEN = 280;
 
-export function PreferencesPanelEditable({
-  householdId,
-  initial,
-}: {
-  householdId: string;
-  initial: Pref[];
-}) {
-  const router = useRouter();
-  const [prefs, setPrefs] = useState<Pref[]>(initial);
-  const [editing, setEditing] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [newCat, setNewCat] = useState("style");
-  const [newVal, setNewVal] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function isCategory(v: unknown): v is Category {
+  return typeof v === "string" && CATEGORIES.includes(v as Category);
+}
 
-  const base = `/api/customers/${householdId}/preferences`;
+/** Confirms the household exists and belongs to this agency. */
+async function householdInAgency(
+  supabase: ReturnType<typeof createClient>,
+  householdId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("households")
+    .select("id")
+    .eq("id", householdId)
+    .eq("agency_id", AGENCY_ID)
+    .maybeSingle();
+  return !!data;
+}
 
-  async function add() {
-    const value = newVal.trim();
-    if (!value) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch(base, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: newCat, value }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to add");
-      setPrefs((p) => [...p, data.preference]);
-      setNewVal("");
-      setAdding(false);
-      router.refresh(); // so the brief/match can pick up the new signal
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to add");
-    } finally {
-      setBusy(false);
-    }
+/** Confirms a preference belongs to a household in this agency. */
+async function prefInAgency(
+  supabase: ReturnType<typeof createClient>,
+  prefId: string,
+  householdId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("preferences")
+    .select("id")
+    .eq("id", prefId)
+    .eq("household_id", householdId)
+    .maybeSingle();
+  if (!data) return false;
+  return householdInAgency(supabase, householdId);
+}
+
+// ─── POST: add ──────────────────────────────────────────────────────────────
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const householdId = params.id;
+  if (!UUID_RE.test(householdId)) {
+    return NextResponse.json({ ok: false, error: "Invalid customer id" }, { status: 400 });
   }
 
-  async function remove(prefId: string) {
-    const prev = prefs;
-    setPrefs((p) => p.filter((x) => x.id !== prefId)); // optimistic
-    try {
-      const res = await fetch(base, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prefId }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to remove");
-      router.refresh();
-    } catch (e) {
-      setPrefs(prev); // rollback
-      setError(e instanceof Error ? e.message : "Failed to remove");
-    }
+  const body = await request.json().catch(() => null);
+  const category = (body as { category?: unknown })?.category;
+  const valueRaw = (body as { value?: unknown })?.value;
+
+  if (!isCategory(category)) {
+    return NextResponse.json({ ok: false, error: "Unknown category" }, { status: 400 });
+  }
+  if (typeof valueRaw !== "string" || !valueRaw.trim()) {
+    return NextResponse.json({ ok: false, error: "Value required" }, { status: 400 });
+  }
+  const value = valueRaw.trim().slice(0, MAX_VALUE_LEN);
+
+  const supabase = createClient();
+  if (!(await householdInAgency(supabase, householdId))) {
+    return NextResponse.json({ ok: false, error: "Customer not found" }, { status: 404 });
   }
 
-  async function saveEdit(prefId: string, value: string) {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    const prev = prefs;
-    setPrefs((p) => p.map((x) => (x.id === prefId ? { ...x, value: trimmed } : x)));
-    try {
-      const res = await fetch(base, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prefId, value: trimmed }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to update");
-    } catch (e) {
-      setPrefs(prev);
-      setError(e instanceof Error ? e.message : "Failed to update");
-    }
+  const { data, error } = await supabase
+    .from("preferences")
+    .insert({
+      household_id: householdId,
+      category,
+      value,
+      source: "manual",
+    })
+    .select("id, category, value")
+    .single();
+
+  if (error) {
+    console.error("[preferences] insert failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Couldn't save preference" }, { status: 500 });
   }
 
-  const rowStyle: React.CSSProperties = {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "6px 0",
-    gap: 12,
-    borderBottom: "1px solid var(--border)",
+  await auditPref(supabase, householdId, `added ${category}: ${value}`);
+  return NextResponse.json({ ok: true, preference: data });
+}
+
+// ─── PATCH: update ────────────────────────────────────────────────────────
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const householdId = params.id;
+  if (!UUID_RE.test(householdId)) {
+    return NextResponse.json({ ok: false, error: "Invalid customer id" }, { status: 400 });
+  }
+
+  const body = await request.json().catch(() => null);
+  const prefId = (body as { prefId?: unknown })?.prefId;
+  const category = (body as { category?: unknown })?.category;
+  const valueRaw = (body as { value?: unknown })?.value;
+
+  if (typeof prefId !== "string" || !UUID_RE.test(prefId)) {
+    return NextResponse.json({ ok: false, error: "Invalid preference id" }, { status: 400 });
+  }
+
+  const update: { category?: Category; value?: string; updated_at: string } = {
+    updated_at: new Date().toISOString(),
   };
+  if (category !== undefined) {
+    if (!isCategory(category)) {
+      return NextResponse.json({ ok: false, error: "Unknown category" }, { status: 400 });
+    }
+    update.category = category;
+  }
+  if (valueRaw !== undefined) {
+    if (typeof valueRaw !== "string" || !valueRaw.trim()) {
+      return NextResponse.json({ ok: false, error: "Value required" }, { status: 400 });
+    }
+    update.value = valueRaw.trim().slice(0, MAX_VALUE_LEN);
+  }
 
-  const inputStyle: React.CSSProperties = {
-    fontSize: 12,
-    padding: "4px 7px",
-    border: "1px solid var(--border)",
-    borderRadius: 5,
-    background: "var(--surface)",
-    color: "var(--text)",
-    width: "100%",
-  };
+  const supabase = createClient();
+  if (!(await prefInAgency(supabase, prefId, householdId))) {
+    return NextResponse.json({ ok: false, error: "Preference not found" }, { status: 404 });
+  }
 
-  return (
-    <div
-      style={{
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: 12,
-        marginBottom: 16,
-      }}
-    >
-      {/* header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "12px 16px",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-          Preferences
-        </span>
-        <button
-          onClick={() => setEditing((v) => !v)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--tg-accent-dark)",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
-          {editing ? "Done" : "Edit →"}
-        </button>
-      </div>
+  const { data, error } = await supabase
+    .from("preferences")
+    .update(update)
+    .eq("id", prefId)
+    .eq("household_id", householdId)
+    .select("id, category, value")
+    .single();
 
-      <div style={{ padding: "10px 16px 14px" }}>
-        {prefs.length === 0 && !adding && (
-          <div style={{ fontSize: 12, color: "var(--text-subtle)", padding: "6px 0" }}>
-            No preferences recorded yet.
-          </div>
-        )}
+  if (error) {
+    console.error("[preferences] update failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Couldn't update preference" }, { status: 500 });
+  }
 
-        {prefs.map((p) => (
-          <div key={p.id} style={rowStyle}>
-            <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500, flexShrink: 0 }}>
-              {labelFor(p.category)}
-            </span>
-            {editing ? (
-              <span style={{ display: "flex", gap: 6, alignItems: "center", flex: 1, justifyContent: "flex-end" }}>
-                <input
-                  defaultValue={p.value}
-                  onBlur={(e) => {
-                    if (e.target.value.trim() !== p.value) saveEdit(p.id, e.target.value);
-                  }}
-                  style={{ ...inputStyle, maxWidth: 150 }}
-                />
-                <button
-                  onClick={() => remove(p.id)}
-                  aria-label={`Remove ${labelFor(p.category)} preference`}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--error)",
-                    fontSize: 14,
-                    cursor: "pointer",
-                    padding: "0 2px",
-                    lineHeight: 1,
-                  }}
-                >
-                  ×
-                </button>
-              </span>
-            ) : (
-              <span style={{ fontSize: 12, color: "var(--text)", textAlign: "right" }}>
-                {p.value}
-              </span>
-            )}
-          </div>
-        ))}
+  return NextResponse.json({ ok: true, preference: data });
+}
 
-        {/* add row */}
-        {editing && !adding && (
-          <button
-            onClick={() => setAdding(true)}
-            style={{
-              marginTop: 10,
-              background: "var(--bg-subtle)",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              padding: "5px 11px",
-              fontSize: 12,
-              fontWeight: 500,
-              color: "var(--text-muted)",
-              cursor: "pointer",
-            }}
-          >
-            + Add preference
-          </button>
-        )}
+// ─── DELETE: remove ─────────────────────────────────────────────────────────
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const householdId = params.id;
+  if (!UUID_RE.test(householdId)) {
+    return NextResponse.json({ ok: false, error: "Invalid customer id" }, { status: 400 });
+  }
 
-        {adding && (
-          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 7 }}>
-            <div style={{ display: "flex", gap: 6 }}>
-              <select
-                value={newCat}
-                onChange={(e) => setNewCat(e.target.value)}
-                style={{ ...inputStyle, width: 110, flexShrink: 0 }}
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-              <input
-                value={newVal}
-                onChange={(e) => setNewVal(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") add();
-                  if (e.key === "Escape") {
-                    setAdding(false);
-                    setNewVal("");
-                  }
-                }}
-                placeholder="e.g. BA, window seat, no long-haul"
-                autoFocus
-                style={inputStyle}
-              />
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button
-                onClick={add}
-                disabled={busy || !newVal.trim()}
-                style={{
-                  background: "var(--tg-primary)",
-                  border: "1px solid var(--tg-primary)",
-                  borderRadius: 6,
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "white",
-                  cursor: busy ? "wait" : "pointer",
-                  opacity: !newVal.trim() ? 0.6 : 1,
-                }}
-              >
-                {busy ? "Saving…" : "Save"}
-              </button>
-              <button
-                onClick={() => {
-                  setAdding(false);
-                  setNewVal("");
-                  setError(null);
-                }}
-                style={{
-                  background: "none",
-                  border: "1px solid var(--border)",
-                  borderRadius: 6,
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
+  const body = await request.json().catch(() => null);
+  const prefId = (body as { prefId?: unknown })?.prefId;
+  if (typeof prefId !== "string" || !UUID_RE.test(prefId)) {
+    return NextResponse.json({ ok: false, error: "Invalid preference id" }, { status: 400 });
+  }
 
-        {error && (
-          <div style={{ fontSize: 11.5, color: "var(--error)", marginTop: 8 }}>{error}</div>
-        )}
-      </div>
-    </div>
-  );
+  const supabase = createClient();
+  if (!(await prefInAgency(supabase, prefId, householdId))) {
+    return NextResponse.json({ ok: false, error: "Preference not found" }, { status: 404 });
+  }
+
+  const { error } = await supabase
+    .from("preferences")
+    .delete()
+    .eq("id", prefId)
+    .eq("household_id", householdId);
+
+  if (error) {
+    console.error("[preferences] delete failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Couldn't remove preference" }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
+// ─── Audit (best-effort) ────────────────────────────────────────────────────
+async function auditPref(
+  supabase: ReturnType<typeof createClient>,
+  householdId: string,
+  summary: string
+) {
+  try {
+    await supabase.from("interactions").insert({
+      agency_id: AGENCY_ID,
+      household_id: householdId,
+      kind: "system",
+      direction: "internal",
+      subject: "Preference updated",
+      body_summary: `Agent ${summary}.`,
+    });
+  } catch {
+    // never block the write
+  }
 }
