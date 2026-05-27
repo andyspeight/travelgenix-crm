@@ -1,5 +1,5 @@
 import { Topbar } from "@/components/layout/topbar";
-import { SparklesIcon, PlusIcon } from "@/components/ui/icons";
+import { PlusIcon } from "@/components/ui/icons";
 
 export default function DashboardPage() {
   return (
@@ -24,23 +24,6 @@ export default function DashboardPage() {
             >
               <PlusIcon width={14} height={14} />
               Quick add
-            </button>
-            <button
-              style={{
-                background: "var(--tg-primary)",
-                border: "1px solid var(--tg-primary)",
-                borderRadius: 6,
-                padding: "6px 10px",
-                color: "white",
-                fontSize: 12.5,
-                fontWeight: 500,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <SparklesIcon width={14} height={14} />
-              Ask Luna
             </button>
           </>
         }
