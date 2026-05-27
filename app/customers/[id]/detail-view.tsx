@@ -24,6 +24,7 @@ import {
 } from "@/lib/trips/presentation";
 import { BriefActions } from "./brief-actions";
 import { PreferencesPanelEditable } from "./preferences-panel";
+import { HouseholdEditButton } from "./household-edit";
 import type {
   Household,
   Contact,
@@ -354,6 +355,12 @@ function HeaderCard({
             ))}
           </div>
         )}
+        <HouseholdEditButton
+          householdId={household.id}
+          displayName={household.display_name}
+          householdType={household.household_type}
+          city={household.city}
+        />
       </div>
 
       <div
