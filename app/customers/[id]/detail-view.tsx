@@ -23,6 +23,7 @@ import {
   formatDate,
 } from "@/lib/trips/presentation";
 import { BriefActions } from "./brief-actions";
+import { PreferencesPanelEditable } from "./preferences-panel";
 import type {
   Household,
   Contact,
@@ -178,7 +179,14 @@ export function CustomerDetailView({
               dependants={dependants}
             />
           ) : null}
-          <PreferencesPanel preferences={preferences} />
+          <PreferencesPanelEditable
+            householdId={household.id}
+            initial={preferences.map((p) => ({
+              id: p.id,
+              category: p.category,
+              value: p.value,
+            }))}
+          />
           <CompliancePanel
             household={household}
             contacts={contacts}
