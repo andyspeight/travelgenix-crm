@@ -13,12 +13,23 @@ import { useMemo, useState } from "react";
 
 export type ReportTrip = {
   id: string;
+  householdId: string;
   stage: string;
   destination: string | null;
   country: string | null;
   value: number;
   source: string | null;
   date: string | null;
+  departDate: string | null;
+  returnDate: string | null;
+  createdAt: string;
+};
+
+export type ReportHousehold = {
+  id: string;
+  customerSince: string | null;
+  lifetimeValue: number;
+  tripsCount: number;
 };
 
 type Range = "ytd" | "12m" | "all";
@@ -55,7 +66,13 @@ function money(n: number): string {
   return `£${Math.round(n).toLocaleString("en-GB")}`;
 }
 
-export function ReportsView({ trips }: { trips: ReportTrip[] }) {
+export function ReportsView({
+  trips,
+  households,
+}: {
+  trips: ReportTrip[];
+  households: ReportHousehold[];
+}) {
   const [range, setRange] = useState<Range>("12m");
 
   const filtered = useMemo(() => {
@@ -114,6 +131,27 @@ export function ReportsView({ trips }: { trips: ReportTrip[] }) {
         <ConversionFunnel trips={filtered} />
         <RevenueByDestination trips={filtered} />
         <SourceAttribution trips={filtered} />
+      </div>
+
+      {/* Business health section */}
+      <div style={{ marginTop: 28, marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>
+          Business health
+        </div>
+        <div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 2 }}>
+          Growth, customer mix and booking behaviour
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <RevenueTrend trips={filtered} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <NewVsRepeat trips={filtered} households={households} />
+        <CustomerValueBands households={households} />
+        <DestinationTable trips={filtered} />
+        <LeadTime trips={filtered} />
       </div>
     </div>
   );
@@ -385,6 +423,259 @@ function SourceAttribution({ trips }: { trips: ReportTrip[] }) {
           })}
         </div>
       )}
+    </Card>
+  );
+}
+
+// ─── 5. Revenue trend (booked value by month) ───────────────────────────────
+function RevenueTrend({ trips }: { trips: ReportTrip[] }) {
+  // Group booked value by month using the trip's effective date.
+  const booked = trips.filter((t) => BOOKED_STAGES.has(t.stage) && t.date);
+  const byMonth = new Map<string, number>();
+  for (const t of booked) {
+    const d = new Date(t.date!);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    byMonth.set(key, (byMonth.get(key) ?? 0) + t.value);
+  }
+  const months = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const max = Math.max(...months.map((m) => m[1]), 1);
+
+  const fmtMonth = (key: string) => {
+    const [y, m] = key.split("-");
+    return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-GB", {
+      month: "short",
+      year: "2-digit",
+    });
+  };
+
+  return (
+    <Card title="Revenue trend" subtitle="Booked value by month">
+      {months.length === 0 ? (
+        <EmptyNote />
+      ) : (
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 160, paddingTop: 8 }}>
+          {months.map(([key, value]) => (
+            <div key={key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 0 }}>
+              <div style={{ fontSize: 9.5, color: "var(--text-subtle)", fontWeight: 600, whiteSpace: "nowrap" }}>
+                {value >= 1000 ? `${Math.round(value / 1000)}k` : Math.round(value)}
+              </div>
+              <div
+                title={`${fmtMonth(key)}: ${money(value)}`}
+                style={{
+                  width: "100%",
+                  maxWidth: 40,
+                  height: `${Math.max((value / max) * 120, 3)}px`,
+                  background: "var(--tg-accent)",
+                  borderRadius: "4px 4px 0 0",
+                }}
+              />
+              <div style={{ fontSize: 9.5, color: "var(--text-subtle)", whiteSpace: "nowrap", transform: "rotate(-45deg)", transformOrigin: "center", marginTop: 4 }}>
+                {fmtMonth(key)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ─── 6. New vs repeat customers ──────────────────────────────────────────────
+function NewVsRepeat({ trips, households }: { trips: ReportTrip[]; households: ReportHousehold[] }) {
+  // A household is "repeat" if it has more than one trip overall; "new" if one.
+  // Attribute booked revenue in range to whichever bucket the household is in.
+  const repeatIds = new Set(households.filter((h) => h.tripsCount > 1).map((h) => h.id));
+  const booked = trips.filter((t) => BOOKED_STAGES.has(t.stage));
+
+  let newRev = 0;
+  let repeatRev = 0;
+  let newCount = 0;
+  let repeatCount = 0;
+  for (const t of booked) {
+    if (repeatIds.has(t.householdId)) {
+      repeatRev += t.value;
+      repeatCount += 1;
+    } else {
+      newRev += t.value;
+      newCount += 1;
+    }
+  }
+  const total = newRev + repeatRev || 1;
+  const repeatShare = Math.round((repeatRev / total) * 100);
+
+  const rows = [
+    { label: "Repeat customers", value: repeatRev, count: repeatCount, color: "var(--success)" },
+    { label: "New customers", value: newRev, count: newCount, color: "var(--info)" },
+  ];
+
+  return (
+    <Card title="New vs repeat" subtitle={`${repeatShare}% of booked revenue from repeat customers`}>
+      {booked.length === 0 ? (
+        <EmptyNote />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 4 }}>
+          {/* stacked bar */}
+          <div style={{ display: "flex", height: 14, borderRadius: 999, overflow: "hidden", background: "var(--bg-subtle)" }}>
+            {rows.map((r) => (
+              <div key={r.label} style={{ width: `${(r.value / total) * 100}%`, background: r.color }} title={`${r.label}: ${money(r.value)}`} />
+            ))}
+          </div>
+          {rows.map((r) => (
+            <div key={r.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 7, color: "var(--text-muted)", fontWeight: 500 }}>
+                <span style={{ width: 9, height: 9, borderRadius: 3, background: r.color }} />
+                {r.label} <span style={{ color: "var(--text-subtle)" }}>· {r.count}</span>
+              </span>
+              <span style={{ color: "var(--text)", fontWeight: 600 }}>{money(r.value)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ─── 7. Customer value distribution ──────────────────────────────────────────
+function CustomerValueBands({ households }: { households: ReportHousehold[] }) {
+  // Band households by lifetime value. Not range-filtered: LTV is cumulative.
+  const bands = [
+    { label: "Under £5k", min: 0, max: 5000 },
+    { label: "£5k – £15k", min: 5000, max: 15000 },
+    { label: "£15k – £30k", min: 15000, max: 30000 },
+    { label: "£30k+", min: 30000, max: Infinity },
+  ].map((b) => {
+    const inBand = households.filter((h) => h.lifetimeValue >= b.min && h.lifetimeValue < b.max);
+    return {
+      label: b.label,
+      count: inBand.length,
+      value: inBand.reduce((s, h) => s + h.lifetimeValue, 0),
+    };
+  });
+  const maxCount = Math.max(...bands.map((b) => b.count), 1);
+  const hasData = households.length > 0;
+
+  return (
+    <Card title="Customer value" subtitle="Households by lifetime value (all time)">
+      {!hasData ? (
+        <EmptyNote />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {bands.map((b) => (
+            <div key={b.label}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>{b.label}</span>
+                <span style={{ color: "var(--text)", fontWeight: 600 }}>
+                  {b.count} <span style={{ color: "var(--text-subtle)", fontWeight: 400 }}>· {money(b.value)}</span>
+                </span>
+              </div>
+              <div style={{ height: 8, borderRadius: 999, background: "var(--bg-subtle)", overflow: "hidden" }}>
+                <div style={{ width: `${(b.count / maxCount) * 100}%`, height: "100%", borderRadius: 999, background: "var(--tg-primary)", minWidth: b.count > 0 ? 4 : 0 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ─── 8. Destination detail table (volume, value, avg) ────────────────────────
+function DestinationTable({ trips }: { trips: ReportTrip[] }) {
+  const booked = trips.filter((t) => BOOKED_STAGES.has(t.stage));
+  const map = new Map<string, { count: number; value: number }>();
+  for (const t of booked) {
+    const key = t.country || t.destination || "Unknown";
+    const cur = map.get(key) ?? { count: 0, value: 0 };
+    cur.count += 1;
+    cur.value += t.value;
+    map.set(key, cur);
+  }
+  const ranked = [...map.entries()]
+    .map(([name, d]) => ({ name, ...d, avg: d.value / d.count }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 7);
+
+  const th: React.CSSProperties = { fontSize: 10.5, fontWeight: 600, color: "var(--text-subtle)", letterSpacing: "0.04em", textTransform: "uppercase", textAlign: "right", padding: "4px 0" };
+  const td: React.CSSProperties = { fontSize: 12.5, color: "var(--text)", textAlign: "right", padding: "6px 0", borderTop: "1px solid var(--border)" };
+
+  return (
+    <Card title="Destination detail" subtitle="Volume, total and average booked value">
+      {ranked.length === 0 ? (
+        <EmptyNote />
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ ...th, textAlign: "left" }}>Country</th>
+              <th style={th}>Trips</th>
+              <th style={th}>Total</th>
+              <th style={th}>Avg</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranked.map((r) => (
+              <tr key={r.name}>
+                <td style={{ ...td, textAlign: "left", color: "var(--text-muted)", fontWeight: 500 }}>{r.name}</td>
+                <td style={td}>{r.count}</td>
+                <td style={{ ...td, fontWeight: 600 }}>{money(r.value)}</td>
+                <td style={{ ...td, color: "var(--text-muted)" }}>{money(r.avg)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Card>
+  );
+}
+
+// ─── 9. Average lead time ────────────────────────────────────────────────────
+function LeadTime({ trips }: { trips: ReportTrip[] }) {
+  // Days between booking (created_at) and departure, for booked trips with both.
+  const withLead = trips
+    .filter((t) => BOOKED_STAGES.has(t.stage) && t.departDate && t.createdAt)
+    .map((t) => {
+      const dep = new Date(t.departDate!).getTime();
+      const created = new Date(t.createdAt).getTime();
+      return Math.round((dep - created) / (1000 * 60 * 60 * 24));
+    })
+    .filter((d) => d >= 0);
+
+  if (withLead.length === 0) {
+    return (
+      <Card title="Booking lead time" subtitle="How far ahead customers book">
+        <EmptyNote />
+      </Card>
+    );
+  }
+
+  const avg = Math.round(withLead.reduce((s, d) => s + d, 0) / withLead.length);
+  const sorted = [...withLead].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+
+  // Distribution buckets.
+  const buckets = [
+    { label: "Under 1 month", test: (d: number) => d < 30 },
+    { label: "1 – 3 months", test: (d: number) => d >= 30 && d < 90 },
+    { label: "3 – 6 months", test: (d: number) => d >= 90 && d < 180 },
+    { label: "6 months+", test: (d: number) => d >= 180 },
+  ].map((b) => ({ label: b.label, count: withLead.filter(b.test).length }));
+  const maxCount = Math.max(...buckets.map((b) => b.count), 1);
+
+  return (
+    <Card title="Booking lead time" subtitle={`Average ${avg} days · median ${median} days ahead`}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {buckets.map((b) => (
+          <div key={b.label}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+              <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>{b.label}</span>
+              <span style={{ color: "var(--text)", fontWeight: 600 }}>{b.count}</span>
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: "var(--bg-subtle)", overflow: "hidden" }}>
+              <div style={{ width: `${(b.count / maxCount) * 100}%`, height: "100%", borderRadius: 999, background: "var(--warning)", minWidth: b.count > 0 ? 4 : 0 }} />
+            </div>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }
