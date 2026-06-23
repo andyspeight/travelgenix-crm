@@ -55,6 +55,7 @@ export default async function DashboardPage() {
     { data: trips },
     { data: interactions },
     { data: journeyRuns },
+    { count: openTasksCount },
   ] = await Promise.all([
     supabase
       .from("households")
@@ -78,6 +79,11 @@ export default async function DashboardPage() {
       .select("id, status, result, fired_at")
       .order("fired_at", { ascending: false })
       .limit(4),
+    supabase
+      .from("tasks")
+      .select("*", { count: "exact", head: true })
+      .eq("agency_id", AGENCY_ID)
+      .in("status", ["open", "doing"]),
   ]);
 
   const hh = (households ?? []) as Pick<
@@ -133,9 +139,10 @@ export default async function DashboardPage() {
   const travellingNow = tr.filter((t) => t.stage === "travelling");
   const departing7 = upcoming.filter((t) => (daysUntil(t.depart_date) ?? 99) <= 7).length;
 
-  // ─── Inbox ────────────────────────────────────────────────────────────
+  // ─── Inbox + tasks ────────────────────────────────────────────────────
   const needsToday = ix.filter((i) => i.ai_priority === "today");
   const recent = ix.slice(0, 6);
+  const openTasks = openTasksCount ?? 0;
 
   // ─── Pipeline by stage ────────────────────────────────────────────────
   const stageRows = BOARD_STAGES.map((stage) => {
@@ -151,6 +158,7 @@ export default async function DashboardPage() {
     departing7,
     openPipeline,
     travellingNow: travellingNow.length,
+    openTasks,
   });
 
   return (
@@ -219,7 +227,7 @@ export default async function DashboardPage() {
             icon={<InboxIcon width={15} height={15} />}
             label="Needs you today"
             value={String(needsToday.length)}
-            sub={`${ix.length} in the inbox`}
+            sub={`${ix.length} inbox · ${openTasks} open ${openTasks === 1 ? "task" : "tasks"}`}
             href="/inbox?lane=today"
           />
         </div>
@@ -451,8 +459,9 @@ function buildBriefSentence(args: {
   departing7: number;
   openPipeline: number;
   travellingNow: number;
+  openTasks: number;
 }): string {
-  const { needsToday, departing7, openPipeline, travellingNow } = args;
+  const { needsToday, departing7, openPipeline, travellingNow, openTasks } = args;
   const parts: string[] = [];
 
   if (needsToday > 0) {
@@ -461,6 +470,9 @@ function buildBriefSentence(args: {
         needsToday === 1 ? "s" : ""
       } you today`
     );
+  }
+  if (openTasks > 0) {
+    parts.push(`${openTasks} open task${openTasks === 1 ? "" : "s"}`);
   }
   if (departing7 > 0) {
     parts.push(

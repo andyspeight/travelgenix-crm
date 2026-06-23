@@ -14,6 +14,7 @@ import {
   SunIcon,
   MoonIcon,
   ZapIcon,
+  CheckSquareIcon,
 } from "@/components/ui/icons";
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/customers", label: "Customers", icon: UsersIcon, match: (p: string) => p.startsWith("/customers") },
   { href: "/trips", label: "Trips", icon: PlaneIcon, match: (p: string) => p.startsWith("/trips") },
   { href: "/journeys", label: "Journeys", icon: ZapIcon, match: (p: string) => p.startsWith("/journeys") },
+  { href: "/tasks", label: "Tasks", icon: CheckSquareIcon, match: (p: string) => p.startsWith("/tasks") },
   { href: "/reports", label: "Reports", icon: ChartIcon, match: (p: string) => p.startsWith("/reports") },
 ];
 

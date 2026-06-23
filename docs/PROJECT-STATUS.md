@@ -49,8 +49,24 @@ Ordered by demo impact. Checkboxes track live state.
 
 ---
 
-## Status: all tracked items complete
+## Status: original 7-day plan complete
 
-Every phase above is done. The app builds green (`tsc --noEmit` clean, `next build` passes 10 routes + 8 API routes). Remaining genuinely-future work (not blocking): auth + RLS for multi-tenant (phase 2), generated Supabase types, a scheduled trigger for journeys (cron) instead of manual "Run now", and swapping the in-memory rate limiter for Upstash.
+Every phase above is done. The app builds green (`tsc --noEmit` clean, `next build`).
+
+---
+
+## Phase 2 — integrations & polish (in progress)
+
+Track 3 of the post-completion roadmap. Ordered by value per unit of friction.
+
+- [x] **Tasks screen (`/tasks`)** — works the queue journeys write to. Server page buckets open tasks by due date (overdue/today/week/later/undated), filters for snoozed/done/all, complete + snooze (3-day bump) + reopen via `PATCH /api/tasks/[id]`. Sidebar entry, and open-task counts folded into the Dashboard briefing and KPI.
+- [ ] **Command palette (⌘K)** — make the stubbed "Quick find" real: fuzzy search over customers, trips, nav, and Ask Luna. Self-contained.
+- [ ] **Test suite** — Vitest over the pure logic: journeys matcher + dedupe, segmentation `tokenFromFilter`, scoring, trip helpers, plus API validation rejects.
+- [ ] **Calendly booking** — per-agency link in Settings, "Book a call" on the customer/inbox. Needs a Calendly link/token.
+- [ ] **Responsive layouts** — inbox and dashboard collapse gracefully on narrow screens (needs a `useMediaQuery` hook or CSS classes since the app uses inline styles).
+- [ ] **Observability** — error logging on the API routes, surface the audit trail. Needs a Sentry DSN if used.
+
+### Still genuinely future (not blocking)
+Auth + RLS for multi-tenant, generated Supabase types, a scheduled trigger for journeys (cron) instead of manual "Run now", and swapping the in-memory rate limiter for Upstash.
 </content>
 </invoke>
