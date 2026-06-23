@@ -22,6 +22,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { rateLimit, clientKey } from "@/lib/ai/rate-limit";
 import type { Contact, Trip, Household, Interaction } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ const ANTHROPIC_VERSION = "2023-06-01";
 type Draft = { label: string; confidence: number; rationale: string; body: string };
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   const id = params.id;
@@ -50,6 +51,14 @@ export async function POST(
     return NextResponse.json(
       { ok: false, error: "Live drafting is not configured yet." },
       { status: 503 }
+    );
+  }
+
+  const limit = rateLimit(clientKey(request, "drafts"), 12, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Drafting a little too fast. Try again shortly." },
+      { status: 429, headers: { "retry-after": String(limit.retryAfter) } }
     );
   }
 

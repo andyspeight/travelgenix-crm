@@ -231,7 +231,7 @@ export default async function SettingsPage() {
           <FeatureRow name="Trip match suggestions" status="live" />
           <FeatureRow name="Ask Luna (natural-language reporting)" status="live" />
           <FeatureRow name="Inbox draft replies" status="live" note="curated library default, Luna regenerates live on demand" />
-          <FeatureRow name="Smart segmentation" status="rules" note="rules-based parser, Claude optional" last />
+          <FeatureRow name="Smart segmentation" status="live" note="Luna-resolved queries with a rules-based fallback" last />
 
           {!anthropicConfigured && (
             <ManagedNote

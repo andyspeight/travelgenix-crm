@@ -16,11 +16,8 @@ import { Topbar } from "@/components/layout/topbar";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { CustomersView } from "./customers-view";
 import { SeedPrompt } from "./seed-prompt";
-import {
-  parseQueryToTokens,
-  SAVED_SEGMENTS,
-  type Token,
-} from "@/lib/segmentation/parse";
+import { SAVED_SEGMENTS, type Token } from "@/lib/segmentation/parse";
+import { resolveTokens } from "@/lib/segmentation/resolve";
 import { fetchHouseholdsForTokens } from "@/lib/segmentation/query";
 import { PlusIcon, SparklesIcon } from "@/components/ui/icons";
 
@@ -51,7 +48,8 @@ export default async function CustomersPage({
       activeSegmentId = seg.id;
     }
   } else if (rawQuery) {
-    tokens = parseQueryToTokens(rawQuery);
+    // Claude-backed, falls back to the rules-based parser on any failure.
+    tokens = await resolveTokens(rawQuery);
   }
 
   // ─── Total count for the banner / empty-state check ─────────────────

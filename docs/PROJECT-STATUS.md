@@ -38,13 +38,19 @@ Ordered by demo impact. Checkboxes track live state.
 
 ### Phase C — Deepen the AI
 - [x] **4. Inbox drafts -> Claude** — done. `POST /api/inbox/[id]/drafts` generates ranked, fact-grounded drafts via Sonnet (brief-route security pattern). The hand-crafted library stays as the instant default; the "Draft with Luna" / "Regenerate" button swaps in live drafts with a "Live" badge. Fails closed to the library if the key is unset or the call fails.
-- [ ] **5. Segmentation -> Claude (optional)** — `parseQueryToTokens` is a local regex. Swap to a Claude call returning the same `Token[]` shape, regex as fallback. Works well as-is for the demo.
+- [x] **5. Segmentation -> Claude** — done. `lib/segmentation/resolve.ts` translates a query to the same `Token[]` via Haiku, with `parseQueryToTokens` as the fallback. Chip labels/icons are synthesised from validated filters, so the UI is identical and an invalid filter is dropped.
 
 ### Phase D — Production-ready
-- [ ] **6. Rate-limit the AI routes** — `/api/ask`, `/api/customers/[id]/brief` have no rate limit (flagged as a TODO in the code). Add Upstash before any client-facing use.
-- [ ] **7. Commit a lockfile** — repo has no `package-lock.json`, so Vercel resolves deps fresh each deploy. Commit one for reproducible builds.
-- [ ] **8. Backfill build-log docs** for days 4 to 7.
+- [x] **6. Rate-limit the AI routes** — done (best-effort). `lib/ai/rate-limit.ts` is a per-instance fixed-window limiter applied to the ask, brief and drafts routes (429 + retry-after). Honest caveat: per-instance on serverless; swap the Map for Upstash for a hard distributed limit before client-facing use.
+- [x] **7. Commit a lockfile** — done. `package-lock.json` committed for reproducible builds.
+- [x] **8. Backfill build-log docs** — done. Days 4, 5, 6 and 7 written.
 
 **Demo-complete target:** Phase A + B. **Production-grade:** + Phase C/D.
+
+---
+
+## Status: all tracked items complete
+
+Every phase above is done. The app builds green (`tsc --noEmit` clean, `next build` passes 10 routes + 8 API routes). Remaining genuinely-future work (not blocking): auth + RLS for multi-tenant (phase 2), generated Supabase types, a scheduled trigger for journeys (cron) instead of manual "Run now", and swapping the in-memory rate limiter for Upstash.
 </content>
 </invoke>
