@@ -50,28 +50,35 @@ const FORWARD_STAGES: TripStage[] = ["booked", "pre_departure", "travelling"];
 export default async function DashboardPage() {
   const supabase = createClient();
 
-  const [{ data: households }, { data: trips }, { data: interactions }] =
-    await Promise.all([
-      supabase
-        .from("households")
-        .select(
-          "id, display_name, household_type, city, lifetime_value, tags"
-        )
-        .eq("agency_id", AGENCY_ID),
-      supabase
-        .from("trips")
-        .select(
-          "id, household_id, stage, destination, destination_country, depart_date, return_date, total_value, occasion, reference"
-        )
-        .eq("agency_id", AGENCY_ID),
-      supabase
-        .from("interactions")
-        .select("*")
-        .eq("agency_id", AGENCY_ID)
-        .eq("direction", "inbound")
-        .order("occurred_at", { ascending: false })
-        .limit(60),
-    ]);
+  const [
+    { data: households },
+    { data: trips },
+    { data: interactions },
+    { data: journeyRuns },
+  ] = await Promise.all([
+    supabase
+      .from("households")
+      .select("id, display_name, household_type, city, lifetime_value, tags")
+      .eq("agency_id", AGENCY_ID),
+    supabase
+      .from("trips")
+      .select(
+        "id, household_id, stage, destination, destination_country, depart_date, return_date, total_value, occasion, reference"
+      )
+      .eq("agency_id", AGENCY_ID),
+    supabase
+      .from("interactions")
+      .select("*")
+      .eq("agency_id", AGENCY_ID)
+      .eq("direction", "inbound")
+      .order("occurred_at", { ascending: false })
+      .limit(60),
+    supabase
+      .from("journey_runs")
+      .select("id, status, result, fired_at")
+      .order("fired_at", { ascending: false })
+      .limit(4),
+  ]);
 
   const hh = (households ?? []) as Pick<
     Household,
@@ -79,6 +86,12 @@ export default async function DashboardPage() {
   >[];
   const tr = (trips ?? []) as Trip[];
   const ix = (interactions ?? []) as Interaction[];
+  const runs = (journeyRuns ?? []) as {
+    id: string;
+    status: string;
+    result: { summary?: string; action?: string } | null;
+    fired_at: string;
+  }[];
 
   // ─── Empty state ──────────────────────────────────────────────────────
   if (hh.length === 0 && tr.length === 0) {
@@ -235,8 +248,93 @@ export default async function DashboardPage() {
             <RecentActivityPanel items={recent} nameById={nameById} />
           </div>
         </div>
+
+        <AutoPilotStrip runs={runs} />
       </Shell>
     </>
+  );
+}
+
+// ─── Auto-pilot strip (what Luna did in the background) ────────────────────
+
+function AutoPilotStrip({
+  runs,
+}: {
+  runs: { id: string; status: string; result: { summary?: string } | null; fired_at: string }[];
+}) {
+  if (runs.length === 0) return null;
+  return (
+    <section
+      style={{
+        marginTop: 18,
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 14,
+        padding: 18,
+        boxShadow: "var(--shadow-sm)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12,
+        }}
+      >
+        <h2
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            margin: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+          }}
+        >
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: "var(--tg-accent)",
+              animation: "pulse 2s ease-in-out infinite",
+            }}
+          />
+          Luna on auto-pilot
+        </h2>
+        <PanelLink href="/journeys">Manage journeys →</PanelLink>
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${Math.min(runs.length, 4)}, 1fr)`,
+          gap: 12,
+        }}
+      >
+        {runs.map((r) => (
+          <div
+            key={r.id}
+            style={{
+              background: "var(--bg-subtle)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              padding: "11px 13px",
+            }}
+          >
+            <div style={{ fontSize: 12.5, color: "var(--text)", lineHeight: 1.4 }}>
+              {r.result?.summary ?? "Action taken"}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-subtle)", marginTop: 4 }}>
+              {relativeTime(r.fired_at)}
+              {r.status === "queued" ? (
+                <span style={{ color: "var(--warning)" }}> · awaiting review</span>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

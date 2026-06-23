@@ -11,12 +11,14 @@ The travel-native CRM, built on Supabase, Next.js, and Claude.
 | Day | Build | Status |
 |-----|-------|--------|
 | 1 | Foundation — schema + shell | ✅ |
-| 2 | Customers list + smart segmentation | Next |
-| 3 | Inbox — triage + ranked drafts | |
-| 4 | Trips — Kanban + predictions | |
-| 5 | AI engine — brief + segmentation backend | |
-| 6 | Auto-pilot journeys + dashboard polish | |
-| 7 | Demo polish + reports + settings | |
+| 2 | Customers list + smart segmentation | ✅ |
+| 3 | Inbox — triage + ranked drafts | ✅ |
+| 4 | Trips — Kanban + predictions | ✅ |
+| 5 | AI engine — brief + match + Ask Luna | ✅ |
+| 6 | Auto-pilot journeys + dashboard | ✅ |
+| 7 | Reports + settings | ✅ |
+
+Remaining polish is tracked in [`docs/PROJECT-STATUS.md`](docs/PROJECT-STATUS.md): wiring inbox drafts and segmentation to Claude, rate-limiting the AI routes, and a lockfile.
 
 ---
 

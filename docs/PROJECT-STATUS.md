@@ -34,7 +34,7 @@ Ordered by demo impact. Checkboxes track live state.
 - [x] **2. Settings** (`app/settings/page.tsx`) — done: workspace identity, real team list, Luna AI house style + models + feature status, integration connection states, live compliance roll-ups (GDPR / marketing / passports). Read-only where persistence is not wired yet, honestly labelled.
 
 ### Phase B — The missing pillar
-- [ ] **3. Journeys / auto-pilot (Day 6)** — schema tables (`journeys`, `journey_runs`) exist but there is no UI or trigger logic. Build journey list + rule builder (trigger -> action template), a run/evaluate endpoint that logs `journey_runs`, and surface "what Luna did in the background" on the Dashboard.
+- [x] **3. Journeys / auto-pilot (Day 6)** — done. `lib/journeys/engine.ts` (pure matcher + starter journeys + templated actions), `/journeys` page with install/run/pause, API routes (`install`, `run`, `[id]` toggle), runs logged to `journey_runs`, tasks/drafts written, sidebar entry, and an auto-pilot strip on the Dashboard. Run is deterministic (no API key needed). Triggers wired: days-to-departure, days-after-return, passport-expiring, no-contact-period. See `docs/build-log/day-6-journeys.md`.
 
 ### Phase C — Deepen the AI
 - [ ] **4. Inbox drafts -> Claude** — currently a hand-crafted library in `inbox-view.tsx`. Wire to real Claude using the brief route's security pattern; keep the library as fallback.

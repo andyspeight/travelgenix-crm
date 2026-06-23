@@ -13,6 +13,7 @@ import {
   SearchIcon,
   SunIcon,
   MoonIcon,
+  ZapIcon,
 } from "@/components/ui/icons";
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/inbox", label: "Inbox", icon: InboxIcon, match: (p: string) => p.startsWith("/inbox"), badge: 3 },
   { href: "/customers", label: "Customers", icon: UsersIcon, match: (p: string) => p.startsWith("/customers") },
   { href: "/trips", label: "Trips", icon: PlaneIcon, match: (p: string) => p.startsWith("/trips") },
+  { href: "/journeys", label: "Journeys", icon: ZapIcon, match: (p: string) => p.startsWith("/journeys") },
   { href: "/reports", label: "Reports", icon: ChartIcon, match: (p: string) => p.startsWith("/reports") },
 ];
 
