@@ -365,16 +365,10 @@ export function InboxView({
   }
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "360px 1fr 320px",
-        height: "calc(100vh - 60px)",
-        overflow: "hidden",
-      }}
-    >
+    <div className="inbox-grid">
       {/* ─── LEFT — Triage banner + lane tabs + message list ─── */}
       <div
+        className="inbox-list"
         style={{
           borderRight: "1px solid var(--border)",
           background: "var(--surface)",
@@ -430,6 +424,7 @@ export function InboxView({
 
       {/* ─── RIGHT — Mini customer card ─── */}
       <div
+        className="inbox-aside"
         style={{
           borderLeft: "1px solid var(--border)",
           background: "var(--bg-subtle)",

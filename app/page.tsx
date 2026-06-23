@@ -193,14 +193,7 @@ export default async function DashboardPage() {
         <BriefingBanner brief={brief} />
 
         {/* KPI row */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 14,
-            marginTop: 18,
-          }}
-        >
+        <div className="rgrid rgrid-4" style={{ gap: 14, marginTop: 18 }}>
           <Kpi
             icon={<UsersIcon width={15} height={15} />}
             label="Customers"
@@ -234,13 +227,8 @@ export default async function DashboardPage() {
 
         {/* Two-column body */}
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.35fr 1fr",
-            gap: 18,
-            marginTop: 18,
-            alignItems: "start",
-          }}
+          className="rgrid rgrid-dash"
+          style={{ gap: 18, marginTop: 18, alignItems: "start" }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <PipelinePanel rows={stageRows} max={maxStageValue} />
@@ -313,13 +301,7 @@ function AutoPilotStrip({
         </h2>
         <PanelLink href="/journeys">Manage journeys →</PanelLink>
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${Math.min(runs.length, 4)}, 1fr)`,
-          gap: 12,
-        }}
-      >
+      <div className="rgrid rgrid-autofit" style={{ gap: 12 }}>
         {runs.map((r) => (
           <div
             key={r.id}

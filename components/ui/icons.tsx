@@ -147,6 +147,14 @@ export const CheckIcon = (p: IconProps) => (
   </svg>
 );
 
+export const MenuIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M4 12h16" />
+    <path d="M4 6h16" />
+    <path d="M4 18h16" />
+  </svg>
+);
+
 export const CheckSquareIcon = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M9 11l3 3L22 4" />

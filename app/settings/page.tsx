@@ -270,14 +270,7 @@ export default async function SettingsPage() {
           title="Compliance & data"
           description="Live consent and document figures, computed from contact records at render time."
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 12,
-              marginBottom: 14,
-            }}
-          >
+          <div className="rgrid rgrid-2" style={{ gap: 12, marginBottom: 14 }}>
             <Stat
               label="GDPR consent"
               value={`${gdprConsented}/${totalPeople}`}

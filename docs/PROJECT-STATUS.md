@@ -63,7 +63,7 @@ Track 3 of the post-completion roadmap. Ordered by value per unit of friction.
 - [ ] **Command palette (⌘K)** — make the stubbed "Quick find" real: fuzzy search over customers, trips, nav, and Ask Luna. Self-contained.
 - [ ] **Test suite** — Vitest over the pure logic: journeys matcher + dedupe, segmentation `tokenFromFilter`, scoring, trip helpers, plus API validation rejects.
 - [ ] **Calendly booking** — per-agency link in Settings, "Book a call" on the customer/inbox. Needs a Calendly link/token.
-- [ ] **Responsive layouts** — inbox and dashboard collapse gracefully on narrow screens (needs a `useMediaQuery` hook or CSS classes since the app uses inline styles).
+- [x] **Responsive layouts** — done. Added a responsive CSS layer to `globals.css` (the app styles inline, which can't hold media queries, so layout-critical rules now live as classes). Sidebar becomes an off-canvas drawer below 900px with a hamburger in the topbar and a dimming overlay (via a small `SidebarContext` + `AppShell`). All multi-column grids (dashboard, journeys, settings, reports, customer detail) collapse through 1024/768/640 breakpoints; the inbox goes three-pane → two-pane → stacked; customers table scrolls horizontally. Breakpoints: 1024 / 900 / 768 / 720 / 640.
 - [ ] **Observability** — error logging on the API routes, surface the audit trail. Needs a Sentry DSN if used.
 
 ### Still genuinely future (not blocking)

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "./theme-provider";
+import { useSidebar } from "./sidebar-context";
 import {
   HomeIcon,
   InboxIcon,
@@ -30,17 +31,16 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const { open, setOpen } = useSidebar();
 
   return (
     <aside
+      className={`app-sidebar${open ? " open" : ""}`}
       style={{
         background: "var(--surface)",
         borderRight: "1px solid var(--border)",
         display: "flex",
         flexDirection: "column",
-        position: "sticky",
-        top: 0,
-        height: "100vh",
       }}
     >
       {/* Brand */}
@@ -155,6 +155,7 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
+              onClick={() => setOpen(false)}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -201,6 +202,7 @@ export function Sidebar() {
       <div style={{ padding: "12px 8px", borderTop: "1px solid var(--border)" }}>
         <Link
           href="/settings"
+          onClick={() => setOpen(false)}
           style={{
             display: "flex",
             alignItems: "center",

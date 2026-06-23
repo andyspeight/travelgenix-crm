@@ -232,9 +232,8 @@ export function JourneysView({
 
       {/* Two columns: journeys + activity */}
       <div
+        className="rgrid rgrid-journeys"
         style={{
-          display: "grid",
-          gridTemplateColumns: "1.3fr 1fr",
           gap: 18,
           marginTop: 18,
           alignItems: "start",

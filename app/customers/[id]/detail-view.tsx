@@ -147,14 +147,7 @@ export function CustomerDetailView({
       <DeltaStrip exemplar={exemplar} />
 
       {/* ─── Two-column layout ───────────────────────────────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 380px",
-          gap: 20,
-          alignItems: "start",
-        }}
-      >
+      <div className="rgrid rgrid-detail" style={{ gap: 20, alignItems: "start" }}>
         {/* ─── Main column ───────────────────────────────────── */}
         <div>
           <HeaderCard household={household} contacts={contacts} lead={lead} />
@@ -364,13 +357,8 @@ function HeaderCard({
       </div>
 
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 12,
-          paddingTop: 14,
-          borderTop: "1px solid var(--border)",
-        }}
+        className="rgrid rgrid-4"
+        style={{ gap: 12, paddingTop: 14, borderTop: "1px solid var(--border)" }}
       >
         {meta.map((m) => (
           <div key={m.label}>
@@ -561,14 +549,7 @@ function PredictionsRow({
         ]);
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 10,
-        marginBottom: 16,
-      }}
-    >
+    <div className="rgrid rgrid-3" style={{ gap: 10, marginBottom: 16 }}>
       {cards.map((c) => {
         const tagColor =
           c.variant === "opportunity"

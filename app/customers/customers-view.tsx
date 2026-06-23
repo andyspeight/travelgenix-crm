@@ -478,7 +478,7 @@ export function CustomersView({
           background: "var(--surface)",
           border: "1px solid var(--border)",
           borderRadius: 12,
-          overflow: "hidden",
+          overflowX: "auto",
         }}
       >
         {visible.length === 0 ? (
@@ -514,6 +514,7 @@ export function CustomersView({
           <table
             style={{
               width: "100%",
+              minWidth: 680,
               borderCollapse: "collapse",
               fontSize: 13,
             }}
