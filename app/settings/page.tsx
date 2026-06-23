@@ -230,7 +230,7 @@ export default async function SettingsPage() {
           <FeatureRow name="Customer 360 brief" status="live" />
           <FeatureRow name="Trip match suggestions" status="live" />
           <FeatureRow name="Ask Luna (natural-language reporting)" status="live" />
-          <FeatureRow name="Inbox draft replies" status="curated" note="hand-crafted library, Claude wiring next" />
+          <FeatureRow name="Inbox draft replies" status="live" note="curated library default, Luna regenerates live on demand" />
           <FeatureRow name="Smart segmentation" status="rules" note="rules-based parser, Claude optional" last />
 
           {!anthropicConfigured && (

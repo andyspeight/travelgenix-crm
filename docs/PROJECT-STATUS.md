@@ -37,7 +37,7 @@ Ordered by demo impact. Checkboxes track live state.
 - [x] **3. Journeys / auto-pilot (Day 6)** — done. `lib/journeys/engine.ts` (pure matcher + starter journeys + templated actions), `/journeys` page with install/run/pause, API routes (`install`, `run`, `[id]` toggle), runs logged to `journey_runs`, tasks/drafts written, sidebar entry, and an auto-pilot strip on the Dashboard. Run is deterministic (no API key needed). Triggers wired: days-to-departure, days-after-return, passport-expiring, no-contact-period. See `docs/build-log/day-6-journeys.md`.
 
 ### Phase C — Deepen the AI
-- [ ] **4. Inbox drafts -> Claude** — currently a hand-crafted library in `inbox-view.tsx`. Wire to real Claude using the brief route's security pattern; keep the library as fallback.
+- [x] **4. Inbox drafts -> Claude** — done. `POST /api/inbox/[id]/drafts` generates ranked, fact-grounded drafts via Sonnet (brief-route security pattern). The hand-crafted library stays as the instant default; the "Draft with Luna" / "Regenerate" button swaps in live drafts with a "Live" badge. Fails closed to the library if the key is unset or the call fails.
 - [ ] **5. Segmentation -> Claude (optional)** — `parseQueryToTokens` is a local regex. Swap to a Claude call returning the same `Token[]` shape, regex as fallback. Works well as-is for the demo.
 
 ### Phase D — Production-ready

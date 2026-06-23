@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -71,8 +71,9 @@ function channelLabel(channel: string | null): string {
 }
 
 // ─── Drafts dictionary ──────────────────────────────────────────────────
-// Hand-crafted draft replies per interaction, keyed by subject. Keeps the
-// demo predictable. Day 5 swaps for real Claude on click.
+// Hand-crafted draft replies per interaction, keyed by subject. These are the
+// instant default so the demo is predictable. "Regenerate" calls Luna live
+// (POST /api/inbox/[id]/drafts) and replaces them with fresh, grounded drafts.
 type DraftSet = {
   drafts: Array<{
     label: string;
@@ -811,7 +812,39 @@ function FocusedMessage({
   activeDraftIdx: number;
   onDraftChange: (i: number) => void;
 }) {
-  const draftSet = getDrafts(ix);
+  // Live drafts from Luna (null until the agent presses Regenerate). The
+  // hand-crafted library is the instant default underneath.
+  const [liveDrafts, setLiveDrafts] = useState<DraftSet | null>(null);
+  const [drafting, setDrafting] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
+
+  // Reset live drafts whenever the selected message changes.
+  useEffect(() => {
+    setLiveDrafts(null);
+    setDraftError(null);
+  }, [ix.id]);
+
+  async function regenerate() {
+    setDrafting(true);
+    setDraftError(null);
+    try {
+      const res = await fetch(`/api/inbox/${ix.id}/drafts`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok && Array.isArray(data.drafts) && data.drafts.length) {
+        setLiveDrafts({ drafts: data.drafts });
+        onDraftChange(0);
+      } else {
+        setDraftError(data.error || "Couldn't draft just now. Showing the prepared replies.");
+      }
+    } catch {
+      setDraftError("Network error. Showing the prepared replies.");
+    } finally {
+      setDrafting(false);
+    }
+  }
+
+  const draftSet = liveDrafts ?? getDrafts(ix);
+  const isLive = liveDrafts !== null;
   const draft = draftSet.drafts[activeDraftIdx] ?? draftSet.drafts[0];
   const hasMultipleDrafts = draftSet.drafts.length > 1;
 
@@ -1000,6 +1033,33 @@ function FocusedMessage({
             Luna · {draftSet.drafts.length}{" "}
             {draftSet.drafts.length === 1 ? "draft" : "drafts ranked by fit"}
           </div>
+          {isLive && (
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 600,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--success)",
+                background: "rgba(16, 185, 129, 0.1)",
+                padding: "2px 7px",
+                borderRadius: 999,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <span
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: "var(--success)",
+                }}
+              />
+              Live
+            </span>
+          )}
         </div>
 
         {hasMultipleDrafts && (
@@ -1120,21 +1180,41 @@ function FocusedMessage({
             Edit before sending
           </button>
           <button
+            onClick={regenerate}
+            disabled={drafting}
+            title="Draft fresh replies with Luna, grounded in this customer's record"
             style={{
-              background: "transparent",
+              background: drafting ? "var(--bg-subtle)" : "transparent",
               color: "var(--text-muted)",
               border: "1px solid var(--border)",
               borderRadius: 7,
               padding: "8px 14px",
               fontSize: 13,
               fontWeight: 500,
-              cursor: "pointer",
+              cursor: drafting ? "default" : "pointer",
               marginLeft: "auto",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              opacity: drafting ? 0.8 : 1,
             }}
           >
-            Regenerate
+            <SparklesIcon width={13} height={13} />
+            {drafting ? "Luna's drafting…" : isLive ? "Regenerate" : "Draft with Luna"}
           </button>
         </div>
+
+        {draftError && (
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 11.5,
+              color: "var(--warning)",
+            }}
+          >
+            {draftError}
+          </div>
+        )}
       </div>
     </div>
   );
