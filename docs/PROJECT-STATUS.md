@@ -30,8 +30,8 @@ Build is green: `tsc --noEmit` clean, `next build` passes all 9 routes + 6 API r
 Ordered by demo impact. Checkboxes track live state.
 
 ### Phase A — Close the visible holes
-- [ ] **1. Dashboard** (`app/page.tsx`) — replace the day-1 placeholder with a real home: morning briefing, KPIs (customers, live pipeline, departures, needs-attention), pipeline-by-stage, departures board, needs-attention list, recent activity. All data already queryable.
-- [ ] **2. Settings** (`app/settings/page.tsx`) — replace the "coming soon" stub: workspace branding, AI tone of voice, team list, journey-rules surface (feeds Phase B), compliance note.
+- [x] **1. Dashboard** (`app/page.tsx`) — done: morning briefing, KPIs (customers + LTV, live pipeline, departures, needs-attention), pipeline-by-stage bars, departures & travelling list, needs-attention list, recent activity, empty-state.
+- [x] **2. Settings** (`app/settings/page.tsx`) — done: workspace identity, real team list, Luna AI house style + models + feature status, integration connection states, live compliance roll-ups (GDPR / marketing / passports). Read-only where persistence is not wired yet, honestly labelled.
 
 ### Phase B — The missing pillar
 - [ ] **3. Journeys / auto-pilot (Day 6)** — schema tables (`journeys`, `journey_runs`) exist but there is no UI or trigger logic. Build journey list + rule builder (trigger -> action template), a run/evaluate endpoint that logs `journey_runs`, and surface "what Luna did in the background" on the Dashboard.
