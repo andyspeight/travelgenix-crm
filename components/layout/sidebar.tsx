@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "./theme-provider";
 import { useSidebar } from "./sidebar-context";
+import { useCommand } from "@/components/command/command-context";
 import {
   HomeIcon,
   InboxIcon,
@@ -32,6 +33,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { open, setOpen } = useSidebar();
+  const { setOpen: setCommandOpen } = useCommand();
 
   return (
     <aside
@@ -113,7 +115,8 @@ export function Sidebar() {
             fontSize: 13,
           }}
           onClick={() => {
-            // Cmd-K palette wires up later
+            setOpen(false);
+            setCommandOpen(true);
           }}
         >
           <SearchIcon width={14} height={14} />
@@ -130,7 +133,7 @@ export function Sidebar() {
               fontFamily: '"JetBrains Mono", monospace',
             }}
           >
-            ⌘K
+            ⌘P
           </span>
         </button>
       </div>
