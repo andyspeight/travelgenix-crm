@@ -19,6 +19,7 @@ import { SeedPrompt } from "./seed-prompt";
 import { SAVED_SEGMENTS, type Token } from "@/lib/segmentation/parse";
 import { resolveTokens } from "@/lib/segmentation/resolve";
 import { fetchHouseholdsForTokens } from "@/lib/segmentation/query";
+import { listSavedSegments, getSavedSegment } from "@/lib/segmentation/segments";
 import { PlusIcon, SparklesIcon } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
@@ -42,10 +43,17 @@ export default async function CustomersPage({
   const rawQuery = searchParams.q ?? "";
 
   if (searchParams.seg) {
-    const seg = SAVED_SEGMENTS.find((s) => s.id === searchParams.seg);
-    if (seg) {
-      tokens = seg.tokens;
-      activeSegmentId = seg.id;
+    const builtin = SAVED_SEGMENTS.find((s) => s.id === searchParams.seg);
+    if (builtin) {
+      tokens = builtin.tokens;
+      activeSegmentId = builtin.id;
+    } else {
+      // Not a built-in — try a user-saved segment from the DB.
+      const saved = await getSavedSegment(supabase, AGENCY_ID, searchParams.seg);
+      if (saved) {
+        tokens = saved.tokens;
+        activeSegmentId = saved.id;
+      }
     }
   } else if (rawQuery) {
     // Claude-backed, falls back to the rules-based parser on any failure.
@@ -90,6 +98,27 @@ export default async function CustomersPage({
       })
     );
   }
+
+  // ─── Saved segments + active journeys for the segment action bar ────
+  const savedSegments = isEmpty ? [] : await listSavedSegments(supabase, AGENCY_ID);
+  if (!isEmpty && savedSegments.length > 0) {
+    await Promise.all(
+      savedSegments.map(async (s) => {
+        const rows = await fetchHouseholdsForTokens(supabase, AGENCY_ID, s.tokens);
+        segmentCounts[s.id] = rows.length;
+      })
+    );
+  }
+
+  const { data: journeyRows } = isEmpty
+    ? { data: [] }
+    : await supabase
+        .from("journeys")
+        .select("id, name")
+        .eq("agency_id", AGENCY_ID)
+        .eq("is_active", true)
+        .order("name");
+  const journeys = (journeyRows ?? []) as { id: string; name: string }[];
 
   const density = searchParams.density === "compact" ? "compact" : "comfortable";
 
@@ -136,6 +165,8 @@ export default async function CustomersPage({
             households={households}
             totalCount={totalCount ?? 0}
             segmentCounts={segmentCounts}
+            savedSegments={savedSegments}
+            journeys={journeys}
             density={density}
           />
         )}

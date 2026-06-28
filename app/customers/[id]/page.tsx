@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/icons";
 import { CustomerDetailView } from "./detail-view";
 import { computeRisk, computeOpportunity } from "@/lib/scoring/customer";
+import { computeNextSteps } from "@/lib/customer/next-steps";
 import type {
   Household,
   Contact,
@@ -87,6 +88,14 @@ export default async function CustomerDetailPage({
   const contactRows = (contactsRes.data ?? []) as Contact[];
   const tripRows = (tripsRes.data ?? []) as Trip[];
   const prefRows = (prefsRes.data ?? []) as Preference[];
+  const interactionRows = (interactionsRes.data ?? []) as Interaction[];
+
+  // ─── Luna next steps (deterministic, from real rows) ────────────────
+  const nextSteps = computeNextSteps(householdRow, contactRows, tripRows, interactionRows);
+  const latestInboundId =
+    interactionRows.find(
+      (ix) => ix.direction === "inbound" && ["email_in", "chat", "enquiry"].includes(ix.kind)
+    )?.id ?? null;
 
   // ─── Deterministic prediction cards (the trustworthy half) ──────────
   // Computed from real data. We leave Sarah Thompson on her hand-built demo
@@ -187,9 +196,11 @@ export default async function CustomerDetailPage({
         household={householdRow}
         contacts={contactRows}
         trips={tripRows}
-        interactions={(interactionsRes.data ?? []) as Interaction[]}
+        interactions={interactionRows}
         preferences={prefRows}
         predictionCards={predictionCards}
+        nextSteps={nextSteps}
+        latestInboundId={latestInboundId}
       />
     </>
   );

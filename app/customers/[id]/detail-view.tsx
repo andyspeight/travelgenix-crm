@@ -23,8 +23,10 @@ import {
   formatDate,
 } from "@/lib/trips/presentation";
 import { BriefActions } from "./brief-actions";
+import { NextSteps } from "./next-steps";
 import { PreferencesPanelEditable } from "./preferences-panel";
 import { HouseholdEditButton } from "./household-edit";
+import type { NextStep } from "@/lib/customer/next-steps";
 import type {
   Household,
   Contact,
@@ -46,6 +48,8 @@ type Props = {
   interactions: Interaction[];
   preferences: Preference[];
   predictionCards?: PredictionCard[];
+  nextSteps: NextStep[];
+  latestInboundId: string | null;
 };
 
 // Sarah Thompson's UUID changes per seed; we identify the exemplar by name
@@ -121,6 +125,8 @@ export function CustomerDetailView({
   interactions,
   preferences,
   predictionCards,
+  nextSteps,
+  latestInboundId,
 }: Props) {
   const exemplar = isExemplar(household);
   const lead = contacts.find((c) => c.role === "lead") ?? contacts[0];
@@ -151,7 +157,7 @@ export function CustomerDetailView({
         {/* ─── Main column ───────────────────────────────────── */}
         <div>
           <HeaderCard household={household} contacts={contacts} lead={lead} />
-          <AIBrief household={household} exemplar={exemplar} />
+          <AIBrief household={household} exemplar={exemplar} latestInboundId={latestInboundId} />
           <PredictionsRow exemplar={exemplar} cards={predictionCards} />
           <Timeline interactions={interactions} />
           <ListeningFooter exemplar={exemplar} />
@@ -159,7 +165,7 @@ export function CustomerDetailView({
 
         {/* ─── Right column ──────────────────────────────────── */}
         <div>
-          <NextStepsPanel exemplar={exemplar} />
+          <NextSteps householdId={household.id} steps={nextSteps} />
           <TripsPanel
             activeTrip={activeTrip}
             upcomingTrips={upcomingTrips}
@@ -388,14 +394,16 @@ function HeaderCard({
 function AIBrief({
   household,
   exemplar,
+  latestInboundId,
 }: {
   household: Household;
   exemplar: boolean;
+  latestInboundId: string | null;
 }) {
   const briefText = household.ai_brief
     || (exemplar
       ? "Brief generation pending."
-      : `${household.display_name} · ${household.household_type} · customer since ${formatDate(household.customer_since)}. Lifetime value ${formatMoney(household.lifetime_value)}. Brief generation in the demo focuses on Sarah Thompson — open her record (top of the customer list) to see the full Luna 360 in action.`);
+      : `${household.display_name} · ${household.household_type} · customer since ${formatDate(household.customer_since)}. Lifetime value ${formatMoney(household.lifetime_value)}. No Luna brief yet — use "Refresh brief" below to generate one from this customer's history.`);
 
   return (
     <div
@@ -467,7 +475,7 @@ function AIBrief({
         {briefText}
       </div>
 
-      <BriefActions householdId={household.id} />
+      <BriefActions householdId={household.id} latestInboundId={latestInboundId} />
     </div>
   );
 }
@@ -848,142 +856,6 @@ function ListeningFooter({ exemplar }: { exemplar: boolean }) {
           ? "Re-checked passport validity this morning, flagged the Olympic Holidays history, noted Crete weather is fine, prepared the brief above."
           : "Background checks running — passport validity, supplier history, GDPR consent, compliance status."}
       </span>
-    </div>
-  );
-}
-
-// ─── Right column: Next steps ───────────────────────────────────────────
-function NextStepsPanel({ exemplar }: { exemplar: boolean }) {
-  const steps = exemplar
-    ? [
-        {
-          n: 1,
-          text: "Reply to Sarah's email. Acknowledge Crete history, confirm InterMyt, share resort number.",
-        },
-        {
-          n: 2,
-          text: "Confirm Ithaa Undersea booking. Resort emailed; forward to her with personal note.",
-        },
-        {
-          n: 3,
-          text: "Pre-departure call tomorrow afternoon. Calendar slot held 14:00.",
-        },
-      ]
-    : [
-        { n: 1, text: "Open most recent message and respond if needed." },
-        { n: 2, text: "Send a check-in note." },
-        { n: 3, text: "Add a note to the customer record." },
-      ];
-
-  return (
-    <div
-      style={{
-        background: "linear-gradient(135deg, var(--tg-primary-dark) 0%, #0E1837 100%)",
-        borderRadius: 12,
-        padding: 18,
-        color: "white",
-        marginBottom: 16,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          top: "-30%",
-          right: "-10%",
-          width: 200,
-          height: 200,
-          background:
-            "radial-gradient(circle, var(--tg-accent) 0%, transparent 70%)",
-          opacity: 0.15,
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 12,
-          position: "relative",
-        }}
-      >
-        <SparklesIcon width={14} height={14} />
-        <span
-          style={{
-            fontSize: 10.5,
-            fontWeight: 600,
-            color: "var(--tg-accent-light)",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-        >
-          Luna · Next steps
-        </span>
-      </div>
-      <ol
-        style={{
-          listStyle: "none",
-          margin: 0,
-          padding: 0,
-          position: "relative",
-        }}
-      >
-        {steps.map((s, i) => (
-          <li
-            key={s.n}
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
-              padding: "9px 0",
-              borderBottom:
-                i < steps.length - 1
-                  ? "1px solid rgba(255, 255, 255, 0.08)"
-                  : "none",
-              fontSize: 13,
-              lineHeight: 1.45,
-              color: "rgba(255, 255, 255, 0.9)",
-            }}
-          >
-            <span
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 6,
-                background: "rgba(72, 202, 228, 0.15)",
-                color: "var(--tg-accent-light)",
-                fontSize: 11,
-                fontWeight: 700,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                border: "1px solid rgba(72, 202, 228, 0.3)",
-              }}
-            >
-              {s.n}
-            </span>
-            <span style={{ flex: 1 }}>{s.text}</span>
-            <button
-              style={{
-                background: "rgba(255, 255, 255, 0.1)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                color: "white",
-                borderRadius: 6,
-                padding: "3px 9px",
-                fontSize: 11,
-                fontWeight: 500,
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
-            >
-              Do
-            </button>
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }
