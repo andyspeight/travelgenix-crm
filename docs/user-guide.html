@@ -5,172 +5,151 @@
 <title>Luna Work — User Guide</title>
 <style>
   :root {
-    --navy: #1B2B5B;
-    --navy-dark: #111D3E;
-    --teal: #00B4D8;
-    --teal-light: #48CAE4;
-    --ink: #0F172A;
-    --muted: #475569;
-    --subtle: #94A3B8;
-    --line: #E2E8F0;
-    --bg-soft: #F1F5F9;
-    --success: #10B981;
-    --warning: #F59E0B;
+    --navy: #1B2B5B; --navy-dark: #111D3E; --navy-light:#2A3F7A;
+    --teal: #00B4D8; --teal-light: #48CAE4;
+    --ink: #0F172A; --muted: #475569; --subtle: #94A3B8;
+    --line: #E2E8F0; --line-strong:#CBD5E1; --bg-soft: #F1F5F9;
+    --success: #10B981; --warning: #F59E0B; --error:#EF4444; --info:#3B82F6;
   }
-
   * { box-sizing: border-box; }
-
-  @page {
-    size: A4;
-    margin: 18mm 16mm 16mm 16mm;
-  }
+  @page { size: A4; margin: 17mm 15mm 15mm 15mm; }
   @page :first { margin: 0; }
-
   html, body {
-    margin: 0;
-    padding: 0;
-    color: var(--ink);
+    margin: 0; padding: 0; color: var(--ink);
     font-family: "Helvetica Neue", Arial, system-ui, sans-serif;
-    font-size: 10.6pt;
-    line-height: 1.5;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    font-size: 10.4pt; line-height: 1.5;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
+  h1,h2,h3 { color: var(--navy); letter-spacing:-0.01em; }
+  a { color: var(--teal); text-decoration:none; }
+  code, .kbd { font-family:"SFMono-Regular",Consolas,monospace; }
+  code { background:var(--bg-soft); border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:9pt; color:var(--navy); }
+  .kbd { background:var(--navy); color:white; border-radius:4px; padding:1px 7px; font-size:8.6pt; white-space:nowrap; }
 
-  h1, h2, h3 { color: var(--navy); letter-spacing: -0.01em; }
+  /* Cover */
+  .cover { height:297mm; background:linear-gradient(150deg,var(--navy) 0%,var(--navy-dark) 70%); color:white; padding:38mm 24mm; position:relative; overflow:hidden; page-break-after:always; }
+  .cover .orb { position:absolute; top:-80mm; right:-60mm; width:230mm; height:230mm; background:radial-gradient(circle,var(--teal) 0%,transparent 60%); opacity:.28; }
+  .cover .orb2 { position:absolute; bottom:-70mm; left:-50mm; width:160mm; height:160mm; background:radial-gradient(circle,var(--teal-light) 0%,transparent 60%); opacity:.14; }
+  .cover .mark { display:inline-flex; align-items:center; gap:11px; position:relative; }
+  .cover .logo { width:42px; height:42px; border-radius:11px; background:linear-gradient(135deg,var(--navy) 0%,var(--teal) 100%); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:21px; border:1px solid rgba(255,255,255,.25); }
+  .cover .brand { font-size:13pt; font-weight:700; }
+  .cover .brand small { display:block; font-size:8.5pt; font-weight:600; letter-spacing:.14em; color:var(--teal-light); text-transform:uppercase; }
+  .cover h1 { color:white; font-size:41pt; line-height:1.04; margin:56mm 0 0; position:relative; max-width:150mm; }
+  .cover .tag { position:relative; font-size:14pt; color:rgba(255,255,255,.85); margin-top:8mm; max-width:135mm; }
+  .cover .foot { position:absolute; bottom:24mm; left:24mm; right:24mm; font-size:9.5pt; color:rgba(255,255,255,.7); display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,.2); padding-top:6mm; }
 
-  a { color: var(--teal); text-decoration: none; }
+  .section { page-break-before:always; }
+  h2.title { font-size:19pt; margin:0 0 2mm; padding-bottom:3mm; border-bottom:3px solid var(--teal); display:flex; align-items:baseline; gap:10px; }
+  h2.title .n { font-size:10.5pt; color:white; background:var(--navy); border-radius:6px; padding:2px 9px; font-weight:700; }
+  .lede { color:var(--muted); font-size:10.8pt; margin:4mm 0 5mm; }
+  h3 { font-size:12pt; margin:6mm 0 2mm; }
+  .howto { margin:0; padding-left:18px; } .howto li { margin:1.4mm 0; }
+  ul.clean { list-style:none; margin:0; padding:0; }
+  ul.clean li { position:relative; padding-left:15px; margin:1.5mm 0; }
+  ul.clean li::before { content:""; position:absolute; left:0; top:7px; width:6px; height:6px; border-radius:50%; background:var(--teal); }
 
-  code {
-    font-family: "SFMono-Regular", Consolas, monospace;
-    background: var(--bg-soft);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 1px 5px;
-    font-size: 9.2pt;
-    color: var(--navy);
-  }
+  .tip { background:rgba(0,180,216,.06); border:1px solid rgba(0,180,216,.25); border-left:3px solid var(--teal); border-radius:8px; padding:8px 12px; margin:4mm 0; font-size:9.6pt; }
+  .tip b, .note b { color:var(--navy); }
+  .tip.gold { background:rgba(245,158,11,.07); border-color:rgba(245,158,11,.3); border-left-color:var(--warning); }
+  .note { background:rgba(245,158,11,.07); border:1px solid rgba(245,158,11,.3); border-left:3px solid var(--warning); border-radius:8px; padding:8px 12px; margin:4mm 0; font-size:9.6pt; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:5mm; }
+  table { width:100%; border-collapse:collapse; font-size:9.6pt; margin:3mm 0; }
+  th,td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--navy); border-bottom:2px solid var(--line); }
 
-  /* ── Cover ── */
-  .cover {
-    height: 297mm;
-    background: linear-gradient(150deg, var(--navy) 0%, var(--navy-dark) 70%);
-    color: white;
-    padding: 40mm 24mm;
-    position: relative;
-    overflow: hidden;
-    page-break-after: always;
-  }
-  .cover .orb {
-    position: absolute;
-    top: -80mm; right: -60mm;
-    width: 220mm; height: 220mm;
-    background: radial-gradient(circle, var(--teal) 0%, transparent 60%);
-    opacity: 0.28;
-  }
-  .cover .mark {
-    display: inline-flex; align-items: center; gap: 10px;
-    position: relative;
-  }
-  .cover .logo {
-    width: 40px; height: 40px; border-radius: 10px;
-    background: linear-gradient(135deg, var(--navy) 0%, var(--teal) 100%);
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 20px; color: white;
-    border: 1px solid rgba(255,255,255,0.25);
-  }
-  .cover .brand { font-size: 13pt; font-weight: 700; }
-  .cover .brand small { display:block; font-size: 8.5pt; font-weight: 600; letter-spacing: 0.14em; color: var(--teal-light); text-transform: uppercase; }
-  .cover h1 {
-    color: white; font-size: 40pt; line-height: 1.05; margin: 60mm 0 0;
-    position: relative; max-width: 150mm;
-  }
-  .cover .tag { position: relative; font-size: 14pt; color: rgba(255,255,255,0.85); margin-top: 8mm; max-width: 130mm; }
-  .cover .foot { position: absolute; bottom: 24mm; left: 24mm; right: 24mm; font-size: 9.5pt; color: rgba(255,255,255,0.7); display:flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 6mm; }
+  /* TOC / Index */
+  .toc { list-style:none; padding:0; margin:6mm 0 0; }
+  .toc li { display:flex; justify-content:space-between; border-bottom:1px dotted var(--line); padding:2.6mm 0; font-size:10.6pt; }
+  .toc li .t { color:var(--navy); font-weight:600; }
+  .toc li .d { color:var(--muted); font-weight:400; font-size:9.4pt; max-width:95mm; text-align:right; }
+  .index { column-count:2; column-gap:10mm; font-size:9.6pt; margin-top:4mm; }
+  .index .row { display:flex; justify-content:space-between; border-bottom:1px dotted var(--line); padding:1.5mm 0; break-inside:avoid; }
+  .index .row span:first-child { color:var(--ink); }
+  .index .row span:last-child { color:var(--subtle); }
+  .index .letter { font-weight:700; color:var(--teal); margin:3mm 0 1mm; break-after:avoid; }
 
-  /* ── Sections ── */
-  .section { page-break-before: always; }
-  .section:first-of-type { page-break-before: avoid; }
+  /* Role cards */
+  .role { border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:10px; padding:10px 14px; margin:4mm 0; break-inside:avoid; }
+  .role h3 { margin:0 0 1mm; color:var(--navy); }
+  .role .who { font-size:9.2pt; color:var(--muted); margin-bottom:3mm; }
 
-  h2.title {
-    font-size: 20pt; margin: 0 0 2mm;
-    padding-bottom: 3mm; border-bottom: 3px solid var(--teal);
-    display: flex; align-items: baseline; gap: 10px;
-  }
-  h2.title .n {
-    font-size: 11pt; color: white; background: var(--navy);
-    border-radius: 6px; padding: 2px 9px; font-weight: 700;
-  }
-  .lede { color: var(--muted); font-size: 11pt; margin: 4mm 0 6mm; }
+  .footer-mark { color:var(--subtle); font-size:8.4pt; text-align:center; margin-top:8mm; }
 
-  h3 { font-size: 12.5pt; margin: 7mm 0 2mm; }
-  .howto { margin: 0; padding-left: 18px; }
-  .howto li { margin: 1.5mm 0; }
+  /* ── Figure / mock "screenshot" ── */
+  figure { margin:5mm 0; break-inside:avoid; }
+  figcaption { font-size:8.6pt; color:var(--subtle); text-align:center; margin-top:1.5mm; }
+  .shot { border:1px solid var(--line-strong); border-radius:10px; overflow:hidden; box-shadow:0 3px 10px rgba(15,23,42,.07); background:white; }
+  .shot .bar { height:18px; background:var(--bg-soft); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:5px; padding:0 8px; }
+  .shot .bar i { width:7px; height:7px; border-radius:50%; display:inline-block; }
+  .shot .frame { display:flex; }
+  .shot .side { width:34mm; background:linear-gradient(160deg,var(--navy) 0%,var(--navy-dark) 100%); padding:7px 6px; color:white; }
+  .shot .side .b { display:flex; align-items:center; gap:5px; font-size:7.5pt; font-weight:700; margin-bottom:6px; }
+  .shot .side .b i { width:13px; height:13px; border-radius:4px; background:linear-gradient(135deg,var(--navy-light),var(--teal)); display:inline-block; }
+  .shot .side .n { font-size:7.2pt; color:rgba(255,255,255,.65); padding:3px 6px; border-radius:4px; margin:1px 0; }
+  .shot .side .n.on { background:linear-gradient(135deg,rgba(0,180,216,.22),rgba(27,43,91,.1)); color:white; font-weight:600; }
+  .shot .main { flex:1; padding:9px 10px; background:white; }
+  .shot .top { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:5px; margin-bottom:7px; }
+  .shot .h { font-size:9pt; font-weight:700; color:var(--navy); }
+  .shot .pill { font-size:6.6pt; padding:2px 7px; border-radius:999px; background:var(--navy); color:white; }
+  .shot .pill.tealp { background:var(--teal); }
+  .shot .pill.ghost { background:var(--bg-soft); color:var(--muted); border:1px solid var(--line); }
 
-  ul.clean { list-style: none; margin: 0; padding: 0; }
-  ul.clean li { position: relative; padding-left: 16px; margin: 1.6mm 0; }
-  ul.clean li::before { content: ""; position: absolute; left: 0; top: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
-
-  .tip {
-    background: rgba(0,180,216,0.06);
-    border: 1px solid rgba(0,180,216,0.25);
-    border-left: 3px solid var(--teal);
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin: 5mm 0;
-    font-size: 9.8pt;
-  }
-  .tip b { color: var(--navy); }
-
-  .note {
-    background: rgba(245,158,11,0.07);
-    border: 1px solid rgba(245,158,11,0.3);
-    border-left: 3px solid var(--warning);
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin: 5mm 0;
-    font-size: 9.8pt;
-  }
-
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
-
-  table { width: 100%; border-collapse: collapse; font-size: 9.8pt; margin: 3mm 0; }
-  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--navy); border-bottom: 2px solid var(--line); }
-
-  .toc a { color: var(--ink); }
-  .toc { list-style: none; padding: 0; margin: 6mm 0 0; column-count: 1; }
-  .toc li { display:flex; justify-content: space-between; border-bottom: 1px dotted var(--line); padding: 3mm 0; font-size: 11pt; }
-  .toc li .t { color: var(--navy); font-weight: 600; }
-  .toc li .d { color: var(--muted); font-weight: 400; font-size: 9.6pt; max-width: 95mm; text-align: right; }
-
-  .kbd { font-family: monospace; background: var(--navy); color: white; border-radius: 4px; padding: 1px 7px; font-size: 9pt; }
-
-  .footer-mark { color: var(--subtle); font-size: 8.5pt; text-align: center; margin-top: 8mm; }
+  .banner { background:linear-gradient(135deg,var(--navy) 0%,var(--navy-dark) 100%); color:white; border-radius:7px; padding:7px 9px; font-size:7.6pt; margin-bottom:7px; }
+  .banner b { color:var(--teal-light); }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-bottom:7px; }
+  .kpi { border:1px solid var(--line); border-radius:6px; padding:5px 6px; }
+  .kpi .l { font-size:6pt; color:var(--subtle); text-transform:uppercase; letter-spacing:.04em; }
+  .kpi .v { font-size:12pt; font-weight:800; color:var(--navy); line-height:1.1; }
+  .kpi .s { font-size:6pt; color:var(--muted); }
+  .cols2 { display:grid; grid-template-columns:1.4fr 1fr; gap:7px; }
+  .card { border:1px solid var(--line); border-radius:6px; padding:7px; }
+  .card .ct { font-size:7.2pt; font-weight:700; color:var(--navy); margin-bottom:5px; }
+  .barrow { display:flex; align-items:center; gap:6px; margin:3px 0; font-size:6.6pt; color:var(--muted); }
+  .barrow .track { flex:1; height:5px; background:var(--bg-soft); border-radius:3px; overflow:hidden; }
+  .barrow .fill { height:100%; background:var(--teal); border-radius:3px; }
+  .listrow { display:flex; align-items:center; gap:6px; padding:3px 0; border-bottom:1px solid var(--line); font-size:6.8pt; }
+  .listrow .av { width:13px; height:13px; border-radius:50%; flex-shrink:0; }
+  .listrow .gap { flex:1; }
+  .dotred { width:6px;height:6px;border-radius:50%;background:var(--error); }
+  .chips { display:flex; flex-wrap:wrap; gap:4px; margin:5px 0; }
+  .chip { font-size:6.6pt; padding:2px 7px; border-radius:999px; border:1px solid var(--line); color:var(--muted); display:inline-flex; gap:3px; align-items:center; }
+  .chip.on { background:var(--navy); color:white; border-color:var(--navy); }
+  .chip.save { border-style:dashed; border-color:var(--teal); color:var(--teal); }
+  .kanban { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; }
+  .kcol { background:var(--bg-soft); border:1px solid var(--line); border-radius:6px; padding:4px; }
+  .kcol .kh { font-size:6pt; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px; display:flex; justify-content:space-between; }
+  .kcard { background:white; border:1px solid var(--line); border-radius:5px; padding:4px; margin-bottom:4px; font-size:6.4pt; }
+  .kcard .kd { font-weight:700; color:var(--navy); }
+  .tbl { width:100%; border-collapse:collapse; font-size:6.8pt; }
+  .tbl th { font-size:6pt; color:var(--subtle); text-transform:uppercase; border-bottom:1px solid var(--line); padding:3px 4px; text-align:left; }
+  .tbl td { border-bottom:1px solid var(--line); padding:4px 4px; }
+  .tbl .av { width:12px;height:12px;border-radius:50%; display:inline-block; vertical-align:middle; margin-right:4px; }
+  .btnrow { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+  .btn { font-size:6.6pt; padding:3px 8px; border-radius:5px; background:var(--navy); color:white; }
+  .btn.ghost { background:white; color:var(--muted); border:1px solid var(--line); }
+  .btn.teal { background:var(--teal); }
+  .prebar { height:4px; background:var(--bg-soft); border-radius:3px; overflow:hidden; margin-top:3px; }
+  .prebar i { display:block; height:100%; background:var(--teal); }
+  .swatch-a{background:#FF8E8E}.swatch-b{background:#6BD4C5}.swatch-c{background:#9D8FE0}.swatch-d{background:#FFB57E}.swatch-e{background:#6BB3D4}
 </style>
 </head>
 <body>
 
-<!-- ══════════ COVER ══════════ -->
+<!-- COVER -->
 <div class="cover">
-  <div class="orb"></div>
-  <div class="mark">
-    <div class="logo">L</div>
-    <div class="brand">Luna Work<small>Travelgenix CRM</small></div>
-  </div>
+  <div class="orb"></div><div class="orb2"></div>
+  <div class="mark"><div class="logo">L</div><div class="brand">Luna Work<small>Travelgenix CRM</small></div></div>
   <h1>The complete user guide</h1>
-  <div class="tag">Everything you need to run your travel agency on Luna Work — set-up, every screen, and the tips that get the most out of it.</div>
-  <div class="foot">
-    <span>HubSpot for travel agencies, with AI doing the work nobody has time for.</span>
-    <span>v1 · 2026</span>
-  </div>
+  <div class="tag">Everything you need to run your travel agency on Luna Work — set-up, every screen, the tips that get the most out of it, and a quick-start for every role.</div>
+  <div class="foot"><span>HubSpot for travel agencies, with AI doing the work nobody has time for.</span><span>v2 · 2026 · illustrated</span></div>
 </div>
 
-<!-- ══════════ CONTENTS ══════════ -->
+<!-- CONTENTS -->
 <div class="section">
   <h2 class="title">Contents</h2>
-  <p class="lede">A two-minute read per section. Start with Getting started, then dip into any feature as you need it.</p>
+  <p class="lede">Read “Getting started” and the quick-start for your role, then dip into any feature as you need it. Every feature section has a labelled figure, step-by-step instructions and top tips.</p>
   <ul class="toc">
+    <li><span class="t">Where to start — by role</span><span class="d">Owner/Manager · Travel consultant · Admin</span></li>
     <li><span class="t">1 · Getting started</span><span class="d">Sign in, data, the tour, finding things fast</span></li>
     <li><span class="t">2 · Dashboard</span><span class="d">Your morning briefing and the day at a glance</span></li>
     <li><span class="t">3 · Customers &amp; smart segments</span><span class="d">Find, group and act on customers</span></li>
@@ -182,308 +161,565 @@
     <li><span class="t">9 · Reports</span><span class="d">Revenue, pipeline and behaviour</span></li>
     <li><span class="t">10 · Settings</span><span class="d">Workspace, team, AI and compliance</span></li>
     <li><span class="t">11 · Luna AI &amp; how to trust it</span><span class="d">What's automated and what isn't</span></li>
-    <li><span class="t">12 · Keyboard shortcuts</span><span class="d">Move at speed</span></li>
+    <li><span class="t">12 · Top 10 tips</span><span class="d">Power moves for the whole team</span></li>
+    <li><span class="t">13 · Keyboard shortcuts</span><span class="d">Move at speed</span></li>
+    <li><span class="t">A–Z index</span><span class="d">Every feature and where to find it</span></li>
   </ul>
 </div>
 
-<!-- ══════════ 1 GETTING STARTED ══════════ -->
+<!-- ROLES -->
+<div class="section">
+  <h2 class="title">Where to start — by role</h2>
+  <p class="lede">Luna Work suits the whole agency. Find yourself below for the fastest path to value. Page references point to the numbered sections.</p>
+
+  <div class="role">
+    <h3>Owner / Manager</h3>
+    <div class="who">You care about revenue, the team's output and nothing slipping through.</div>
+    <ul class="clean">
+      <li>Start each day on the <b>Dashboard</b> (§2) — the briefing line is your pulse.</li>
+      <li>Set up <b>Journeys</b> (§7) once — they protect repeat revenue on auto-pilot.</li>
+      <li>Check <b>Reports</b> (§9) weekly; watch the new-vs-repeat trend.</li>
+      <li>Use <b>Settings</b> (§10) for team and the compliance figures before any campaign.</li>
+    </ul>
+  </div>
+
+  <div class="role">
+    <h3>Travel consultant / Agent</h3>
+    <div class="who">You live in the inbox and on the phone, turning enquiries into trips.</div>
+    <ul class="clean">
+      <li>Clear the <b>Inbox</b> Today lane (§5) — reply with the ranked drafts.</li>
+      <li>Open the <b>Customer 360</b> (§4) before every call; read the brief and next steps.</li>
+      <li>Keep the <b>Trips</b> board (§6) moving; chase anything stuck in Quoted.</li>
+      <li>Work your <b>Tasks</b> (§8) — overdue and today — to zero each morning.</li>
+      <li>Once a week, run a saved <b>segment</b> (§3) of quiet past customers.</li>
+    </ul>
+  </div>
+
+  <div class="role">
+    <h3>Administrator / Operations</h3>
+    <div class="who">You keep the workspace healthy, compliant and set up correctly.</div>
+    <ul class="clean">
+      <li>Own the <b>set-up checklist</b> (§1) — data, the optional AI key, the segments migration.</li>
+      <li>Monitor <b>Settings → Compliance</b> (§10) — GDPR consent, marketing opt-in, passports.</li>
+      <li>Keep <b>Journeys</b> (§7) tidy: pause what's not needed, review the activity feed.</li>
+      <li>Use <b>Reports</b> (§9) to pull figures for management.</li>
+    </ul>
+  </div>
+
+  <div class="tip"><b>New starter?</b> Whatever your role, take the in-app tour first (sidebar → <b>Take a tour</b>), then read §1 and your role box above. You'll be productive inside ten minutes.</div>
+</div>
+
+<!-- 1 GETTING STARTED -->
 <div class="section">
   <h2 class="title"><span class="n">1</span> Getting started</h2>
   <p class="lede">Luna Work is your travel-native CRM. Luna, the built-in AI, reads your inbox, briefs you on every customer, suggests the next move and runs the routine follow-ups. You stay in control: Luna drafts and queues, you approve and send.</p>
 
-  <h3>Signing in &amp; your workspace</h3>
-  <ul class="clean">
-    <li>Open your Luna Work URL. You land on the <b>Dashboard</b>.</li>
-    <li>The left <b>sidebar</b> is your map: Dashboard, Inbox, Customers, Trips, Journeys, Tasks, Reports, and Settings at the bottom.</li>
-    <li>Toggle <b>light / dark mode</b> with the sun/moon button in the bottom-left.</li>
-  </ul>
+  <figure>
+    <div class="shot">
+      <div class="bar"><i style="background:#FF8E8E"></i><i style="background:#FFD96B"></i><i style="background:#6BD4C5"></i></div>
+      <div class="frame">
+        <div class="side">
+          <div class="b"><i></i> Luna Work</div>
+          <div class="n on">Dashboard</div><div class="n">Inbox</div><div class="n">Customers</div>
+          <div class="n">Trips</div><div class="n">Journeys</div><div class="n">Tasks</div><div class="n">Reports</div>
+          <div class="n" style="margin-top:8px">Take a tour</div><div class="n">Settings</div>
+        </div>
+        <div class="main">
+          <div class="top"><span class="h">Good morning, Andy</span><span class="pill ghost">Quick add</span></div>
+          <div class="banner"><b>LUNA · MORNING BRIEFING</b><br/>3 messages need you today, 2 departures this week, £18k of live enquiries.</div>
+          <div class="kpis">
+            <div class="kpi"><div class="l">Customers</div><div class="v">30</div><div class="s">£412k LTV</div></div>
+            <div class="kpi"><div class="l">Pipeline</div><div class="v">£42k</div><div class="s">live</div></div>
+            <div class="kpi"><div class="l">Departing</div><div class="v">2</div><div class="s">7 days</div></div>
+            <div class="kpi"><div class="l">Needs you</div><div class="v">3</div><div class="s">today</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>The Luna Work workspace — sidebar navigation, with the Dashboard open. Illustrative figure.</figcaption>
+  </figure>
 
   <h3>Getting data in</h3>
   <ol class="howto">
-    <li><b>Just exploring?</b> Open <b>Customers</b> and click <b>Seed demo data</b> to load 30 realistic sample households so every screen has something to show.</li>
-    <li><b>Going live?</b> Add your own customers instead, and clear the demo data once you're ready for real records.</li>
+    <li><b>Just exploring?</b> Open <b>Customers</b> and click <b>Seed demo data</b> to load 30 realistic sample households.</li>
+    <li><b>Going live?</b> Add your own customers instead, and clear the demo data when you're ready.</li>
   </ol>
 
-  <h3>The guided tour</h3>
-  <p>The first time you open Luna Work, a short <b>step-by-step tour</b> walks you through set-up and every screen. You can reopen it any time from <b>Take a tour</b> at the bottom of the sidebar.</p>
-
-  <h3>Two ways to move fast</h3>
+  <h3>The guided tour &amp; finding things fast</h3>
   <div class="grid2">
-    <div>
-      <b>Quick find</b>
-      <ul class="clean">
-        <li>Press <span class="kbd">Ctrl / ⌘ + P</span>, or click <b>Quick find</b> at the top of the sidebar.</li>
-        <li>Jump straight to any customer, trip or page.</li>
-      </ul>
-    </div>
-    <div>
-      <b>Ask Luna</b>
-      <ul class="clean">
-        <li>The glowing button bottom-right (<span class="kbd">Ctrl / ⌘ + K</span>).</li>
-        <li>Ask in plain English: "Who's travelling next month?", "How much have we booked this year?"</li>
-      </ul>
-    </div>
+    <div><b>Take a tour</b><ul class="clean"><li>Auto-opens on first visit; reopen any time from the sidebar.</li><li>Walks you through set-up and every screen.</li></ul></div>
+    <div><b>Quick find &amp; Ask Luna</b><ul class="clean"><li><span class="kbd">⌘/Ctrl + P</span> — jump to any customer, trip or page.</li><li><span class="kbd">⌘/Ctrl + K</span> — ask Luna a plain-English question.</li></ul></div>
   </div>
 
-  <div class="tip"><b>Tip:</b> Ask Luna understands your real data. Try "Who's going to Spain?" or "Show me high-value customers who've gone quiet" and click straight through to the records.</div>
+  <h3>One-time set-up checklist (admin)</h3>
+  <table>
+    <tr><th>Step</th><th>Why</th></tr>
+    <tr><td>Database connected (3 keys)</td><td>Powers all data. Already done if pages load.</td></tr>
+    <tr><td>Run the schema</td><td>Creates the 14 core tables.</td></tr>
+    <tr><td>Run the segments migration</td><td>Enables Save segment (§3).</td></tr>
+    <tr><td>Add an AI key (optional)</td><td>Turns on live briefs, drafts, Ask &amp; smart segments.</td></tr>
+    <tr><td>Add a booking URL (optional)</td><td>Makes “Schedule call” open your calendar.</td></tr>
+  </table>
+  <div class="tip"><b>Tip:</b> Everything runs without the AI key — Luna falls back to prepared content — so you can go live first and switch AI on whenever you're ready.</div>
 </div>
 
-<!-- ══════════ 2 DASHBOARD ══════════ -->
+<!-- 2 DASHBOARD -->
 <div class="section">
   <h2 class="title"><span class="n">2</span> Dashboard</h2>
   <p class="lede">Your home screen and daily starting point. It answers one question: what needs me today?</p>
 
-  <h3>What you'll see</h3>
-  <ul class="clean">
-    <li><b>Morning briefing</b> — a single sentence summarising messages that need you, imminent departures and live enquiry value.</li>
-    <li><b>KPIs</b> — customers and lifetime value, live pipeline, departures in the next 7 days, and what needs you today. Each tile is clickable.</li>
-    <li><b>Pipeline by stage</b> — value sitting in each stage of the trip pipeline.</li>
-    <li><b>Departures &amp; travelling</b> — who's away now and who leaves soon.</li>
-    <li><b>Needs you today</b> — the urgent inbox items, straight from Luna's triage.</li>
-    <li><b>Luna on auto-pilot</b> — what your journeys did in the background.</li>
-  </ul>
+  <figure>
+    <div class="shot">
+      <div class="bar"><i style="background:#FF8E8E"></i><i style="background:#FFD96B"></i><i style="background:#6BD4C5"></i></div>
+      <div class="frame">
+        <div class="side"><div class="b"><i></i> Luna Work</div><div class="n on">Dashboard</div><div class="n">Inbox</div><div class="n">Customers</div><div class="n">Trips</div><div class="n">Journeys</div></div>
+        <div class="main">
+          <div class="banner"><b>LUNA · YOUR MORNING BRIEFING</b><br/>You have 3 messages needing you today, 2 departures in the next 7 days and £18k of live enquiries.</div>
+          <div class="kpis">
+            <div class="kpi"><div class="l">Customers</div><div class="v">30</div></div>
+            <div class="kpi"><div class="l">Live pipeline</div><div class="v">£42k</div></div>
+            <div class="kpi"><div class="l">Departing 7d</div><div class="v">2</div></div>
+            <div class="kpi"><div class="l">Needs you</div><div class="v">3</div></div>
+          </div>
+          <div class="cols2">
+            <div class="card"><div class="ct">Pipeline by stage</div>
+              <div class="barrow">Enquiry <div class="track"><div class="fill" style="width:40%"></div></div></div>
+              <div class="barrow">Quoted <div class="track"><div class="fill" style="width:70%"></div></div></div>
+              <div class="barrow">Booked <div class="track"><div class="fill" style="width:90%"></div></div></div>
+            </div>
+            <div class="card"><div class="ct">Needs you today</div>
+              <div class="listrow"><span class="dotred"></span><span class="gap">Transfer worry — Sarah</span></div>
+              <div class="listrow"><span class="dotred"></span><span class="gap">Honeymoon enquiry</span></div>
+              <div class="listrow"><span class="dotred"></span><span class="gap">Madeira final docs</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Dashboard — briefing, KPIs, pipeline and what needs you today. Illustrative figure.</figcaption>
+  </figure>
 
   <h3>How to use it</h3>
   <ol class="howto">
-    <li>Read the briefing line first — it's your to-do list in one sentence.</li>
+    <li>Read the briefing line first — your to-do list in one sentence.</li>
     <li>Click <b>Needs you today</b> or any KPI tile to jump straight to the work.</li>
-    <li>Glance at the auto-pilot strip to see what Luna handled while you were away.</li>
+    <li>Glance at the <b>Luna on auto-pilot</b> strip to see what journeys handled overnight.</li>
   </ol>
-
-  <div class="tip"><b>Tip:</b> Make the Dashboard your first stop each morning. If the briefing says "nothing urgent", that's your cue to chase quotes or re-engage past travellers.</div>
+  <div class="tip"><b>Top tip:</b> If the briefing says “nothing urgent”, that's your cue to be proactive — chase a quote or work a re-engagement segment.</div>
 </div>
 
-<!-- ══════════ 3 CUSTOMERS ══════════ -->
+<!-- 3 CUSTOMERS -->
 <div class="section">
   <h2 class="title"><span class="n">3</span> Customers &amp; smart segments</h2>
   <p class="lede">Your customer list, with a search box that understands plain English. Describe who you want and Luna builds the filter.</p>
 
-  <h3>Finding the right people</h3>
+  <figure>
+    <div class="shot">
+      <div class="bar"><i style="background:#FF8E8E"></i><i style="background:#FFD96B"></i><i style="background:#6BD4C5"></i></div>
+      <div class="frame">
+        <div class="side"><div class="b"><i></i> Luna Work</div><div class="n">Dashboard</div><div class="n">Inbox</div><div class="n on">Customers</div><div class="n">Trips</div></div>
+        <div class="main">
+          <div class="top"><span class="h">○ families who went to Greece and have gone quiet</span><span class="pill tealp">Ask Luna</span></div>
+          <div class="chips"><span class="chip on">✈ Greece ×</span><span class="chip on">⌖ Family ×</span><span class="chip on">⏱ No contact 12m ×</span></div>
+          <div class="chips"><span class="chip save">+ Saved: VIP couples</span><span class="chip">Travelling now 4</span></div>
+          <table class="tbl">
+            <tr><th>Customer</th><th>City</th><th>LTV</th><th>Trips</th></tr>
+            <tr><td><span class="av swatch-a"></span>Sarah &amp; James Thompson</td><td>Poole</td><td>£38k</td><td>7</td></tr>
+            <tr><td><span class="av swatch-b"></span>The Davies Family</td><td>Wimborne</td><td>£21k</td><td>4</td></tr>
+            <tr><td><span class="av swatch-c"></span>Margaret &amp; Brian Doyle</td><td>Salisbury</td><td>£17k</td><td>5</td></tr>
+          </table>
+          <div class="btnrow"><span class="btn ghost">✉ Email all</span><span class="btn ghost">＋ Add to journey</span><span class="btn">＋ Save segment</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Customers — a natural-language segment with filter chips and group actions. Illustrative figure.</figcaption>
+  </figure>
+
+  <h3>Finding &amp; acting on people</h3>
   <ol class="howto">
-    <li>Type a description in the smart bar, e.g. <i>"families who went to Greece and have gone quiet"</i>, and press Enter.</li>
-    <li>Luna turns it into <b>filter chips</b>. Remove a chip to widen the search, or click <b>Clear</b> to reset.</li>
-    <li>Use the <b>saved segment</b> chips for one-click common views (travelling now, high-value couples, and any you save).</li>
-    <li>Use the plain text box to filter the visible list by name or city.</li>
+    <li>Type a description in the smart bar and press Enter — Luna turns it into filter chips.</li>
+    <li>Remove a chip to widen the search; use the saved-segment chips for one-click views.</li>
+    <li>Act on the group: <b>Email all</b>, <b>Add to journey</b>, <b>Save segment</b>, or tick rows for <b>Email selected / Add tag / Draft outreach</b>.</li>
+    <li>Click any customer to open their full record.</li>
   </ol>
-
-  <h3>Acting on a group</h3>
-  <ul class="clean">
-    <li><b>Email all</b> — opens a pre-addressed email draft to everyone in the current view.</li>
-    <li><b>Add to journey</b> — enrol the group into an auto-pilot journey.</li>
-    <li><b>Save segment</b> — name the search and pin it as a reusable chip.</li>
-    <li><b>Select rows</b> (the checkboxes) to act on a specific subset: Email selected, Add tag, Draft outreach.</li>
-  </ul>
-
-  <h3>How to use it</h3>
-  <ol class="howto">
-    <li>Search, refine with chips, then either click a customer to open them or act on the whole group.</li>
-    <li>Found a view you'll want again? <b>Save segment</b> so it's one click next time.</li>
-  </ol>
-
-  <div class="tip"><b>Tip:</b> Segments are the engine room of proactive selling. Save "Booked 18+ months ago, no contact" and work it once a week — that's repeat business most agencies leave on the table.</div>
-  <div class="note"><b>Set-up note:</b> Saving segments needs the segments table enabled in your database (a one-time migration). Until then everything else works and Save segment will tell you what to run.</div>
+  <div class="tip"><b>Top tip:</b> Save “Booked 18+ months ago, no contact” and work it weekly — that's repeat business most agencies leave on the table.</div>
+  <div class="note"><b>Set-up note:</b> Saving segments needs the one-time segments migration. Until then, everything else works and Save segment tells you what to run.</div>
 </div>
 
-<!-- ══════════ 4 CUSTOMER 360 ══════════ -->
+<!-- 4 CUSTOMER 360 -->
 <div class="section">
   <h2 class="title"><span class="n">4</span> Customer 360</h2>
   <p class="lede">Everything about one household on a single page — history, intelligence and the next move.</p>
 
-  <h3>What's on the page</h3>
-  <ul class="clean">
-    <li><b>Luna's brief</b> — a short, plain-English summary of who they are and how they book.</li>
-    <li><b>Predictions</b> — rebooking opportunity, a trip-match idea, and a risk read (passports, compliance). The numbers are computed from real data, not guessed.</li>
-    <li><b>Timeline</b> — every email, chat, call and note in one thread.</li>
-    <li><b>Luna · Next steps</b> — the best actions right now, each with a <b>Do</b> button.</li>
-    <li><b>Trips, household, preferences and compliance</b> panels down the right.</li>
-  </ul>
+  <figure>
+    <div class="shot">
+      <div class="bar"><i style="background:#FF8E8E"></i><i style="background:#FFD96B"></i><i style="background:#6BD4C5"></i></div>
+      <div class="frame">
+        <div class="side"><div class="b"><i></i> Luna Work</div><div class="n">Dashboard</div><div class="n on">Customers</div><div class="n">Trips</div></div>
+        <div class="main">
+          <div class="top"><span class="h">Sarah &amp; James Thompson</span><span class="pill ghost">← All customers</span></div>
+          <div class="cols2">
+            <div>
+              <div class="card"><div class="ct">✦ Luna's brief</div><div style="font-size:6.8pt;color:var(--muted)">Seven-year repeat family, books every Oct/Nov for half-term. Sensitive after a 2024 transfer issue in Crete. Henry has a nut allergy.</div>
+                <div class="btnrow"><span class="btn ghost">Draft a reply</span><span class="btn ghost">Add note</span><span class="btn ghost">Schedule call</span><span class="btn teal">Refresh brief</span></div>
+              </div>
+              <div class="card" style="margin-top:6px"><div class="ct">Predictions</div>
+                <div class="barrow">Opportunity 78% <div class="track"><div class="fill" style="width:78%"></div></div></div>
+                <div class="barrow">Trip match 82% <div class="track"><div class="fill" style="width:82%"></div></div></div>
+                <div class="barrow">Risk: Low <div class="track"><div class="fill" style="width:18%;background:var(--success)"></div></div></div>
+              </div>
+            </div>
+            <div>
+              <div class="card" style="background:linear-gradient(135deg,var(--navy),var(--navy-dark));color:white;border:none"><div class="ct" style="color:var(--teal-light)">✦ NEXT STEPS</div>
+                <div style="font-size:6.6pt">1 · Reply to Sarah's transfer email <span class="btn ghost" style="float:right">Reply</span></div>
+                <div style="font-size:6.6pt;margin-top:4px">2 · Confirm final details <span class="btn ghost" style="float:right">Do</span></div>
+                <div style="font-size:6.6pt;margin-top:4px">3 · Pre-departure call <span class="btn ghost" style="float:right">Do</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Customer 360 — brief, predictions and Luna's next steps with action buttons. Illustrative figure.</figcaption>
+  </figure>
 
   <h3>Actions you can take</h3>
   <table>
     <tr><th>Button</th><th>What it does</th></tr>
     <tr><td>Refresh brief</td><td>Regenerates Luna's brief and predictions from the latest data.</td></tr>
-    <tr><td>Draft a reply</td><td>Opens the inbox focused on their most recent message, ready to reply.</td></tr>
+    <tr><td>Draft a reply</td><td>Opens the inbox focused on their most recent message.</td></tr>
     <tr><td>Add note</td><td>Adds an internal note that appears in the timeline.</td></tr>
     <tr><td>Schedule call</td><td>Creates a follow-up task (and opens your booking page if configured).</td></tr>
     <tr><td>Next steps · Do</td><td>Performs the suggested step — creates the task or opens the reply.</td></tr>
   </table>
-
-  <h3>How to use it</h3>
-  <ol class="howto">
-    <li>Open a customer, read the brief and the next steps — that's your 10-second catch-up.</li>
-    <li>Work the next steps top-down with the <b>Do</b> buttons.</li>
-    <li>After a call or change, click <b>Add note</b> so the next person sees the full picture.</li>
-  </ol>
-
-  <div class="tip"><b>Tip:</b> Before any call, open the record and skim the brief and timeline. Mentioning their last trip or a child's name by memory is what turns a booking into a relationship.</div>
+  <div class="tip"><b>Top tip:</b> Skim the brief and timeline before every call. Mentioning their last trip or a child's name from memory turns a booking into a relationship.</div>
 </div>
 
-<!-- ══════════ 5 INBOX ══════════ -->
+<!-- 5 INBOX -->
 <div class="section">
   <h2 class="title"><span class="n">5</span> Inbox</h2>
   <p class="lede">Every inbound message, triaged by Luna and ready to answer — with reply options written for you.</p>
 
-  <h3>Triage lanes</h3>
-  <ul class="clean">
-    <li>Luna sorts messages into <b>Today</b>, <b>This week</b>, <b>Later</b> and <b>All</b>, with a one-line reason for each.</li>
-    <li>Work the <b>Today</b> lane first — those are the ones that move money or matter most.</li>
-  </ul>
+  <figure>
+    <div class="shot">
+      <div class="bar"><i style="background:#FF8E8E"></i><i style="background:#FFD96B"></i><i style="background:#6BD4C5"></i></div>
+      <div class="frame">
+        <div class="side"><div class="b"><i></i> Luna Work</div><div class="n on">Inbox</div><div class="n">Customers</div><div class="n">Trips</div></div>
+        <div class="main">
+          <div class="banner"><b>LUNA · TRIAGED YOUR INBOX</b> · 8 messages · 3 need you today</div>
+          <div class="chips"><span class="chip on">Today 3</span><span class="chip">This week 3</span><span class="chip">Later 2</span><span class="chip">All</span></div>
+          <div class="cols2">
+            <div class="card"><div class="ct">Sarah Thompson · transfers</div><div style="font-size:6.6pt;color:var(--muted)">“Just a bit worried about the transfer after last time…”</div>
+              <div style="font-size:6.4pt;color:var(--teal);margin-top:4px">Luna's read: anxious, references Crete 2024.</div>
+            </div>
+            <div class="card"><div class="ct">Luna · 3 drafts ranked</div>
+              <div class="chips"><span class="chip on">92% Reassuring</span><span class="chip">78% Brief</span><span class="chip">71% Warm</span></div>
+              <div style="font-size:6.4pt;color:var(--muted)">“Sarah, totally hear you — this time we're with InterMyt…”</div>
+              <div class="btnrow"><span class="btn">Send as is</span><span class="btn ghost">Edit</span><span class="btn ghost">✦ Draft with Luna</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Inbox — triage lanes, the focused message and Luna's ranked reply drafts. Illustrative figure.</figcaption>
+  </figure>
 
-  <h3>Replying</h3>
+  <h3>How to use it</h3>
   <ol class="howto">
-    <li>Select a message. The middle pane shows the full email and Luna's read of it.</li>
-    <li>Below it sit <b>ranked reply drafts</b>, each with a one-line rationale for the trade-off it makes.</li>
-    <li>Switch between drafts, then <b>Send as is</b>, <b>Edit before sending</b>, or click <b>Draft with Luna</b> to generate fresh options grounded in that customer's record.</li>
-    <li>The right pane is a mini customer card — context without leaving the inbox.</li>
+    <li>Work the <b>Today</b> lane first. Select a message to see the full email and Luna's read.</li>
+    <li>Switch between the <b>ranked drafts</b> — each has a one-line rationale for its trade-off.</li>
+    <li><b>Send as is</b>, <b>Edit before sending</b>, or <b>Draft with Luna</b> for fresh, grounded options.</li>
   </ol>
-
-  <div class="tip"><b>Tip:</b> The drafts are deliberately different in tone, not three versions of the same thing. Pick the one that fits the relationship — the rationale tells you what each one prioritises.</div>
+  <div class="tip"><b>Top tip:</b> The drafts differ in tone on purpose. Pick the one that fits the relationship — the rationale tells you what each prioritises.</div>
 </div>
 
-<!-- ══════════ 6 TRIPS ══════════ -->
+<!-- 6 TRIPS -->
 <div class="section">
   <h2 class="title"><span class="n">6</span> Trips pipeline</h2>
   <p class="lede">A Kanban board of every trip, from first enquiry to safely returned, so nothing stalls.</p>
 
-  <h3>The stages</h3>
-  <p>Enquiry → Quoted → Booked → Pre-departure → Travelling → Returned. Cancelled trips are kept out of the pipeline but reachable via the toggle.</p>
+  <figure>
+    <div class="shot">
+      <div class="bar"><i style="background:#FF8E8E"></i><i style="background:#FFD96B"></i><i style="background:#6BD4C5"></i></div>
+      <div class="frame">
+        <div class="side"><div class="b"><i></i> Luna Work</div><div class="n">Customers</div><div class="n on">Trips</div><div class="n">Journeys</div></div>
+        <div class="main">
+          <div class="top"><span class="h">Trips pipeline</span><span class="pill ghost">Show cancelled</span></div>
+          <div class="kanban">
+            <div class="kcol"><div class="kh">Enquiry <span>3</span></div><div class="kcard"><div class="kd">🇲🇽 Tulum</div>£4k</div><div class="kcard"><div class="kd">🇮🇹 Lakes</div>£3k</div></div>
+            <div class="kcol"><div class="kh">Quoted <span>2</span></div><div class="kcard"><div class="kd">🇮🇹 Sardinia</div>£9k</div></div>
+            <div class="kcol"><div class="kh">Booked <span>2</span></div><div class="kcard"><div class="kd">🇬🇷 Crete</div>£6k</div></div>
+            <div class="kcol"><div class="kh">Pre-dep <span>1</span></div><div class="kcard"><div class="kd">🇵🇹 Madeira</div>£5k</div></div>
+            <div class="kcol"><div class="kh">Travelling <span>1</span></div><div class="kcard"><div class="kd">🇲🇻 Maldives</div>£22k</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Trips — drag cards between stages; column counts show pipeline health. Illustrative figure.</figcaption>
+  </figure>
 
   <h3>How to use it</h3>
   <ol class="howto">
-    <li><b>Drag a card</b> between columns as a trip moves forward. On touch or keyboard, use the stage dropdown on each card.</li>
-    <li>Read the <b>column totals</b> to see how much value is sitting at each stage.</li>
+    <li><b>Drag a card</b> between columns as a trip moves on (or use the stage dropdown on touch/keyboard).</li>
+    <li>Read the <b>column totals</b> to see value sitting at each stage.</li>
     <li>Click a card to open the customer behind the trip.</li>
   </ol>
-
-  <div class="tip"><b>Tip:</b> A healthy board has movement every day. If cards pile up in Quoted, that's your follow-up list — pair it with a journey so Luna chases them automatically.</div>
+  <div class="tip"><b>Top tip:</b> If cards pile up in Quoted, that's your follow-up list — pair it with a journey so Luna chases them automatically.</div>
 </div>
 
-<!-- ══════════ 7 JOURNEYS ══════════ -->
+<!-- 7 JOURNEYS -->
 <div class="section">
   <h2 class="title"><span class="n">7</span> Journeys (auto-pilot)</h2>
-  <p class="lede">The heart of "AI doing the work nobody has time for". A journey is a rule: when something happens, Luna does a follow-up.</p>
+  <p class="lede">The heart of “AI doing the work nobody has time for”. A journey is a rule: when something happens, Luna does a follow-up.</p>
 
-  <h3>Getting started</h3>
+  <figure>
+    <div class="shot">
+      <div class="bar"><i style="background:#FF8E8E"></i><i style="background:#FFD96B"></i><i style="background:#6BD4C5"></i></div>
+      <div class="frame">
+        <div class="side"><div class="b"><i></i> Luna Work</div><div class="n">Trips</div><div class="n on">Journeys</div><div class="n">Tasks</div></div>
+        <div class="main">
+          <div class="banner"><b>4 ACTIVE JOURNEYS</b> · 6 customers eligible right now <span class="btn teal" style="float:right">⚡ Run all active</span></div>
+          <div class="cols2">
+            <div class="card"><div class="ct">Pre-departure check-in <span class="pill tealp" style="float:right">Active</span></div><div style="font-size:6.4pt;color:var(--muted)">10 days before departure → create task</div><div style="font-size:6.4pt;margin-top:3px"><b>2 eligible now</b> <span class="btn" style="float:right">⚡ Run now</span></div></div>
+            <div class="card"><div class="ct">Welcome home <span class="pill tealp" style="float:right">Active</span></div><div style="font-size:6.4pt;color:var(--muted)">3 days after return → draft email</div><div style="font-size:6.4pt;margin-top:3px"><b>1 eligible now</b> <span class="btn" style="float:right">⚡ Run now</span></div></div>
+          </div>
+          <div class="card" style="margin-top:6px"><div class="ct">✦ What Luna has done</div>
+            <div class="listrow"><span class="gap">Task created for The Davies — confirm details</span><span style="color:var(--warning)">awaiting</span></div>
+            <div class="listrow"><span class="gap">Email drafted for M. Doyle — welcome home</span><span style="color:var(--warning)">review</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Journeys — active rules, who's eligible now, and the activity log. Illustrative figure.</figcaption>
+  </figure>
+
+  <h3>How to use it</h3>
   <ol class="howto">
-    <li>Open <b>Journeys</b> and click <b>Install starter journeys</b> to add four proven rules.</li>
-    <li>Each card shows its trigger, its action, and how many customers are <b>eligible right now</b>.</li>
-    <li>Click <b>Run now</b> on a journey (or <b>Run all active</b>) to act on the eligible customers.</li>
-    <li><b>Pause</b> any journey you don't want running.</li>
+    <li>Click <b>Install starter journeys</b> to add the four proven rules.</li>
+    <li>Use <b>Run now</b> (or <b>Run all active</b>) to act on who's eligible; <b>Pause</b> any you don't want.</li>
+    <li>Review the <b>What Luna has done</b> feed — drafts are marked <b>awaiting review</b> and never send themselves.</li>
   </ol>
-
-  <h3>The starter journeys</h3>
   <table>
-    <tr><th>Journey</th><th>When it fires</th><th>What Luna does</th></tr>
-    <tr><td>Pre-departure check-in</td><td>10 days before departure</td><td>Creates a task to confirm details &amp; passports</td></tr>
-    <tr><td>Welcome home</td><td>3 days after return</td><td>Drafts a warm welcome-home email</td></tr>
-    <tr><td>Passport expiry warning</td><td>Passport within 6 months of expiry</td><td>Creates a task to flag it</td></tr>
-    <tr><td>Re-engage quiet customers</td><td>No contact for 12 months</td><td>Drafts a re-engagement email</td></tr>
+    <tr><th>Starter journey</th><th>Fires</th><th>Luna does</th></tr>
+    <tr><td>Pre-departure check-in</td><td>10 days before</td><td>Task: confirm details</td></tr>
+    <tr><td>Welcome home</td><td>3 days after return</td><td>Draft welcome email</td></tr>
+    <tr><td>Passport expiry warning</td><td>&lt; 6 months to expiry</td><td>Task: flag passport</td></tr>
+    <tr><td>Re-engage quiet customers</td><td>12 months no contact</td><td>Draft re-engagement</td></tr>
   </table>
-
-  <p>The <b>What Luna has done</b> feed logs every action. Drafts are marked <b>awaiting review</b> — they never send on their own.</p>
-
-  <div class="tip"><b>Tip:</b> Turn journeys on one at a time and watch the activity feed for a few days. Once you trust a journey, leave it running and let it quietly protect your repeat revenue.</div>
-  <div class="note"><b>Good to know:</b> Running a journey twice never doubles up — Luna remembers who it has already actioned.</div>
+  <div class="tip"><b>Top tip:</b> Turn journeys on one at a time and watch the feed for a few days. Once you trust one, leave it running and let it protect your repeat revenue.</div>
 </div>
 
-<!-- ══════════ 8 TASKS ══════════ -->
+<!-- 8 TASKS -->
 <div class="section">
   <h2 class="title"><span class="n">8</span> Tasks</h2>
   <p class="lede">Your single work queue. Everything Luna queues from journeys — plus follow-ups you create — lands here.</p>
 
+  <figure>
+    <div class="shot">
+      <div class="bar"><i style="background:#FF8E8E"></i><i style="background:#FFD96B"></i><i style="background:#6BD4C5"></i></div>
+      <div class="frame">
+        <div class="side"><div class="b"><i></i> Luna Work</div><div class="n">Journeys</div><div class="n on">Tasks</div><div class="n">Reports</div></div>
+        <div class="main">
+          <div class="chips"><span class="chip on">Open 7</span><span class="chip">Snoozed 1</span><span class="chip">Done 12</span><span class="chip">All</span></div>
+          <div class="card"><div class="ct" style="color:var(--error)">Overdue</div>
+            <div class="listrow"><span style="font-size:8pt">☐</span><span class="gap">Confirm details — The Davies <span class="chip" style="font-size:5.6pt">⚡ Journey</span></span><span>2d overdue</span></div>
+          </div>
+          <div class="card" style="margin-top:5px"><div class="ct">Today</div>
+            <div class="listrow"><span style="font-size:8pt">☐</span><span class="gap">Schedule a call — Sarah Thompson</span><span>Due today</span></div>
+            <div class="listrow"><span style="font-size:8pt">☐</span><span class="gap">Flag passport — Patel Family</span><span>Due today</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Tasks — open work bucketed by due date, with journey-created items badged. Illustrative figure.</figcaption>
+  </figure>
+
   <h3>How to use it</h3>
   <ol class="howto">
-    <li>Open tasks are bucketed by due date: <b>Overdue</b>, <b>Today</b>, <b>This week</b>, <b>Later</b> and <b>No date</b>.</li>
-    <li>Tick the checkbox to <b>complete</b> a task, or <b>Snooze</b> it (it returns in three days).</li>
-    <li>Switch the filter to <b>Snoozed</b>, <b>Done</b> or <b>All</b>. Reopen anything you need back.</li>
-    <li>Tasks created by a journey carry a badge and link straight to the customer.</li>
+    <li>Tick the checkbox to <b>complete</b>, or <b>Snooze</b> (returns in three days).</li>
+    <li>Filter by <b>Open / Snoozed / Done / All</b>; reopen anything you need back.</li>
+    <li>Journey-created tasks carry a badge and link to the customer.</li>
   </ol>
-
-  <div class="tip"><b>Tip:</b> Clear Overdue and Today every morning and the rest of the CRM stays honest. The Dashboard's "needs you today" count includes these.</div>
+  <div class="tip"><b>Top tip:</b> Clear Overdue and Today every morning and the whole CRM stays honest — the Dashboard's “needs you today” count includes these.</div>
 </div>
 
-<!-- ══════════ 9 REPORTS ══════════ -->
+<!-- 9 REPORTS -->
 <div class="section">
   <h2 class="title"><span class="n">9</span> Reports</h2>
   <p class="lede">The numbers that matter, computed live from your trips and customers.</p>
 
-  <h3>What's covered</h3>
-  <ul class="clean">
-    <li><b>Headline figures</b> — booked revenue, open pipeline, bookings and average booking value.</li>
-    <li><b>Pipeline &amp; conversion</b> — where value sits and how it flows through the stages.</li>
-    <li><b>Revenue by destination</b> and <b>source attribution</b> — what sells and where it comes from.</li>
-    <li><b>Business health</b> — revenue trend, new vs repeat, customer value bands and lead time.</li>
-  </ul>
+  <figure>
+    <div class="shot">
+      <div class="bar"><i style="background:#FF8E8E"></i><i style="background:#FFD96B"></i><i style="background:#6BD4C5"></i></div>
+      <div class="frame">
+        <div class="side"><div class="b"><i></i> Luna Work</div><div class="n">Tasks</div><div class="n on">Reports</div><div class="n">Settings</div></div>
+        <div class="main">
+          <div class="chips"><span class="chip on">This year</span><span class="chip">Last 12 months</span><span class="chip">All time</span></div>
+          <div class="kpis">
+            <div class="kpi"><div class="l">Booked rev</div><div class="v">£268k</div></div>
+            <div class="kpi"><div class="l">Open pipeline</div><div class="v">£42k</div></div>
+            <div class="kpi"><div class="l">Bookings</div><div class="v">38</div></div>
+            <div class="kpi"><div class="l">Avg booking</div><div class="v">£7.1k</div></div>
+          </div>
+          <div class="cols2">
+            <div class="card"><div class="ct">Revenue by destination</div>
+              <div class="barrow">Greece <div class="track"><div class="fill" style="width:80%"></div></div></div>
+              <div class="barrow">Italy <div class="track"><div class="fill" style="width:60%"></div></div></div>
+              <div class="barrow">Maldives <div class="track"><div class="fill" style="width:45%"></div></div></div>
+            </div>
+            <div class="card"><div class="ct">New vs repeat</div>
+              <div class="barrow">Repeat <div class="track"><div class="fill" style="width:68%"></div></div></div>
+              <div class="barrow">New <div class="track"><div class="fill" style="width:32%;background:var(--info)"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Reports — headline figures, destinations and new-vs-repeat, with an instant range toggle. Illustrative figure.</figcaption>
+  </figure>
 
   <h3>How to use it</h3>
   <ol class="howto">
-    <li>Flip the range between <b>This year</b>, <b>Last 12 months</b> and <b>All time</b> — it updates instantly.</li>
+    <li>Flip the range between <b>This year / Last 12 months / All time</b> — it updates instantly.</li>
     <li>Use source attribution to decide where your next marketing pound goes.</li>
   </ol>
-
-  <div class="tip"><b>Tip:</b> Watch new-vs-repeat over time. Growing repeat share is the clearest sign your journeys and follow-ups are working.</div>
+  <div class="tip"><b>Top tip:</b> Watch new-vs-repeat over time. Growing repeat share is the clearest sign your journeys and follow-ups are working.</div>
 </div>
 
-<!-- ══════════ 10 SETTINGS ══════════ -->
+<!-- 10 SETTINGS -->
 <div class="section">
   <h2 class="title"><span class="n">10</span> Settings</h2>
   <p class="lede">Your workspace, your team, and how Luna behaves.</p>
-
   <ul class="clean">
     <li><b>Workspace</b> — agency name, brand colour, region and plan.</li>
     <li><b>Team</b> — the people with access and their roles.</li>
-    <li><b>Luna AI</b> — the house style Luna always writes in (UK English, warm, direct, no filler) and which feature each model powers.</li>
+    <li><b>Luna AI</b> — the house style Luna always writes in, and which feature each model powers.</li>
     <li><b>Integrations</b> — connection status for your database, the AI engine and hosting.</li>
-    <li><b>Compliance &amp; data</b> — live GDPR consent, marketing opt-in and passport-expiry figures across your customers.</li>
+    <li><b>Compliance &amp; data</b> — live GDPR consent, marketing opt-in and passport-expiry figures.</li>
   </ul>
-
-  <div class="tip"><b>Tip:</b> Check the Compliance panel before any marketing send — it shows at a glance how many customers have consented.</div>
+  <div class="tip"><b>Top tip:</b> Check the Compliance panel before any marketing send — it shows at a glance how many customers have consented.</div>
 </div>
 
-<!-- ══════════ 11 LUNA AI ══════════ -->
+<!-- 11 LUNA AI -->
 <div class="section">
   <h2 class="title"><span class="n">11</span> Luna AI &amp; how to trust it</h2>
   <p class="lede">Luna is built to be helpful and safe. Here's exactly what's automated and what always waits for you.</p>
-
   <h3>The rules Luna follows</h3>
   <ul class="clean">
-    <li><b>It never invents facts.</b> Briefs, drafts and suggestions use only the data on file. If Luna doesn't know something, it leaves it out rather than guessing.</li>
-    <li><b>Numbers are computed, not guessed.</b> Risk and opportunity scores come from real arithmetic on real fields, so you can rely on them.</li>
-    <li><b>Nothing sends itself.</b> Luna drafts and queues; a human reviews and sends. Journey emails sit as drafts marked "awaiting review".</li>
+    <li><b>It never invents facts.</b> Briefs and drafts use only the data on file; if Luna doesn't know something, it leaves it out.</li>
+    <li><b>Numbers are computed, not guessed.</b> Risk and opportunity come from real arithmetic on real fields.</li>
+    <li><b>Nothing sends itself.</b> Luna drafts and queues; a human reviews and sends.</li>
     <li><b>It writes in your voice.</b> UK English, warm and direct, no marketing filler.</li>
   </ul>
-
-  <h3>What needs to be switched on</h3>
-  <ul class="clean">
-    <li>Live AI (briefs, reply drafts, Ask Luna, smart segments) needs an AI key configured on your deployment. Without it, the app still runs and falls back to prepared content.</li>
-    <li>The Settings → Integrations panel shows you exactly what's connected.</li>
-  </ul>
-
-  <div class="tip"><b>Tip:</b> Treat Luna like a brilliant new colleague: let it do the first draft and the legwork, and bring your judgement to the final send. That combination is where the time savings come from.</div>
+  <div class="tip"><b>Top tip:</b> Treat Luna like a brilliant new colleague — let it do the first draft and the legwork, and bring your judgement to the final send. That combination is where the time savings come from.</div>
 </div>
 
-<!-- ══════════ 12 SHORTCUTS ══════════ -->
+<!-- 12 TOP 10 TIPS -->
 <div class="section">
-  <h2 class="title"><span class="n">12</span> Keyboard shortcuts</h2>
+  <h2 class="title"><span class="n">12</span> Top 10 tips</h2>
+  <p class="lede">The moves that separate “using Luna Work” from “getting the most out of it”.</p>
+  <table>
+    <tr><th>#</th><th>Tip</th></tr>
+    <tr><td>1</td><td>Start every day on the Dashboard and act on the briefing line first.</td></tr>
+    <tr><td>2</td><td>Clear the Inbox <b>Today</b> lane and overdue <b>Tasks</b> before anything else.</td></tr>
+    <tr><td>3</td><td>Open the Customer 360 before every call — the brief is your 10-second catch-up.</td></tr>
+    <tr><td>4</td><td>Save a segment for quiet past customers and work it weekly.</td></tr>
+    <tr><td>5</td><td>Turn on Journeys one at a time, then let them run — that's repeat revenue on auto-pilot.</td></tr>
+    <tr><td>6</td><td>Watch the Trips board for cards stuck in Quoted; that's your hottest follow-up list.</td></tr>
+    <tr><td>7</td><td>Use Ask Luna (<span class="kbd">⌘/Ctrl+K</span>) instead of building a report for quick questions.</td></tr>
+    <tr><td>8</td><td>Always add a note after a call so the next person sees the full picture.</td></tr>
+    <tr><td>9</td><td>Pick the reply draft whose rationale matches the relationship, not just the fastest one.</td></tr>
+    <tr><td>10</td><td>Check Reports → new-vs-repeat monthly to prove the follow-ups are working.</td></tr>
+  </table>
+  <div class="tip gold"><b>Manager's tip:</b> Make tips 1, 2 and 5 a team standard. They take minutes a day and protect the revenue that's easiest to lose — your existing customers.</div>
+</div>
+
+<!-- 13 SHORTCUTS -->
+<div class="section">
+  <h2 class="title"><span class="n">13</span> Keyboard shortcuts</h2>
   <table>
     <tr><th>Shortcut</th><th>Action</th></tr>
-    <tr><td><span class="kbd">Ctrl / ⌘ + P</span></td><td>Open Quick find (jump to any customer, trip or page)</td></tr>
-    <tr><td><span class="kbd">Ctrl / ⌘ + K</span></td><td>Open Ask Luna</td></tr>
+    <tr><td><span class="kbd">⌘/Ctrl + P</span></td><td>Open Quick find (jump to any customer, trip or page)</td></tr>
+    <tr><td><span class="kbd">⌘/Ctrl + K</span></td><td>Open Ask Luna</td></tr>
     <tr><td><span class="kbd">↑ ↓</span> then <span class="kbd">Enter</span></td><td>Move through results and open</td></tr>
     <tr><td><span class="kbd">← →</span></td><td>Move through the product tour</td></tr>
     <tr><td><span class="kbd">Esc</span></td><td>Close any overlay (tour, palette, Ask)</td></tr>
   </table>
-
   <h3>A simple daily rhythm</h3>
   <ol class="howto">
     <li>Open the <b>Dashboard</b> and read the briefing.</li>
-    <li>Clear the <b>Today</b> inbox lane and any overdue <b>Tasks</b>.</li>
+    <li>Clear the <b>Today</b> inbox lane and overdue <b>Tasks</b>.</li>
     <li>Glance at <b>Trips</b> for anything stalled in Quoted.</li>
     <li>Once a week, work a saved <b>segment</b> of quiet past customers.</li>
     <li>Let <b>Journeys</b> handle the routine in the background.</li>
   </ol>
+</div>
 
-  <p class="footer-mark">Luna Work — Travelgenix CRM · User guide v1 · Reopen the in-app tour any time from “Take a tour” in the sidebar.</p>
+<!-- A–Z INDEX -->
+<div class="section">
+  <h2 class="title">A–Z index</h2>
+  <p class="lede">Every feature and where to find it. Numbers refer to the guide's sections.</p>
+  <div class="index">
+    <div class="letter">A</div>
+    <div class="row"><span>Add note</span><span>§4</span></div>
+    <div class="row"><span>Add tag (bulk)</span><span>§3</span></div>
+    <div class="row"><span>Add to journey</span><span>§3, §7</span></div>
+    <div class="row"><span>Ask Luna</span><span>§1, §13</span></div>
+    <div class="row"><span>Auto-pilot</span><span>§7</span></div>
+    <div class="letter">B</div>
+    <div class="row"><span>Briefing (morning)</span><span>§2</span></div>
+    <div class="row"><span>Brief (customer)</span><span>§4</span></div>
+    <div class="letter">C</div>
+    <div class="row"><span>Compliance figures</span><span>§10</span></div>
+    <div class="row"><span>Customer 360</span><span>§4</span></div>
+    <div class="row"><span>Customers list</span><span>§3</span></div>
+    <div class="letter">D</div>
+    <div class="row"><span>Dashboard</span><span>§2</span></div>
+    <div class="row"><span>Draft a reply</span><span>§4, §5</span></div>
+    <div class="row"><span>Draft outreach</span><span>§3</span></div>
+    <div class="row"><span>Drafts (ranked)</span><span>§5</span></div>
+    <div class="letter">E</div>
+    <div class="row"><span>Email all / selected</span><span>§3</span></div>
+    <div class="letter">G</div>
+    <div class="row"><span>Getting started</span><span>§1</span></div>
+    <div class="letter">I</div>
+    <div class="row"><span>Inbox</span><span>§5</span></div>
+    <div class="row"><span>Integrations</span><span>§10</span></div>
+    <div class="letter">J</div>
+    <div class="row"><span>Journeys</span><span>§7</span></div>
+    <div class="letter">K</div>
+    <div class="row"><span>Keyboard shortcuts</span><span>§13</span></div>
+    <div class="letter">L</div>
+    <div class="row"><span>Lanes (triage)</span><span>§5</span></div>
+    <div class="row"><span>Luna AI rules</span><span>§11</span></div>
+    <div class="letter">N</div>
+    <div class="row"><span>Next steps</span><span>§4</span></div>
+    <div class="letter">P</div>
+    <div class="row"><span>Passport warnings</span><span>§4, §7</span></div>
+    <div class="row"><span>Pipeline (trips)</span><span>§6</span></div>
+    <div class="row"><span>Predictions</span><span>§4</span></div>
+    <div class="letter">Q</div>
+    <div class="row"><span>Quick find</span><span>§1, §13</span></div>
+    <div class="letter">R</div>
+    <div class="row"><span>Refresh brief</span><span>§4</span></div>
+    <div class="row"><span>Reports</span><span>§9</span></div>
+    <div class="row"><span>Roles (where to start)</span><span>Roles</span></div>
+    <div class="letter">S</div>
+    <div class="row"><span>Save segment</span><span>§3</span></div>
+    <div class="row"><span>Schedule call</span><span>§4</span></div>
+    <div class="row"><span>Seed demo data</span><span>§1, §3</span></div>
+    <div class="row"><span>Segments (smart)</span><span>§3</span></div>
+    <div class="row"><span>Settings</span><span>§10</span></div>
+    <div class="row"><span>Snooze (task)</span><span>§8</span></div>
+    <div class="letter">T</div>
+    <div class="row"><span>Tags</span><span>§3</span></div>
+    <div class="row"><span>Tasks</span><span>§8</span></div>
+    <div class="row"><span>Tour (in-app)</span><span>§1</span></div>
+    <div class="row"><span>Trips board</span><span>§6</span></div>
+    <div class="letter">W</div>
+    <div class="row"><span>Welcome home journey</span><span>§7</span></div>
+  </div>
+  <p class="footer-mark">Luna Work — Travelgenix CRM · User guide v2 · Reopen the in-app tour any time from “Take a tour” in the sidebar.</p>
 </div>
 
 </body>
