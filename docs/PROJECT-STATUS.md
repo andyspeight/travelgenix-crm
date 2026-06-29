@@ -66,6 +66,8 @@ Track 3 of the post-completion roadmap. Ordered by value per unit of friction.
   - **Deploy note:** "Save segment" needs the new `segments` table — run `supabase/migrations/20260628120000_segments.sql` in Supabase. Until then the rest works and the save action returns a clear "run the migration" message.
 - [ ] **Calendly booking** — per-agency link in Settings, "Book a call" on the customer/inbox. Needs a Calendly link/token.
 - [x] **Responsive layouts** — done. Added a responsive CSS layer to `globals.css` (the app styles inline, which can't hold media queries, so layout-critical rules now live as classes). Sidebar becomes an off-canvas drawer below 900px with a hamburger in the topbar and a dimming overlay (via a small `SidebarContext` + `AppShell`). All multi-column grids (dashboard, journeys, settings, reports, customer detail) collapse through 1024/768/640 breakpoints; the inbox goes three-pane → two-pane → stacked; customers table scrolls horizontally. Breakpoints: 1024 / 900 / 768 / 720 / 640.
+- [x] **Product tour** — in-app step-by-step onboarding overlay (`components/tour/*`) covering set-up and every screen, deep-linking to each, auto-opening once on first visit and re-openable from the sidebar "Take a tour".
+- [x] **PDF user guide** — branded full user guide at `docs/Luna-Work-User-Guide.pdf` (source `docs/user-guide.html`, render to PDF with headless Chromium `--print-to-pdf`). Covers every feature with how-to steps and tips. Hand to new sign-ups to cut training.
 - [ ] **Observability** — error logging on the API routes, surface the audit trail. Needs a Sentry DSN if used.
 
 ### Still genuinely future (not blocking)

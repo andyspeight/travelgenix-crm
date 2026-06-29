@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Luna Work — User Guide</title>
+<style>
+  :root {
+    --navy: #1B2B5B;
+    --navy-dark: #111D3E;
+    --teal: #00B4D8;
+    --teal-light: #48CAE4;
+    --ink: #0F172A;
+    --muted: #475569;
+    --subtle: #94A3B8;
+    --line: #E2E8F0;
+    --bg-soft: #F1F5F9;
+    --success: #10B981;
+    --warning: #F59E0B;
+  }
+
+  * { box-sizing: border-box; }
+
+  @page {
+    size: A4;
+    margin: 18mm 16mm 16mm 16mm;
+  }
+  @page :first { margin: 0; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    color: var(--ink);
+    font-family: "Helvetica Neue", Arial, system-ui, sans-serif;
+    font-size: 10.6pt;
+    line-height: 1.5;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  h1, h2, h3 { color: var(--navy); letter-spacing: -0.01em; }
+
+  a { color: var(--teal); text-decoration: none; }
+
+  code {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 9.2pt;
+    color: var(--navy);
+  }
+
+  /* ── Cover ── */
+  .cover {
+    height: 297mm;
+    background: linear-gradient(150deg, var(--navy) 0%, var(--navy-dark) 70%);
+    color: white;
+    padding: 40mm 24mm;
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+  }
+  .cover .orb {
+    position: absolute;
+    top: -80mm; right: -60mm;
+    width: 220mm; height: 220mm;
+    background: radial-gradient(circle, var(--teal) 0%, transparent 60%);
+    opacity: 0.28;
+  }
+  .cover .mark {
+    display: inline-flex; align-items: center; gap: 10px;
+    position: relative;
+  }
+  .cover .logo {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--navy) 0%, var(--teal) 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 20px; color: white;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  .cover .brand { font-size: 13pt; font-weight: 700; }
+  .cover .brand small { display:block; font-size: 8.5pt; font-weight: 600; letter-spacing: 0.14em; color: var(--teal-light); text-transform: uppercase; }
+  .cover h1 {
+    color: white; font-size: 40pt; line-height: 1.05; margin: 60mm 0 0;
+    position: relative; max-width: 150mm;
+  }
+  .cover .tag { position: relative; font-size: 14pt; color: rgba(255,255,255,0.85); margin-top: 8mm; max-width: 130mm; }
+  .cover .foot { position: absolute; bottom: 24mm; left: 24mm; right: 24mm; font-size: 9.5pt; color: rgba(255,255,255,0.7); display:flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 6mm; }
+
+  /* ── Sections ── */
+  .section { page-break-before: always; }
+  .section:first-of-type { page-break-before: avoid; }
+
+  h2.title {
+    font-size: 20pt; margin: 0 0 2mm;
+    padding-bottom: 3mm; border-bottom: 3px solid var(--teal);
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  h2.title .n {
+    font-size: 11pt; color: white; background: var(--navy);
+    border-radius: 6px; padding: 2px 9px; font-weight: 700;
+  }
+  .lede { color: var(--muted); font-size: 11pt; margin: 4mm 0 6mm; }
+
+  h3 { font-size: 12.5pt; margin: 7mm 0 2mm; }
+  .howto { margin: 0; padding-left: 18px; }
+  .howto li { margin: 1.5mm 0; }
+
+  ul.clean { list-style: none; margin: 0; padding: 0; }
+  ul.clean li { position: relative; padding-left: 16px; margin: 1.6mm 0; }
+  ul.clean li::before { content: ""; position: absolute; left: 0; top: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+
+  .tip {
+    background: rgba(0,180,216,0.06);
+    border: 1px solid rgba(0,180,216,0.25);
+    border-left: 3px solid var(--teal);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 5mm 0;
+    font-size: 9.8pt;
+  }
+  .tip b { color: var(--navy); }
+
+  .note {
+    background: rgba(245,158,11,0.07);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-left: 3px solid var(--warning);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 5mm 0;
+    font-size: 9.8pt;
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 9.8pt; margin: 3mm 0; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--navy); border-bottom: 2px solid var(--line); }
+
+  .toc a { color: var(--ink); }
+  .toc { list-style: none; padding: 0; margin: 6mm 0 0; column-count: 1; }
+  .toc li { display:flex; justify-content: space-between; border-bottom: 1px dotted var(--line); padding: 3mm 0; font-size: 11pt; }
+  .toc li .t { color: var(--navy); font-weight: 600; }
+  .toc li .d { color: var(--muted); font-weight: 400; font-size: 9.6pt; max-width: 95mm; text-align: right; }
+
+  .kbd { font-family: monospace; background: var(--navy); color: white; border-radius: 4px; padding: 1px 7px; font-size: 9pt; }
+
+  .footer-mark { color: var(--subtle); font-size: 8.5pt; text-align: center; margin-top: 8mm; }
+</style>
+</head>
+<body>
+
+<!-- ══════════ COVER ══════════ -->
+<div class="cover">
+  <div class="orb"></div>
+  <div class="mark">
+    <div class="logo">L</div>
+    <div class="brand">Luna Work<small>Travelgenix CRM</small></div>
+  </div>
+  <h1>The complete user guide</h1>
+  <div class="tag">Everything you need to run your travel agency on Luna Work — set-up, every screen, and the tips that get the most out of it.</div>
+  <div class="foot">
+    <span>HubSpot for travel agencies, with AI doing the work nobody has time for.</span>
+    <span>v1 · 2026</span>
+  </div>
+</div>
+
+<!-- ══════════ CONTENTS ══════════ -->
+<div class="section">
+  <h2 class="title">Contents</h2>
+  <p class="lede">A two-minute read per section. Start with Getting started, then dip into any feature as you need it.</p>
+  <ul class="toc">
+    <li><span class="t">1 · Getting started</span><span class="d">Sign in, data, the tour, finding things fast</span></li>
+    <li><span class="t">2 · Dashboard</span><span class="d">Your morning briefing and the day at a glance</span></li>
+    <li><span class="t">3 · Customers &amp; smart segments</span><span class="d">Find, group and act on customers</span></li>
+    <li><span class="t">4 · Customer 360</span><span class="d">The full record, brief, predictions and actions</span></li>
+    <li><span class="t">5 · Inbox</span><span class="d">Triage and reply with ranked drafts</span></li>
+    <li><span class="t">6 · Trips pipeline</span><span class="d">The Kanban board from enquiry to returned</span></li>
+    <li><span class="t">7 · Journeys (auto-pilot)</span><span class="d">Rules that do the follow-ups for you</span></li>
+    <li><span class="t">8 · Tasks</span><span class="d">The work queue</span></li>
+    <li><span class="t">9 · Reports</span><span class="d">Revenue, pipeline and behaviour</span></li>
+    <li><span class="t">10 · Settings</span><span class="d">Workspace, team, AI and compliance</span></li>
+    <li><span class="t">11 · Luna AI &amp; how to trust it</span><span class="d">What's automated and what isn't</span></li>
+    <li><span class="t">12 · Keyboard shortcuts</span><span class="d">Move at speed</span></li>
+  </ul>
+</div>
+
+<!-- ══════════ 1 GETTING STARTED ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">1</span> Getting started</h2>
+  <p class="lede">Luna Work is your travel-native CRM. Luna, the built-in AI, reads your inbox, briefs you on every customer, suggests the next move and runs the routine follow-ups. You stay in control: Luna drafts and queues, you approve and send.</p>
+
+  <h3>Signing in &amp; your workspace</h3>
+  <ul class="clean">
+    <li>Open your Luna Work URL. You land on the <b>Dashboard</b>.</li>
+    <li>The left <b>sidebar</b> is your map: Dashboard, Inbox, Customers, Trips, Journeys, Tasks, Reports, and Settings at the bottom.</li>
+    <li>Toggle <b>light / dark mode</b> with the sun/moon button in the bottom-left.</li>
+  </ul>
+
+  <h3>Getting data in</h3>
+  <ol class="howto">
+    <li><b>Just exploring?</b> Open <b>Customers</b> and click <b>Seed demo data</b> to load 30 realistic sample households so every screen has something to show.</li>
+    <li><b>Going live?</b> Add your own customers instead, and clear the demo data once you're ready for real records.</li>
+  </ol>
+
+  <h3>The guided tour</h3>
+  <p>The first time you open Luna Work, a short <b>step-by-step tour</b> walks you through set-up and every screen. You can reopen it any time from <b>Take a tour</b> at the bottom of the sidebar.</p>
+
+  <h3>Two ways to move fast</h3>
+  <div class="grid2">
+    <div>
+      <b>Quick find</b>
+      <ul class="clean">
+        <li>Press <span class="kbd">Ctrl / ⌘ + P</span>, or click <b>Quick find</b> at the top of the sidebar.</li>
+        <li>Jump straight to any customer, trip or page.</li>
+      </ul>
+    </div>
+    <div>
+      <b>Ask Luna</b>
+      <ul class="clean">
+        <li>The glowing button bottom-right (<span class="kbd">Ctrl / ⌘ + K</span>).</li>
+        <li>Ask in plain English: "Who's travelling next month?", "How much have we booked this year?"</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tip"><b>Tip:</b> Ask Luna understands your real data. Try "Who's going to Spain?" or "Show me high-value customers who've gone quiet" and click straight through to the records.</div>
+</div>
+
+<!-- ══════════ 2 DASHBOARD ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">2</span> Dashboard</h2>
+  <p class="lede">Your home screen and daily starting point. It answers one question: what needs me today?</p>
+
+  <h3>What you'll see</h3>
+  <ul class="clean">
+    <li><b>Morning briefing</b> — a single sentence summarising messages that need you, imminent departures and live enquiry value.</li>
+    <li><b>KPIs</b> — customers and lifetime value, live pipeline, departures in the next 7 days, and what needs you today. Each tile is clickable.</li>
+    <li><b>Pipeline by stage</b> — value sitting in each stage of the trip pipeline.</li>
+    <li><b>Departures &amp; travelling</b> — who's away now and who leaves soon.</li>
+    <li><b>Needs you today</b> — the urgent inbox items, straight from Luna's triage.</li>
+    <li><b>Luna on auto-pilot</b> — what your journeys did in the background.</li>
+  </ul>
+
+  <h3>How to use it</h3>
+  <ol class="howto">
+    <li>Read the briefing line first — it's your to-do list in one sentence.</li>
+    <li>Click <b>Needs you today</b> or any KPI tile to jump straight to the work.</li>
+    <li>Glance at the auto-pilot strip to see what Luna handled while you were away.</li>
+  </ol>
+
+  <div class="tip"><b>Tip:</b> Make the Dashboard your first stop each morning. If the briefing says "nothing urgent", that's your cue to chase quotes or re-engage past travellers.</div>
+</div>
+
+<!-- ══════════ 3 CUSTOMERS ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">3</span> Customers &amp; smart segments</h2>
+  <p class="lede">Your customer list, with a search box that understands plain English. Describe who you want and Luna builds the filter.</p>
+
+  <h3>Finding the right people</h3>
+  <ol class="howto">
+    <li>Type a description in the smart bar, e.g. <i>"families who went to Greece and have gone quiet"</i>, and press Enter.</li>
+    <li>Luna turns it into <b>filter chips</b>. Remove a chip to widen the search, or click <b>Clear</b> to reset.</li>
+    <li>Use the <b>saved segment</b> chips for one-click common views (travelling now, high-value couples, and any you save).</li>
+    <li>Use the plain text box to filter the visible list by name or city.</li>
+  </ol>
+
+  <h3>Acting on a group</h3>
+  <ul class="clean">
+    <li><b>Email all</b> — opens a pre-addressed email draft to everyone in the current view.</li>
+    <li><b>Add to journey</b> — enrol the group into an auto-pilot journey.</li>
+    <li><b>Save segment</b> — name the search and pin it as a reusable chip.</li>
+    <li><b>Select rows</b> (the checkboxes) to act on a specific subset: Email selected, Add tag, Draft outreach.</li>
+  </ul>
+
+  <h3>How to use it</h3>
+  <ol class="howto">
+    <li>Search, refine with chips, then either click a customer to open them or act on the whole group.</li>
+    <li>Found a view you'll want again? <b>Save segment</b> so it's one click next time.</li>
+  </ol>
+
+  <div class="tip"><b>Tip:</b> Segments are the engine room of proactive selling. Save "Booked 18+ months ago, no contact" and work it once a week — that's repeat business most agencies leave on the table.</div>
+  <div class="note"><b>Set-up note:</b> Saving segments needs the segments table enabled in your database (a one-time migration). Until then everything else works and Save segment will tell you what to run.</div>
+</div>
+
+<!-- ══════════ 4 CUSTOMER 360 ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">4</span> Customer 360</h2>
+  <p class="lede">Everything about one household on a single page — history, intelligence and the next move.</p>
+
+  <h3>What's on the page</h3>
+  <ul class="clean">
+    <li><b>Luna's brief</b> — a short, plain-English summary of who they are and how they book.</li>
+    <li><b>Predictions</b> — rebooking opportunity, a trip-match idea, and a risk read (passports, compliance). The numbers are computed from real data, not guessed.</li>
+    <li><b>Timeline</b> — every email, chat, call and note in one thread.</li>
+    <li><b>Luna · Next steps</b> — the best actions right now, each with a <b>Do</b> button.</li>
+    <li><b>Trips, household, preferences and compliance</b> panels down the right.</li>
+  </ul>
+
+  <h3>Actions you can take</h3>
+  <table>
+    <tr><th>Button</th><th>What it does</th></tr>
+    <tr><td>Refresh brief</td><td>Regenerates Luna's brief and predictions from the latest data.</td></tr>
+    <tr><td>Draft a reply</td><td>Opens the inbox focused on their most recent message, ready to reply.</td></tr>
+    <tr><td>Add note</td><td>Adds an internal note that appears in the timeline.</td></tr>
+    <tr><td>Schedule call</td><td>Creates a follow-up task (and opens your booking page if configured).</td></tr>
+    <tr><td>Next steps · Do</td><td>Performs the suggested step — creates the task or opens the reply.</td></tr>
+  </table>
+
+  <h3>How to use it</h3>
+  <ol class="howto">
+    <li>Open a customer, read the brief and the next steps — that's your 10-second catch-up.</li>
+    <li>Work the next steps top-down with the <b>Do</b> buttons.</li>
+    <li>After a call or change, click <b>Add note</b> so the next person sees the full picture.</li>
+  </ol>
+
+  <div class="tip"><b>Tip:</b> Before any call, open the record and skim the brief and timeline. Mentioning their last trip or a child's name by memory is what turns a booking into a relationship.</div>
+</div>
+
+<!-- ══════════ 5 INBOX ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">5</span> Inbox</h2>
+  <p class="lede">Every inbound message, triaged by Luna and ready to answer — with reply options written for you.</p>
+
+  <h3>Triage lanes</h3>
+  <ul class="clean">
+    <li>Luna sorts messages into <b>Today</b>, <b>This week</b>, <b>Later</b> and <b>All</b>, with a one-line reason for each.</li>
+    <li>Work the <b>Today</b> lane first — those are the ones that move money or matter most.</li>
+  </ul>
+
+  <h3>Replying</h3>
+  <ol class="howto">
+    <li>Select a message. The middle pane shows the full email and Luna's read of it.</li>
+    <li>Below it sit <b>ranked reply drafts</b>, each with a one-line rationale for the trade-off it makes.</li>
+    <li>Switch between drafts, then <b>Send as is</b>, <b>Edit before sending</b>, or click <b>Draft with Luna</b> to generate fresh options grounded in that customer's record.</li>
+    <li>The right pane is a mini customer card — context without leaving the inbox.</li>
+  </ol>
+
+  <div class="tip"><b>Tip:</b> The drafts are deliberately different in tone, not three versions of the same thing. Pick the one that fits the relationship — the rationale tells you what each one prioritises.</div>
+</div>
+
+<!-- ══════════ 6 TRIPS ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">6</span> Trips pipeline</h2>
+  <p class="lede">A Kanban board of every trip, from first enquiry to safely returned, so nothing stalls.</p>
+
+  <h3>The stages</h3>
+  <p>Enquiry → Quoted → Booked → Pre-departure → Travelling → Returned. Cancelled trips are kept out of the pipeline but reachable via the toggle.</p>
+
+  <h3>How to use it</h3>
+  <ol class="howto">
+    <li><b>Drag a card</b> between columns as a trip moves forward. On touch or keyboard, use the stage dropdown on each card.</li>
+    <li>Read the <b>column totals</b> to see how much value is sitting at each stage.</li>
+    <li>Click a card to open the customer behind the trip.</li>
+  </ol>
+
+  <div class="tip"><b>Tip:</b> A healthy board has movement every day. If cards pile up in Quoted, that's your follow-up list — pair it with a journey so Luna chases them automatically.</div>
+</div>
+
+<!-- ══════════ 7 JOURNEYS ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">7</span> Journeys (auto-pilot)</h2>
+  <p class="lede">The heart of "AI doing the work nobody has time for". A journey is a rule: when something happens, Luna does a follow-up.</p>
+
+  <h3>Getting started</h3>
+  <ol class="howto">
+    <li>Open <b>Journeys</b> and click <b>Install starter journeys</b> to add four proven rules.</li>
+    <li>Each card shows its trigger, its action, and how many customers are <b>eligible right now</b>.</li>
+    <li>Click <b>Run now</b> on a journey (or <b>Run all active</b>) to act on the eligible customers.</li>
+    <li><b>Pause</b> any journey you don't want running.</li>
+  </ol>
+
+  <h3>The starter journeys</h3>
+  <table>
+    <tr><th>Journey</th><th>When it fires</th><th>What Luna does</th></tr>
+    <tr><td>Pre-departure check-in</td><td>10 days before departure</td><td>Creates a task to confirm details &amp; passports</td></tr>
+    <tr><td>Welcome home</td><td>3 days after return</td><td>Drafts a warm welcome-home email</td></tr>
+    <tr><td>Passport expiry warning</td><td>Passport within 6 months of expiry</td><td>Creates a task to flag it</td></tr>
+    <tr><td>Re-engage quiet customers</td><td>No contact for 12 months</td><td>Drafts a re-engagement email</td></tr>
+  </table>
+
+  <p>The <b>What Luna has done</b> feed logs every action. Drafts are marked <b>awaiting review</b> — they never send on their own.</p>
+
+  <div class="tip"><b>Tip:</b> Turn journeys on one at a time and watch the activity feed for a few days. Once you trust a journey, leave it running and let it quietly protect your repeat revenue.</div>
+  <div class="note"><b>Good to know:</b> Running a journey twice never doubles up — Luna remembers who it has already actioned.</div>
+</div>
+
+<!-- ══════════ 8 TASKS ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">8</span> Tasks</h2>
+  <p class="lede">Your single work queue. Everything Luna queues from journeys — plus follow-ups you create — lands here.</p>
+
+  <h3>How to use it</h3>
+  <ol class="howto">
+    <li>Open tasks are bucketed by due date: <b>Overdue</b>, <b>Today</b>, <b>This week</b>, <b>Later</b> and <b>No date</b>.</li>
+    <li>Tick the checkbox to <b>complete</b> a task, or <b>Snooze</b> it (it returns in three days).</li>
+    <li>Switch the filter to <b>Snoozed</b>, <b>Done</b> or <b>All</b>. Reopen anything you need back.</li>
+    <li>Tasks created by a journey carry a badge and link straight to the customer.</li>
+  </ol>
+
+  <div class="tip"><b>Tip:</b> Clear Overdue and Today every morning and the rest of the CRM stays honest. The Dashboard's "needs you today" count includes these.</div>
+</div>
+
+<!-- ══════════ 9 REPORTS ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">9</span> Reports</h2>
+  <p class="lede">The numbers that matter, computed live from your trips and customers.</p>
+
+  <h3>What's covered</h3>
+  <ul class="clean">
+    <li><b>Headline figures</b> — booked revenue, open pipeline, bookings and average booking value.</li>
+    <li><b>Pipeline &amp; conversion</b> — where value sits and how it flows through the stages.</li>
+    <li><b>Revenue by destination</b> and <b>source attribution</b> — what sells and where it comes from.</li>
+    <li><b>Business health</b> — revenue trend, new vs repeat, customer value bands and lead time.</li>
+  </ul>
+
+  <h3>How to use it</h3>
+  <ol class="howto">
+    <li>Flip the range between <b>This year</b>, <b>Last 12 months</b> and <b>All time</b> — it updates instantly.</li>
+    <li>Use source attribution to decide where your next marketing pound goes.</li>
+  </ol>
+
+  <div class="tip"><b>Tip:</b> Watch new-vs-repeat over time. Growing repeat share is the clearest sign your journeys and follow-ups are working.</div>
+</div>
+
+<!-- ══════════ 10 SETTINGS ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">10</span> Settings</h2>
+  <p class="lede">Your workspace, your team, and how Luna behaves.</p>
+
+  <ul class="clean">
+    <li><b>Workspace</b> — agency name, brand colour, region and plan.</li>
+    <li><b>Team</b> — the people with access and their roles.</li>
+    <li><b>Luna AI</b> — the house style Luna always writes in (UK English, warm, direct, no filler) and which feature each model powers.</li>
+    <li><b>Integrations</b> — connection status for your database, the AI engine and hosting.</li>
+    <li><b>Compliance &amp; data</b> — live GDPR consent, marketing opt-in and passport-expiry figures across your customers.</li>
+  </ul>
+
+  <div class="tip"><b>Tip:</b> Check the Compliance panel before any marketing send — it shows at a glance how many customers have consented.</div>
+</div>
+
+<!-- ══════════ 11 LUNA AI ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">11</span> Luna AI &amp; how to trust it</h2>
+  <p class="lede">Luna is built to be helpful and safe. Here's exactly what's automated and what always waits for you.</p>
+
+  <h3>The rules Luna follows</h3>
+  <ul class="clean">
+    <li><b>It never invents facts.</b> Briefs, drafts and suggestions use only the data on file. If Luna doesn't know something, it leaves it out rather than guessing.</li>
+    <li><b>Numbers are computed, not guessed.</b> Risk and opportunity scores come from real arithmetic on real fields, so you can rely on them.</li>
+    <li><b>Nothing sends itself.</b> Luna drafts and queues; a human reviews and sends. Journey emails sit as drafts marked "awaiting review".</li>
+    <li><b>It writes in your voice.</b> UK English, warm and direct, no marketing filler.</li>
+  </ul>
+
+  <h3>What needs to be switched on</h3>
+  <ul class="clean">
+    <li>Live AI (briefs, reply drafts, Ask Luna, smart segments) needs an AI key configured on your deployment. Without it, the app still runs and falls back to prepared content.</li>
+    <li>The Settings → Integrations panel shows you exactly what's connected.</li>
+  </ul>
+
+  <div class="tip"><b>Tip:</b> Treat Luna like a brilliant new colleague: let it do the first draft and the legwork, and bring your judgement to the final send. That combination is where the time savings come from.</div>
+</div>
+
+<!-- ══════════ 12 SHORTCUTS ══════════ -->
+<div class="section">
+  <h2 class="title"><span class="n">12</span> Keyboard shortcuts</h2>
+  <table>
+    <tr><th>Shortcut</th><th>Action</th></tr>
+    <tr><td><span class="kbd">Ctrl / ⌘ + P</span></td><td>Open Quick find (jump to any customer, trip or page)</td></tr>
+    <tr><td><span class="kbd">Ctrl / ⌘ + K</span></td><td>Open Ask Luna</td></tr>
+    <tr><td><span class="kbd">↑ ↓</span> then <span class="kbd">Enter</span></td><td>Move through results and open</td></tr>
+    <tr><td><span class="kbd">← →</span></td><td>Move through the product tour</td></tr>
+    <tr><td><span class="kbd">Esc</span></td><td>Close any overlay (tour, palette, Ask)</td></tr>
+  </table>
+
+  <h3>A simple daily rhythm</h3>
+  <ol class="howto">
+    <li>Open the <b>Dashboard</b> and read the briefing.</li>
+    <li>Clear the <b>Today</b> inbox lane and any overdue <b>Tasks</b>.</li>
+    <li>Glance at <b>Trips</b> for anything stalled in Quoted.</li>
+    <li>Once a week, work a saved <b>segment</b> of quiet past customers.</li>
+    <li>Let <b>Journeys</b> handle the routine in the background.</li>
+  </ol>
+
+  <p class="footer-mark">Luna Work — Travelgenix CRM · User guide v1 · Reopen the in-app tour any time from “Take a tour” in the sidebar.</p>
+</div>
+
+</body>
+</html>
