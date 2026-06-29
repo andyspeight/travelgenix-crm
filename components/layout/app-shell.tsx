@@ -5,6 +5,8 @@ import { Sidebar } from "./sidebar";
 import { SidebarContext } from "./sidebar-context";
 import { CommandContext } from "@/components/command/command-context";
 import { CommandPalette } from "@/components/command/command-palette";
+import { TourContext } from "@/components/tour/tour-context";
+import { ProductTour } from "@/components/tour/product-tour";
 
 /**
  * The app frame. Holds the mobile drawer state and the command-palette state,
@@ -16,20 +18,24 @@ import { CommandPalette } from "@/components/command/command-palette";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
 
   return (
     <SidebarContext.Provider value={{ open, setOpen }}>
       <CommandContext.Provider value={{ open: cmdOpen, setOpen: setCmdOpen }}>
-        <div className="app-shell">
-          <Sidebar />
-          <main className="app-main">{children}</main>
-        </div>
-        <div
-          className={`sidebar-overlay${open ? " open" : ""}`}
-          onClick={() => setOpen(false)}
-          aria-hidden
-        />
-        <CommandPalette />
+        <TourContext.Provider value={{ open: tourOpen, setOpen: setTourOpen }}>
+          <div className="app-shell">
+            <Sidebar />
+            <main className="app-main">{children}</main>
+          </div>
+          <div
+            className={`sidebar-overlay${open ? " open" : ""}`}
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <CommandPalette />
+          <ProductTour />
+        </TourContext.Provider>
       </CommandContext.Provider>
     </SidebarContext.Provider>
   );
