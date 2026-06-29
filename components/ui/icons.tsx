@@ -135,6 +135,33 @@ export const NoteIcon = (p: IconProps) => (
   </svg>
 );
 
+export const ZapIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" />
+  </svg>
+);
+
+export const CheckIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
+
+export const MenuIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M4 12h16" />
+    <path d="M4 6h16" />
+    <path d="M4 18h16" />
+  </svg>
+);
+
+export const CheckSquareIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M9 11l3 3L22 4" />
+    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+  </svg>
+);
+
 export const XIcon = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M18 6 6 18" />

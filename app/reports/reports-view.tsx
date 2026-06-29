@@ -119,14 +119,7 @@ export function ReportsView({
       <Headlines trips={filtered} />
 
       {/* Two-column report grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-          marginTop: 16,
-        }}
-      >
+      <div className="rgrid rgrid-2" style={{ gap: 16, marginTop: 16 }}>
         <PipelineByStage trips={filtered} />
         <ConversionFunnel trips={filtered} />
         <RevenueByDestination trips={filtered} />
@@ -147,7 +140,7 @@ export function ReportsView({
         <RevenueTrend trips={filtered} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="rgrid rgrid-2" style={{ gap: 16 }}>
         <NewVsRepeat trips={filtered} households={households} />
         <CustomerValueBands households={households} />
         <DestinationTable trips={filtered} />
@@ -174,7 +167,7 @@ function Headlines({ trips }: { trips: ReportTrip[] }) {
   ];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+    <div className="rgrid rgrid-4" style={{ gap: 16 }}>
       {tiles.map((t) => (
         <div
           key={t.label}

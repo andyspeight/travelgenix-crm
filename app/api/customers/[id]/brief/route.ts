@@ -27,6 +27,7 @@
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { buildScoringContext } from "@/lib/scoring/customer";
+import { rateLimit, clientKey } from "@/lib/ai/rate-limit";
 import type { Contact, Trip, Household } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,7 @@ const MAX_OUTPUT_TOKENS = 600; // cost ceiling — a brief is a short paragraph
 const ANTHROPIC_VERSION = "2023-06-01";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   const householdId = params.id;
@@ -57,6 +58,15 @@ export async function POST(
     return NextResponse.json(
       { ok: false, error: "Brief generation is not configured yet." },
       { status: 503 }
+    );
+  }
+
+  // Brief generation is a model call per household, so cap it per client.
+  const limit = rateLimit(clientKey(request, "brief"), 10, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Generating briefs a little too fast. Try again shortly." },
+      { status: 429, headers: { "retry-after": String(limit.retryAfter) } }
     );
   }
 

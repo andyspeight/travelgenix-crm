@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { runAsk } from "@/lib/ask/router";
 import type { QueryContext } from "@/lib/ask/contract";
+import { rateLimit, clientKey } from "@/lib/ai/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,6 +25,14 @@ export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ ok: false, error: "Luna Ask is not configured yet." }, { status: 503 });
+  }
+
+  const limit = rateLimit(clientKey(request, "ask"), 20, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Too many questions just now. Give it a moment." },
+      { status: 429, headers: { "retry-after": String(limit.retryAfter) } }
+    );
   }
 
   const body = await request.json().catch(() => null);

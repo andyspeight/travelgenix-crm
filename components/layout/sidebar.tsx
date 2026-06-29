@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "./theme-provider";
+import { useSidebar } from "./sidebar-context";
+import { useCommand } from "@/components/command/command-context";
 import {
   HomeIcon,
   InboxIcon,
@@ -13,6 +15,8 @@ import {
   SearchIcon,
   SunIcon,
   MoonIcon,
+  ZapIcon,
+  CheckSquareIcon,
 } from "@/components/ui/icons";
 
 const navItems = [
@@ -20,23 +24,25 @@ const navItems = [
   { href: "/inbox", label: "Inbox", icon: InboxIcon, match: (p: string) => p.startsWith("/inbox"), badge: 3 },
   { href: "/customers", label: "Customers", icon: UsersIcon, match: (p: string) => p.startsWith("/customers") },
   { href: "/trips", label: "Trips", icon: PlaneIcon, match: (p: string) => p.startsWith("/trips") },
+  { href: "/journeys", label: "Journeys", icon: ZapIcon, match: (p: string) => p.startsWith("/journeys") },
+  { href: "/tasks", label: "Tasks", icon: CheckSquareIcon, match: (p: string) => p.startsWith("/tasks") },
   { href: "/reports", label: "Reports", icon: ChartIcon, match: (p: string) => p.startsWith("/reports") },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const { open, setOpen } = useSidebar();
+  const { setOpen: setCommandOpen } = useCommand();
 
   return (
     <aside
+      className={`app-sidebar${open ? " open" : ""}`}
       style={{
         background: "var(--surface)",
         borderRight: "1px solid var(--border)",
         display: "flex",
         flexDirection: "column",
-        position: "sticky",
-        top: 0,
-        height: "100vh",
       }}
     >
       {/* Brand */}
@@ -109,7 +115,8 @@ export function Sidebar() {
             fontSize: 13,
           }}
           onClick={() => {
-            // Cmd-K palette wires up later
+            setOpen(false);
+            setCommandOpen(true);
           }}
         >
           <SearchIcon width={14} height={14} />
@@ -126,7 +133,7 @@ export function Sidebar() {
               fontFamily: '"JetBrains Mono", monospace',
             }}
           >
-            ⌘K
+            ⌘P
           </span>
         </button>
       </div>
@@ -151,6 +158,7 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
+              onClick={() => setOpen(false)}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -197,6 +205,7 @@ export function Sidebar() {
       <div style={{ padding: "12px 8px", borderTop: "1px solid var(--border)" }}>
         <Link
           href="/settings"
+          onClick={() => setOpen(false)}
           style={{
             display: "flex",
             alignItems: "center",

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/layout/theme-provider";
-import { Sidebar } from "@/components/layout/sidebar";
+import { AppShell } from "@/components/layout/app-shell";
 import { LunaAsk } from "@/components/luna-ask";
 import "./globals.css";
 
@@ -18,24 +18,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "var(--sidebar-w) 1fr",
-              minHeight: "100vh",
-            }}
-          >
-            <Sidebar />
-            <main
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                minWidth: 0,
-              }}
-            >
-              {children}
-            </main>
-          </div>
+          <AppShell>{children}</AppShell>
           <LunaAsk />
         </ThemeProvider>
       </body>
