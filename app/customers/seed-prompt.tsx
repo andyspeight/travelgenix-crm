@@ -16,7 +16,7 @@ export function SeedPrompt() {
     setStatus("seeding");
     setErrorMsg(null);
     try {
-      const res = await fetch("/api/seed");
+      const res = await fetch("/api/seed", { method: "POST" });
       const data = await res.json();
       if (!data.ok) {
         setStatus("error");

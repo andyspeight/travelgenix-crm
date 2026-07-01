@@ -49,7 +49,7 @@ export default async function JourneysPage() {
       .eq("agency_id", AGENCY_ID),
     supabase
       .from("contacts")
-      .select("id, household_id, first_name, last_name, passport_expiry")
+      .select("id, household_id, first_name, last_name, passport_expiry, role, email")
       .eq("agency_id", AGENCY_ID),
     supabase.from("interactions").select("household_id, occurred_at").eq("agency_id", AGENCY_ID),
     supabase
@@ -85,17 +85,27 @@ export default async function JourneysPage() {
     eligibleNow: j.is_active ? evaluateJourney(j, ctx).length : 0,
   }));
 
-  // Resolve journey names for the run feed (runs reference journey_id only).
+  // Resolve journey names for the run feed (runs reference journey_id only),
+  // and lead emails so a reviewed draft can open pre-addressed in email.
   const journeyNameById = new Map(journeys.map((j) => [j.id, j.name]));
+  const leadEmailByHousehold = new Map<string, string>();
+  for (const c of (contacts ?? []) as (Contact & { role?: string; email?: string | null })[]) {
+    if (c.email && (c.role === "lead" || !leadEmailByHousehold.has(c.household_id))) {
+      leadEmailByHousehold.set(c.household_id, c.email);
+    }
+  }
   const runs = (runRows ?? []) as JourneyRun[];
   const feed: RunFeedItem[] = runs.map((r) => {
-    const result = (r.result ?? {}) as { summary?: string; action?: string; subject?: string };
+    const result = (r.result ?? {}) as { summary?: string; action?: string; subject?: string; body?: string };
     return {
       id: r.id,
       journeyName: journeyNameById.get(r.journey_id) ?? "Journey",
       household: r.household_id ? nameById.get(r.household_id) ?? null : null,
+      email: r.household_id ? leadEmailByHousehold.get(r.household_id) ?? null : null,
       summary: result.summary ?? "Action taken",
       action: result.action ?? "",
+      subject: result.subject ?? null,
+      body: result.body ?? null,
       status: r.status,
       firedAt: r.fired_at,
     };

@@ -167,6 +167,7 @@ async function extractFilters(apiKey: string, query: string): Promise<TokenFilte
   ].join("\n");
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: {
       "content-type": "application/json",

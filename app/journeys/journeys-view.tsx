@@ -32,8 +32,11 @@ export type RunFeedItem = {
   id: string;
   journeyName: string;
   household: string | null;
+  email: string | null;
   summary: string;
   action: string;
+  subject: string | null;
+  body: string | null;
   status: string;
   firedAt: string;
 };
@@ -424,6 +427,47 @@ function JourneyRow({
 // ─── Activity feed ──────────────────────────────────────────────────────────
 
 function ActivityPanel({ feed }: { feed: RunFeedItem[] }) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [resolving, setResolving] = useState<string | null>(null);
+
+  async function resolve(id: string, status: "sent" | "skipped") {
+    setResolving(id);
+    try {
+      const res = await fetch(`/api/journeys/runs/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setOpenId(null);
+        startTransition(() => router.refresh());
+      }
+    } finally {
+      setResolving(null);
+    }
+  }
+
+  function openInEmail(f: RunFeedItem) {
+    if (!f.email || !f.body) return;
+    const params = new URLSearchParams();
+    if (f.subject) params.set("subject", f.subject);
+    params.set("body", f.body);
+    window.location.href = `mailto:${f.email}?${params.toString()}`;
+  }
+
+  const smallBtn: React.CSSProperties = {
+    background: "transparent",
+    border: "1px solid var(--border)",
+    borderRadius: 5,
+    padding: "3px 9px",
+    fontSize: 11,
+    fontWeight: 500,
+    color: "var(--text-muted)",
+    cursor: "pointer",
+  };
+
   return (
     <section
       style={{
@@ -457,24 +501,83 @@ function ActivityPanel({ feed }: { feed: RunFeedItem[] }) {
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {feed.map((f) => (
-            <div key={f.id} style={{ display: "flex", gap: 10, padding: "9px 4px" }}>
-              <RunIcon action={f.action} status={f.status} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, color: "var(--text)", lineHeight: 1.45 }}>
-                  {f.summary}
-                </div>
-                <div style={{ fontSize: 11, color: "var(--text-subtle)", marginTop: 1 }}>
-                  {f.journeyName}
-                  {" · "}
-                  {relativeTime(f.firedAt)}
-                  {f.status === "queued" ? (
-                    <span style={{ color: "var(--warning)" }}> · awaiting review</span>
-                  ) : null}
+          {feed.map((f) => {
+            const queued = f.status === "queued";
+            const isDraft = f.action === "draft_email" && f.body;
+            const expanded = openId === f.id;
+            return (
+              <div key={f.id} style={{ padding: "9px 4px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <RunIcon action={f.action} status={f.status} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, color: "var(--text)", lineHeight: 1.45 }}>
+                      {f.summary}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-subtle)", marginTop: 1 }}>
+                      {f.journeyName}
+                      {" · "}
+                      {relativeTime(f.firedAt)}
+                      {queued ? (
+                        <span style={{ color: "var(--warning)" }}> · awaiting review</span>
+                      ) : f.status === "skipped" ? (
+                        <span> · skipped</span>
+                      ) : null}
+                    </div>
+                    {queued && (
+                      <div style={{ display: "flex", gap: 5, marginTop: 6, flexWrap: "wrap" }}>
+                        {isDraft && (
+                          <button style={smallBtn} onClick={() => setOpenId(expanded ? null : f.id)}>
+                            {expanded ? "Hide draft" : "Review draft"}
+                          </button>
+                        )}
+                        {isDraft && f.email && (
+                          <button
+                            style={{ ...smallBtn, color: "var(--tg-accent-dark)", borderColor: "var(--tg-accent)" }}
+                            onClick={() => openInEmail(f)}
+                            title={`Opens your email app addressed to ${f.email}`}
+                          >
+                            Open in email
+                          </button>
+                        )}
+                        <button
+                          style={{ ...smallBtn, color: "var(--success)" }}
+                          disabled={resolving === f.id}
+                          onClick={() => resolve(f.id, "sent")}
+                        >
+                          {resolving === f.id ? "…" : "Mark done"}
+                        </button>
+                        <button
+                          style={smallBtn}
+                          disabled={resolving === f.id}
+                          onClick={() => resolve(f.id, "skipped")}
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    )}
+                    {expanded && isDraft && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          padding: "9px 11px",
+                          background: "var(--bg-subtle)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          fontSize: 11.5,
+                          lineHeight: 1.55,
+                          whiteSpace: "pre-wrap",
+                          color: "var(--text)",
+                        }}
+                      >
+                        {f.subject ? <div style={{ fontWeight: 600, marginBottom: 6 }}>{f.subject}</div> : null}
+                        {f.body}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>

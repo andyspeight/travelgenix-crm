@@ -813,11 +813,26 @@ function FocusedMessage({
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
 
-  // Reset live drafts whenever the selected message changes.
+  // Editing state for "Edit before sending" — the draft becomes a textarea and
+  // Send uses the edited body.
+  const [editing, setEditing] = useState(false);
+  const [editedBody, setEditedBody] = useState("");
+  const [sendNote, setSendNote] = useState<string | null>(null);
+
+  // Reset live drafts and editing whenever the selected message changes.
   useEffect(() => {
     setLiveDrafts(null);
     setDraftError(null);
+    setEditing(false);
+    setSendNote(null);
   }, [ix.id]);
+
+  // Switching draft tabs discards an in-progress edit (it belonged to the
+  // previous draft's body).
+  useEffect(() => {
+    setEditing(false);
+    setSendNote(null);
+  }, [activeDraftIdx]);
 
   async function regenerate() {
     setDrafting(true);
@@ -842,6 +857,31 @@ function FocusedMessage({
   const isLive = liveDrafts !== null;
   const draft = draftSet.drafts[activeDraftIdx] ?? draftSet.drafts[0];
   const hasMultipleDrafts = draftSet.drafts.length > 1;
+
+  // Sending opens the user's own mail client pre-addressed with the draft —
+  // the same real-send path the customer list uses. Nothing sends silently.
+  const leadEmail = lead?.email ?? null;
+  function sendReply() {
+    const body = editing ? editedBody : draft.body;
+    if (!leadEmail) {
+      setSendNote("No email address on file for this customer. Add one on their record first.");
+      return;
+    }
+    const params = new URLSearchParams();
+    params.set("subject", ix.subject ? `Re: ${ix.subject}` : "Re: your message");
+    params.set("body", body);
+    window.location.href = `mailto:${leadEmail}?${params.toString()}`;
+    setSendNote("Draft opened in your email app, addressed and ready to send.");
+  }
+  function toggleEdit() {
+    setSendNote(null);
+    if (editing) {
+      setEditing(false);
+    } else {
+      setEditedBody(draft.body);
+      setEditing(true);
+    }
+  }
 
   return (
     <div style={{ maxWidth: 760, margin: "0 auto" }}>
@@ -1122,17 +1162,38 @@ function FocusedMessage({
             </strong>{" "}
             {draft.rationale}
           </div>
-          <div
-            style={{
-              fontSize: 14,
-              lineHeight: 1.6,
-              color: "var(--text)",
-              whiteSpace: "pre-wrap",
-              fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-            }}
-          >
-            {draft.body}
-          </div>
+          {editing ? (
+            <textarea
+              value={editedBody}
+              onChange={(e) => setEditedBody(e.target.value)}
+              rows={Math.min(14, Math.max(6, editedBody.split("\n").length + 1))}
+              autoFocus
+              style={{
+                width: "100%",
+                fontSize: 14,
+                lineHeight: 1.6,
+                color: "var(--text)",
+                fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                padding: "10px 12px",
+                resize: "vertical",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                fontSize: 14,
+                lineHeight: 1.6,
+                color: "var(--text)",
+                whiteSpace: "pre-wrap",
+                fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
+              }}
+            >
+              {draft.body}
+            </div>
+          )}
         </div>
 
         <div
@@ -1143,26 +1204,30 @@ function FocusedMessage({
           }}
         >
           <button
+            onClick={sendReply}
+            disabled={!leadEmail}
+            title={leadEmail ? `Opens your email app addressed to ${leadEmail}` : "No email address on file for this customer"}
             style={{
-              background: "var(--tg-primary)",
-              color: "white",
+              background: leadEmail ? "var(--tg-primary)" : "var(--bg-subtle)",
+              color: leadEmail ? "white" : "var(--text-subtle)",
               border: "none",
               borderRadius: 7,
               padding: "8px 14px",
               fontSize: 13,
               fontWeight: 600,
-              cursor: "pointer",
+              cursor: leadEmail ? "pointer" : "default",
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
             }}
           >
             <SendIcon width={13} height={13} />
-            Send as is
+            {editing ? "Send edited" : "Send as is"}
           </button>
           <button
+            onClick={toggleEdit}
             style={{
-              background: "var(--surface)",
+              background: editing ? "var(--bg-subtle)" : "var(--surface)",
               color: "var(--text)",
               border: "1px solid var(--border)",
               borderRadius: 7,
@@ -1172,7 +1237,7 @@ function FocusedMessage({
               cursor: "pointer",
             }}
           >
-            Edit before sending
+            {editing ? "Cancel edit" : "Edit before sending"}
           </button>
           <button
             onClick={regenerate}
@@ -1199,6 +1264,11 @@ function FocusedMessage({
           </button>
         </div>
 
+        {sendNote && (
+          <div style={{ marginTop: 10, fontSize: 11.5, color: leadEmail ? "var(--success)" : "var(--warning)" }}>
+            {sendNote}
+          </div>
+        )}
         {draftError && (
           <div
             style={{

@@ -68,6 +68,14 @@ Track 3 of the post-completion roadmap. Ordered by value per unit of friction.
 - [x] **Responsive layouts** — done. Added a responsive CSS layer to `globals.css` (the app styles inline, which can't hold media queries, so layout-critical rules now live as classes). Sidebar becomes an off-canvas drawer below 900px with a hamburger in the topbar and a dimming overlay (via a small `SidebarContext` + `AppShell`). All multi-column grids (dashboard, journeys, settings, reports, customer detail) collapse through 1024/768/640 breakpoints; the inbox goes three-pane → two-pane → stacked; customers table scrolls horizontally. Breakpoints: 1024 / 900 / 768 / 720 / 640.
 - [x] **Product tour** — in-app step-by-step onboarding overlay (`components/tour/*`) covering set-up and every screen, deep-linking to each, auto-opening once on first visit and re-openable from the sidebar "Take a tour".
 - [x] **PDF user guide** — branded full user guide at `docs/Luna-Work-User-Guide.pdf` (source `docs/user-guide.html`, render to PDF with headless Chromium `--print-to-pdf`). Covers every feature with how-to steps and tips. Hand to new sign-ups to cut training.
+- [x] **Gap-review fix batch** — from the pre-launch gap sweep:
+  - Inbox **Send as is / Edit before sending** wired for real (pre-addressed mailto with the draft; inline edit then send; disabled with a reason when no email on file).
+  - **Household rollups** (`lifetime_value`, `trips_count`, `next_departure`) recomputed on every trip stage change (`lib/customer/rollups.ts`); moving into `booked` stamps `last_booking_at`. Unit-tested.
+  - **Add customer** flow: modal on /customers → `POST /api/customers` creates household + lead contact, opens the record.
+  - **Live inbox badge**: `GET /api/inbox/badge`, sidebar fetches per navigation, hidden at zero (hardcoded "3" removed).
+  - **Journey run review**: `PATCH /api/journeys/runs/[id]` (sent/skipped, agency-scoped via the parent journey); the journeys feed lets you review a queued draft, open it pre-addressed in email, mark done or skip — queued runs no longer pile up forever.
+  - Hardening: `AbortSignal.timeout` on every Anthropic fetch; household notes heads-up panel on the Customer 360; `/api/seed` now POST-first (GET kept for the documented browser fallback, idempotent); GitHub Actions CI (test + build); stale comment fixed.
+- [x] **Ask Luna coverage** — 9 tools: added `customer_profile` ("tell me about X"), `business_report` ("build me a report for <period>") and `customers_gone_quiet` (the guide-promised question). Unit-tested against a fake Supabase builder.
 - [ ] **Observability** — error logging on the API routes, surface the audit trail. Needs a Sentry DSN if used.
 
 ### Still genuinely future (not blocking)

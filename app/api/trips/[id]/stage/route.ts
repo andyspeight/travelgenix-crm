@@ -19,6 +19,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { refreshHouseholdRollups } from "@/lib/customer/rollups";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -79,7 +80,7 @@ export async function POST(
     .update({ stage, updated_at: new Date().toISOString() })
     .eq("id", tripId)
     .eq("agency_id", AGENCY_ID)
-    .select("id, stage")
+    .select("id, stage, household_id")
     .maybeSingle();
 
   if (error) {
@@ -96,5 +97,15 @@ export async function POST(
     );
   }
 
-  return NextResponse.json({ ok: true, trip: data });
+  // Keep the household's denormalised counters honest. Moving INTO booked is
+  // the moment a booking happened, so it also stamps last_booking_at.
+  // Best-effort: the stage change itself already succeeded.
+  const householdId = (data as { household_id?: string }).household_id;
+  if (householdId) {
+    await refreshHouseholdRollups(supabase, AGENCY_ID, householdId, {
+      setLastBookingAt: stage === "booked",
+    });
+  }
+
+  return NextResponse.json({ ok: true, trip: { id: data.id, stage: data.stage } });
 }

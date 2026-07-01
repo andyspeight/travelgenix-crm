@@ -9,7 +9,10 @@
  *     message saying "already seeded" and does nothing. Idempotent.
  *   - Otherwise inserts: suppliers, households, contacts, trips, interactions,
  *     preferences. Returns counts.
- *   - Uses GET so it's just a URL visit, no curl/Postman/etc needed.
+ *   - POST is the primary method (mutations belong on POST — the in-app seed
+ *     button uses it). GET remains supported so the documented "visit the URL
+ *     in a browser" fallback keeps working; the idempotency check makes an
+ *     accidental GET harmless.
  *   - Returns JSON with counts for verification.
  *
  * RLS is off in MVP, so anon key writes work directly. In phase 2 this becomes
@@ -28,7 +31,15 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+export async function POST() {
+  return seed();
+}
+
 export async function GET() {
+  return seed();
+}
+
+async function seed() {
   const supabase = createClient();
   const now = new Date();
 
