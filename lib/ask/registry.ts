@@ -13,6 +13,9 @@ import { revenueForPeriod } from "./tools/revenue-for-period";
 import { tripsByStage } from "./tools/trips-by-stage";
 import { customersByValueOrTag } from "./tools/customers-by-value-or-tag";
 import { tripsRecentlyReturned } from "./tools/trips-recently-returned";
+import { customerProfile } from "./tools/customer-profile";
+import { businessReport } from "./tools/business-report";
+import { customersGoneQuiet } from "./tools/customers-gone-quiet";
 
 export const TOOLS: QueryTool[] = [
   tripsDeparting,
@@ -21,6 +24,9 @@ export const TOOLS: QueryTool[] = [
   tripsByStage,
   customersByValueOrTag,
   tripsRecentlyReturned,
+  customerProfile,
+  businessReport,
+  customersGoneQuiet,
 ];
 
 export function findTool(name: string): QueryTool | undefined {
