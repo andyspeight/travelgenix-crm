@@ -166,6 +166,7 @@ export function CustomerDetailView({
         {/* ─── Right column ──────────────────────────────────── */}
         <div>
           <NextSteps householdId={household.id} steps={nextSteps} />
+          {household.notes && <HeadsUpPanel notes={household.notes} />}
           <TripsPanel
             activeTrip={activeTrip}
             upcomingTrips={upcomingTrips}
@@ -856,6 +857,38 @@ function ListeningFooter({ exemplar }: { exemplar: boolean }) {
           ? "Re-checked passport validity this morning, flagged the Olympic Holidays history, noted Crete weather is fine, prepared the brief above."
           : "Background checks running — passport validity, supplier history, GDPR consent, compliance status."}
       </span>
+    </div>
+  );
+}
+
+// ─── Right column: Heads-up ─────────────────────────────────────────────
+// The household's standing note (e.g. "bad transfer in Crete 2024"). The inbox
+// mini-card already surfaces this; it matters even more here, where the agent
+// is actually working the record.
+function HeadsUpPanel({ notes }: { notes: string }) {
+  return (
+    <div
+      style={{
+        background: "rgba(245, 158, 11, 0.05)",
+        border: "1px solid rgba(245, 158, 11, 0.15)",
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 16,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          color: "var(--warning)",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          marginBottom: 6,
+        }}
+      >
+        Heads-up
+      </div>
+      <div style={{ fontSize: 12.5, color: "var(--text)", lineHeight: 1.5 }}>{notes}</div>
     </div>
   );
 }

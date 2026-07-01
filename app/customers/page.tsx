@@ -20,7 +20,7 @@ import { SAVED_SEGMENTS, type Token } from "@/lib/segmentation/parse";
 import { resolveTokens } from "@/lib/segmentation/resolve";
 import { fetchHouseholdsForTokens } from "@/lib/segmentation/query";
 import { listSavedSegments, getSavedSegment } from "@/lib/segmentation/segments";
-import { PlusIcon, SparklesIcon } from "@/components/ui/icons";
+import { AddCustomer } from "./add-customer";
 
 export const dynamic = "force-dynamic";
 
@@ -124,28 +124,7 @@ export default async function CustomersPage({
 
   return (
     <>
-      <Topbar
-        title="Customers"
-        actions={
-          <button
-            style={{
-              background: "var(--tg-primary)",
-              border: "1px solid var(--tg-primary)",
-              borderRadius: 6,
-              padding: "6px 10px",
-              color: "white",
-              fontSize: 12.5,
-              fontWeight: 500,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <PlusIcon width={14} height={14} />
-            Add customer
-          </button>
-        }
-      />
+      <Topbar title="Customers" actions={<AddCustomer />} />
 
       <div
         style={{

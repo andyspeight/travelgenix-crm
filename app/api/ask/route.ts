@@ -5,9 +5,8 @@
  * (tool selection -> query -> insight), returns the structured answer.
  *
  * Security: key server-side, agency-scoped context, question length-capped,
- * fails closed. NOTE: no rate limit yet — fine for internal agent use, but
- * this is on the list to add (Upstash) before any client-facing use, same as
- * the other AI routes.
+ * fails closed, best-effort in-memory rate limit (per-instance — swap for
+ * Upstash before heavy client-facing use, same as the other AI routes).
  */
 
 import { NextResponse } from "next/server";

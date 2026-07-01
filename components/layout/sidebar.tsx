@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "./theme-provider";
@@ -23,7 +24,7 @@ import {
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: HomeIcon, match: (p: string) => p === "/" },
-  { href: "/inbox", label: "Inbox", icon: InboxIcon, match: (p: string) => p.startsWith("/inbox"), badge: 3 },
+  { href: "/inbox", label: "Inbox", icon: InboxIcon, match: (p: string) => p.startsWith("/inbox") },
   { href: "/customers", label: "Customers", icon: UsersIcon, match: (p: string) => p.startsWith("/customers") },
   { href: "/trips", label: "Trips", icon: PlaneIcon, match: (p: string) => p.startsWith("/trips") },
   { href: "/journeys", label: "Journeys", icon: ZapIcon, match: (p: string) => p.startsWith("/journeys") },
@@ -37,6 +38,24 @@ export function Sidebar() {
   const { open, setOpen } = useSidebar();
   const { setOpen: setCommandOpen } = useCommand();
   const { setOpen: setTourOpen } = useTour();
+
+  // Live "needs you today" count for the Inbox badge. Refreshed on navigation
+  // so acting on a message updates the number. Hidden at zero or on failure.
+  const [inboxBadge, setInboxBadge] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/inbox/badge")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { ok?: boolean; count?: number } | null) => {
+        if (!cancelled) setInboxBadge(d?.ok && d.count ? d.count : null);
+      })
+      .catch(() => {
+        if (!cancelled) setInboxBadge(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   return (
     <aside
@@ -155,8 +174,9 @@ export function Sidebar() {
         >
           Workspace
         </div>
-        {navItems.map(({ href, label, icon: Icon, match, badge }) => {
+        {navItems.map(({ href, label, icon: Icon, match }) => {
           const active = match(pathname || "/");
+          const badge = href === "/inbox" ? inboxBadge : null;
           return (
             <Link
               key={href}

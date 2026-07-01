@@ -81,6 +81,7 @@ export async function runAsk(
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
+      signal: AbortSignal.timeout(15000),
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": ANTHROPIC_VERSION },
       body: JSON.stringify({
@@ -170,6 +171,7 @@ async function narrate(question: string, result: QueryResult, apiKey: string): P
   ].join("\n");
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
+    signal: AbortSignal.timeout(15000),
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": ANTHROPIC_VERSION },
     body: JSON.stringify({
