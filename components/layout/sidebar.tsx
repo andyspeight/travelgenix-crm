@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "./theme-provider";
 import { useSidebar } from "./sidebar-context";
 import { useCommand } from "@/components/command/command-context";
+import { useTour } from "@/components/tour/tour-context";
 import {
   HomeIcon,
   InboxIcon,
@@ -17,6 +18,7 @@ import {
   MoonIcon,
   ZapIcon,
   CheckSquareIcon,
+  HelpIcon,
 } from "@/components/ui/icons";
 
 const navItems = [
@@ -34,6 +36,7 @@ export function Sidebar() {
   const { theme, toggleTheme } = useTheme();
   const { open, setOpen } = useSidebar();
   const { setOpen: setCommandOpen } = useCommand();
+  const { setOpen: setTourOpen } = useTour();
 
   return (
     <aside
@@ -201,8 +204,29 @@ export function Sidebar() {
 
       <div style={{ flex: 1 }} />
 
-      {/* Settings */}
+      {/* Help + Settings */}
       <div style={{ padding: "12px 8px", borderTop: "1px solid var(--border)" }}>
+        <button
+          onClick={() => { setTourOpen(true); setOpen(false); }}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "7px 10px",
+            borderRadius: 6,
+            background: "transparent",
+            border: "none",
+            color: "var(--text-muted)",
+            fontSize: 13.5,
+            fontWeight: 500,
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          <HelpIcon width={16} height={16} />
+          <span>Take a tour</span>
+        </button>
         <Link
           href="/settings"
           onClick={() => setOpen(false)}
