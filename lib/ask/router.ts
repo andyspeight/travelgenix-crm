@@ -116,7 +116,7 @@ export async function runAsk(
       question,
       insight:
         routerText.trim() ||
-        "I can't answer that one yet. Try asking about who's travelling in a date range, trips to a destination, or revenue for a period.",
+        "I can't answer that one yet. Try asking about a customer by name, who's travelling in a date range, trips to a destination, revenue or a business report for a period, top customers, or who's gone quiet.",
     };
   }
 
