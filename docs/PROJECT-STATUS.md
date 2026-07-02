@@ -76,6 +76,7 @@ Track 3 of the post-completion roadmap. Ordered by value per unit of friction.
   - **Journey run review**: `PATCH /api/journeys/runs/[id]` (sent/skipped, agency-scoped via the parent journey); the journeys feed lets you review a queued draft, open it pre-addressed in email, mark done or skip — queued runs no longer pile up forever.
   - Hardening: `AbortSignal.timeout` on every Anthropic fetch; household notes heads-up panel on the Customer 360; `/api/seed` now POST-first (GET kept for the documented browser fallback, idempotent); GitHub Actions CI (test + build); stale comment fixed.
 - [x] **Ask Luna coverage** — 9 tools: added `customer_profile` ("tell me about X"), `business_report` ("build me a report for <period>") and `customers_gone_quiet` (the guide-promised question). Unit-tested against a fake Supabase builder.
+- [x] **Ask Luna act layer + follow-ups** — actionable answers now carry an action bar (Email all / Add to journey / Add tag, reusing the segment-bar endpoints; `GET /api/journeys/list` powers the picker). Follow-up questions work: the panel keeps the thread (last 4 turns, capped server-side) so "and just the VIPs?" resolves in context; "New question" resets. Guide §11 updated.
 - [ ] **Observability** — error logging on the API routes, surface the audit trail. Needs a Sentry DSN if used.
 
 ### Still genuinely future (not blocking)
