@@ -12,6 +12,7 @@
  * The seed banner appears only when the database is empty.
  */
 
+import Link from "next/link";
 import { Topbar } from "@/components/layout/topbar";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { CustomersView } from "./customers-view";
@@ -124,7 +125,29 @@ export default async function CustomersPage({
 
   return (
     <>
-      <Topbar title="Customers" actions={<AddCustomer />} />
+      <Topbar
+        title="Customers"
+        actions={
+          <span style={{ display: "inline-flex", gap: 8 }}>
+            <Link
+              href="/customers/import"
+              style={{
+                background: "transparent",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                padding: "6px 10px",
+                color: "var(--text-muted)",
+                fontSize: 12.5,
+                fontWeight: 500,
+                textDecoration: "none",
+              }}
+            >
+              Import CSV
+            </Link>
+            <AddCustomer />
+          </span>
+        }
+      />
 
       <div
         style={{

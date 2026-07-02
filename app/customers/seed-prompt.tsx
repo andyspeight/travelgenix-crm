@@ -216,9 +216,17 @@ export function SeedPrompt() {
         </div>
       )}
 
+      <div style={{ marginTop: 18, fontSize: 12.5, color: "var(--text-muted)" }}>
+        Bringing real customers from another CRM?{" "}
+        <a href="/customers/import" style={{ color: "var(--tg-accent-dark)", fontWeight: 600, textDecoration: "none" }}>
+          Import a CSV
+        </a>{" "}
+        — Luna maps the columns for you.
+      </div>
+
       <div
         style={{
-          marginTop: 20,
+          marginTop: 14,
           fontSize: 11.5,
           color: "var(--text-subtle)",
         }}
