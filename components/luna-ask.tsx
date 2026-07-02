@@ -34,15 +34,21 @@ type AskResponse = {
 
 const EXAMPLES = [
   "Who's travelling in the next 3 months?",
-  "Who's going to Spain?",
-  "How much have we booked this year?",
+  "Tell me about Sarah Thompson",
+  "Build me a report for this year",
+  "Which customers have gone quiet?",
 ];
+
+type AskTurn = { q: string; a: string };
 
 export function LunaAsk() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState<AskResponse | null>(null);
+  // Prior turns in this thread — sent with the next question so follow-ups
+  // like "and just the VIPs?" resolve in context.
+  const [history, setHistory] = useState<AskTurn[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Draggable button position. null = default (bottom-right). Once dragged,
@@ -118,15 +124,29 @@ export function LunaAsk() {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, history }),
       });
       const data = (await res.json()) as AskResponse;
       setAnswer(data);
+      // Record the turn (question + the short factual answer) for follow-ups.
+      const a = data.insight || data.result?.summary || data.error || "";
+      if (data.ok && a) {
+        setHistory((h) => [...h.slice(-3), { q: question, a }]);
+      }
+      setQ("");
+      inputRef.current?.focus();
     } catch {
       setAnswer({ ok: false, question, error: "Something went wrong. Try again." });
     } finally {
       setLoading(false);
     }
+  }, [history]);
+
+  const resetThread = useCallback(() => {
+    setHistory([]);
+    setAnswer(null);
+    setQ("");
+    inputRef.current?.focus();
   }, []);
 
   return (
@@ -219,7 +239,11 @@ export function LunaAsk() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") ask(q); }}
-                placeholder="Ask Luna anything about your customers and trips…"
+                placeholder={
+                  history.length > 0
+                    ? "Ask a follow-up, e.g. \"and just the VIPs?\"…"
+                    : "Ask Luna anything about your customers and trips…"
+                }
                 style={{
                   flex: 1,
                   border: "none",
@@ -230,6 +254,25 @@ export function LunaAsk() {
                 }}
               />
               {loading && <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>Thinking…</span>}
+              {!loading && history.length > 0 && (
+                <button
+                  onClick={resetThread}
+                  title="Start a fresh question (clears the follow-up context)"
+                  style={{
+                    background: "var(--bg-subtle)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    padding: "4px 10px",
+                    fontSize: 11.5,
+                    fontWeight: 500,
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  New question
+                </button>
+              )}
             </div>
 
             {/* Body */}
@@ -357,12 +400,202 @@ function AnswerView({ answer, onNavigate }: { answer: AskResponse; onNavigate: (
               </a>
             ))}
           </div>
+          {r.actionable && <AskActions rows={r.rows} />}
         </div>
       )}
 
       {/* Empty */}
       {r?.shape === "empty" && (
         <div style={{ fontSize: 13.5, color: "var(--text-muted)", textAlign: "center", padding: "8px 0" }}>{r.summary}</div>
+      )}
+    </div>
+  );
+}
+
+// ─── The act layer ──────────────────────────────────────────────────────────
+// When an answer is a list of customers, the agent can act on it right here:
+// open a pre-addressed email to everyone, enrol them in a journey, or tag
+// them. Reuses the same endpoints as the customers segment bar, so acting on
+// an Ask answer and acting on a segment are the same operation.
+
+const UUID_HREF = /^\/customers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+function AskActions({ rows }: { rows: Row[] }) {
+  const householdIds = Array.from(
+    new Set(rows.map((r) => r.href?.match(UUID_HREF)?.[1]).filter((x): x is string => Boolean(x)))
+  );
+
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [journeys, setJourneys] = useState<{ id: string; name: string }[] | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [tagOpen, setTagOpen] = useState(false);
+  const [tag, setTag] = useState("");
+
+  if (householdIds.length === 0) return null;
+
+  async function emailAll() {
+    setMsg(null);
+    setBusy("email");
+    try {
+      const res = await fetch("/api/customers/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: householdIds }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; emails?: string[]; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error || "Couldn't load emails");
+      const emails = data.emails ?? [];
+      if (emails.length === 0) {
+        setMsg({ ok: false, text: "No email addresses on file for these customers." });
+        return;
+      }
+      const params = new URLSearchParams();
+      params.set("bcc", emails.join(","));
+      window.location.href = `mailto:?${params.toString()}`;
+      setMsg({ ok: true, text: `Opened a draft to ${emails.length} customer${emails.length > 1 ? "s" : ""}.` });
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : "Couldn't load emails" });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function openPicker() {
+    setMsg(null);
+    if (pickerOpen) {
+      setPickerOpen(false);
+      return;
+    }
+    setPickerOpen(true);
+    setTagOpen(false);
+    if (journeys === null) {
+      try {
+        const res = await fetch("/api/journeys/list");
+        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; journeys?: { id: string; name: string }[] };
+        setJourneys(data.ok ? data.journeys ?? [] : []);
+      } catch {
+        setJourneys([]);
+      }
+    }
+  }
+
+  async function enroll(journeyId: string, name: string) {
+    setBusy("journey");
+    try {
+      const res = await fetch("/api/journeys/enroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ journeyId, householdIds }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; enrolled?: number; skipped?: number; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error || "Couldn't add to journey");
+      setPickerOpen(false);
+      setMsg({
+        ok: true,
+        text: `Added ${data.enrolled ?? 0} to "${name}"${data.skipped ? ` (${data.skipped} already in it)` : ""}.`,
+      });
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : "Couldn't add to journey" });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function addTag() {
+    const t = tag.trim();
+    if (!t) return;
+    setBusy("tag");
+    try {
+      const res = await fetch("/api/customers/tag", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: householdIds, tag: t }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; updated?: number; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error || "Couldn't add tag");
+      setTagOpen(false);
+      setTag("");
+      setMsg({ ok: true, text: `Tagged ${data.updated ?? 0} customer${data.updated === 1 ? "" : "s"} "${t}".` });
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : "Couldn't add tag" });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const actBtn: React.CSSProperties = {
+    background: "var(--bg-subtle)",
+    border: "1px solid var(--border)",
+    borderRadius: 7,
+    padding: "6px 11px",
+    fontSize: 12,
+    fontWeight: 500,
+    color: "var(--text-muted)",
+    cursor: "pointer",
+  };
+
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11, color: "var(--text-subtle)", marginRight: 2 }}>
+          Act on {householdIds.length === 1 ? "this customer" : `these ${householdIds.length}`}:
+        </span>
+        <button style={actBtn} disabled={busy === "email"} onClick={emailAll}>
+          {busy === "email" ? "Opening…" : "Email all"}
+        </button>
+        <button style={actBtn} onClick={openPicker}>
+          Add to journey
+        </button>
+        <button style={actBtn} onClick={() => { setTagOpen((o) => !o); setPickerOpen(false); setMsg(null); }}>
+          Add tag
+        </button>
+      </div>
+
+      {pickerOpen && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
+          {journeys === null ? (
+            <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>Loading journeys…</span>
+          ) : journeys.length === 0 ? (
+            <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>No active journeys. Install them on the Journeys page first.</span>
+          ) : (
+            journeys.map((j) => (
+              <button key={j.id} style={actBtn} disabled={busy === "journey"} onClick={() => enroll(j.id, j.name)}>
+                {j.name}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {tagOpen && (
+        <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+          <input
+            value={tag}
+            onChange={(e) => setTag(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addTag()}
+            placeholder="e.g. Winter sun campaign"
+            autoFocus
+            style={{
+              flex: 1,
+              maxWidth: 240,
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              background: "var(--surface)",
+              color: "var(--text)",
+              padding: "6px 9px",
+              fontSize: 12.5,
+              fontFamily: "inherit",
+            }}
+          />
+          <button style={{ ...actBtn, color: "var(--tg-accent-dark)", borderColor: "var(--tg-accent)" }} disabled={busy === "tag" || !tag.trim()} onClick={addTag}>
+            {busy === "tag" ? "Tagging…" : "Tag"}
+          </button>
+        </div>
+      )}
+
+      {msg && (
+        <div style={{ marginTop: 8, fontSize: 12, color: msg.ok ? "var(--success)" : "var(--error)" }}>{msg.text}</div>
       )}
     </div>
   );

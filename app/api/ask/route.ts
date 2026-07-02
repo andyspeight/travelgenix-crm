@@ -11,7 +11,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
-import { runAsk } from "@/lib/ask/router";
+import { runAsk, type AskTurn } from "@/lib/ask/router";
 import type { QueryContext } from "@/lib/ask/contract";
 import { rateLimit, clientKey } from "@/lib/ai/rate-limit";
 
@@ -41,6 +41,19 @@ export async function POST(request: Request) {
   }
   const question = qRaw.trim().slice(0, MAX_Q);
 
+  // Optional follow-up context: prior turns, tightly capped so a hostile or
+  // runaway client can't inflate the prompt.
+  const rawHistory = (body as { history?: unknown })?.history;
+  const history: AskTurn[] = Array.isArray(rawHistory)
+    ? rawHistory
+        .filter(
+          (t): t is { q: string; a: string } =>
+            !!t && typeof (t as AskTurn).q === "string" && typeof (t as AskTurn).a === "string"
+        )
+        .slice(-4)
+        .map((t) => ({ q: t.q.slice(0, MAX_Q), a: t.a.slice(0, 600) }))
+    : [];
+
   const supabase = createClient();
   const ctx: QueryContext = {
     agencyId: AGENCY_ID,
@@ -48,6 +61,6 @@ export async function POST(request: Request) {
     now: new Date(),
   };
 
-  const answer = await runAsk(question, ctx, apiKey);
+  const answer = await runAsk(question, ctx, apiKey, history);
   return NextResponse.json(answer, { status: answer.ok ? 200 : 502 });
 }
