@@ -203,6 +203,21 @@ export type Quote = {
   updated_at: string;
 };
 
+export type ConsentRow = {
+  id: string;
+  agency_id: string;
+  contact_id: string;
+  household_id: string | null;
+  channel: "email" | "sms" | "whatsapp" | "phone" | "post" | "profiling";
+  granted: boolean;
+  source: string;
+  wording: string | null;
+  evidence: string | null;
+  recorded_by: string | null;
+  occurred_at: string;
+  created_at: string;
+};
+
 export type EventRow = {
   id: string;
   agency_id: string;

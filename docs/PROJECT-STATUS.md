@@ -102,7 +102,12 @@ Working through `docs/blueprint-gap-review.md` in its recommended order.
   - **UI**: `/quotes` screen — Luna's rescue strip on top (worst first, named intervention), status tabs, full lifecycle actions, "New quote" modal against any enquiry/quoted trip. Dashboard: Quote rescue panel in the left column, briefing sentence counts quotes at risk. Sidebar + palette + tour entries.
   - **Ask Luna**: 10th tool `quotes_at_risk` — same detector, so the spoken answer and the UI can never disagree.
   - **Deploy note:** run `supabase/migrations/20260723150000_quotes.sql` in Supabase. Until then /quotes shows a run-the-migration notice.
-- [ ] **3. Consent v2** — per-channel consent records with evidence (PECR; prerequisite for the Luna Marketing audience handoff).
+- [x] **3. Consent v2** (this session) — consent is no longer one tick box:
+  - **Schema**: `supabase/migrations/20260723180000_consents.sql` — APPEND-ONLY ledger (a change is a new row; the audit trail is the table). Channels: email / SMS / WhatsApp / phone / post / profiling, each row carrying source, exact wording, evidence pointer and date. Backfill seeds one email grant per contact whose legacy `marketing_opt_in` was true; unknown stays unknown (not refusal — and not permission either).
+  - **State lib**: `lib/consent/state.ts` — latest-row-wins reduction, three states (granted / refused / unknown), `canMarket()` gate. 6 tests.
+  - **API**: `POST /api/contacts/[id]/consent` records a change, syncs the legacy email flag, emits `consent.updated` on the event spine, writes a timeline interaction.
+  - **Enforcement**: `/api/customers/emails` now takes `purpose` (default `marketing`) — bulk outreach only includes contacts with a current email grant, and reports `excluded_no_consent` so the segment bar and Ask Luna act layer say "N excluded, no marketing consent" instead of silently shrinking. `operational` purpose skips the gate (PECR distinguishes; so do we). Falls back to the legacy flag if the migration isn't run.
+  - **UI**: per-channel consent panel on the Customer 360 (adults only — we don't market to children), chips with granted ✓ / refused ✕ / not-recorded states, inline recorder capturing source + wording.
 - [ ] **4. Event spine emitters everywhere** — stage changes, journey runs, tasks; the Travelify/Luna Marketing socket already has its table.
 - [ ] **5. Luna Suggest feed** — deterministic detectors + narration on the Dashboard.
 - [ ] **6. Travel Memory panel + rebooking window** on the 360.

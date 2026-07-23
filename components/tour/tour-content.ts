@@ -85,6 +85,7 @@ export const TOUR_STEPS: TourStep[] = [
       "Luna's brief, predictions and a full timeline of every interaction.",
       "Next steps suggests the best actions; the Do buttons create tasks or open a reply.",
       "Add a note, draft a reply, or schedule a call right from the record.",
+      "Marketing consent is per channel with evidence — bulk emails only reach customers with a current grant.",
     ],
     href: "/customers",
     cta: "Pick a customer",

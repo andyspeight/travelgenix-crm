@@ -443,17 +443,34 @@ function AskActions({ rows }: { rows: Row[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: householdIds }),
       });
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; emails?: string[]; error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        emails?: string[];
+        excluded_no_consent?: number;
+        error?: string;
+      };
       if (!res.ok || !data.ok) throw new Error(data.error || "Couldn't load emails");
       const emails = data.emails ?? [];
+      const excluded = data.excluded_no_consent ?? 0;
       if (emails.length === 0) {
-        setMsg({ ok: false, text: "No email addresses on file for these customers." });
+        setMsg({
+          ok: false,
+          text:
+            excluded > 0
+              ? `No email marketing consent on file for these customers (${excluded} excluded).`
+              : "No email addresses on file for these customers.",
+        });
         return;
       }
       const params = new URLSearchParams();
       params.set("bcc", emails.join(","));
       window.location.href = `mailto:?${params.toString()}`;
-      setMsg({ ok: true, text: `Opened a draft to ${emails.length} customer${emails.length > 1 ? "s" : ""}.` });
+      setMsg({
+        ok: true,
+        text: `Opened a draft to ${emails.length} customer${emails.length > 1 ? "s" : ""}.${
+          excluded > 0 ? ` ${excluded} excluded, no marketing consent.` : ""
+        }`,
+      });
     } catch (err) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : "Couldn't load emails" });
     } finally {
