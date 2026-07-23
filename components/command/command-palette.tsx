@@ -22,11 +22,13 @@ import {
   ChartIcon,
   SettingsIcon,
   SearchIcon,
+  MessageIcon,
 } from "@/components/ui/icons";
 
 const NAV = [
   { label: "Dashboard", href: "/", Icon: HomeIcon },
   { label: "Inbox", href: "/inbox", Icon: InboxIcon },
+  { label: "Enquiries", href: "/enquiries", Icon: MessageIcon },
   { label: "Customers", href: "/customers", Icon: UsersIcon },
   { label: "Trips", href: "/trips", Icon: PlaneIcon },
   { label: "Journeys", href: "/journeys", Icon: ZapIcon },

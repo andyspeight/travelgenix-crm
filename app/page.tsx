@@ -24,7 +24,10 @@ import {
   PlaneIcon,
   ClockIcon,
   InboxIcon,
+  MessageIcon,
 } from "@/components/ui/icons";
+import { clockState } from "@/lib/enquiries/clock";
+import type { Enquiry } from "@/lib/supabase/types";
 import {
   STAGE_META,
   BOARD_STAGES,
@@ -56,6 +59,7 @@ export default async function DashboardPage() {
     { data: interactions },
     { data: journeyRuns },
     { count: openTasksCount },
+    { data: enquiryRows },
   ] = await Promise.all([
     supabase
       .from("households")
@@ -84,6 +88,16 @@ export default async function DashboardPage() {
       .select("*", { count: "exact", head: true })
       .eq("agency_id", AGENCY_ID)
       .in("status", ["open", "doing"]),
+    // Missing table (migration not run) just means an empty panel here.
+    supabase
+      .from("enquiries")
+      .select(
+        "id, contact_name, destination, budget, budget_basis, received_at, first_response_due_at, first_response_at, status, household_id"
+      )
+      .eq("agency_id", AGENCY_ID)
+      .eq("status", "new")
+      .order("received_at", { ascending: true })
+      .limit(8),
   ]);
 
   const hh = (households ?? []) as Pick<
@@ -144,6 +158,34 @@ export default async function DashboardPage() {
   const recent = ix.slice(0, 6);
   const openTasks = openTasksCount ?? 0;
 
+  // ─── Enquiries on the clock ───────────────────────────────────────────
+  const waitingEnquiries = (enquiryRows ?? []) as Pick<
+    Enquiry,
+    | "id"
+    | "contact_name"
+    | "destination"
+    | "budget"
+    | "budget_basis"
+    | "received_at"
+    | "first_response_due_at"
+    | "first_response_at"
+    | "status"
+    | "household_id"
+  >[];
+  const nowIso = new Date().toISOString();
+  const enquiryClocks = waitingEnquiries
+    .map((e) => ({
+      e,
+      clock: clockState({
+        receivedAt: e.received_at,
+        dueAt: e.first_response_due_at,
+        respondedAt: e.first_response_at,
+        now: nowIso,
+      }),
+    }))
+    .sort((a, b) => a.clock.remainingMs - b.clock.remainingMs);
+  const overdueEnquiries = enquiryClocks.filter((x) => x.clock.state === "overdue").length;
+
   // ─── Pipeline by stage ────────────────────────────────────────────────
   const stageRows = BOARD_STAGES.map((stage) => {
     const rows = tr.filter((t) => t.stage === stage);
@@ -159,6 +201,8 @@ export default async function DashboardPage() {
     openPipeline,
     travellingNow: travellingNow.length,
     openTasks,
+    enquiriesWaiting: waitingEnquiries.length,
+    enquiriesOverdue: overdueEnquiries,
   });
 
   return (
@@ -240,6 +284,7 @@ export default async function DashboardPage() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <EnquiryClockPanel items={enquiryClocks} />
             <NeedsAttentionPanel items={needsToday} nameById={nameById} />
             <RecentActivityPanel items={recent} nameById={nameById} />
           </div>
@@ -442,9 +487,21 @@ function buildBriefSentence(args: {
   openPipeline: number;
   travellingNow: number;
   openTasks: number;
+  enquiriesWaiting: number;
+  enquiriesOverdue: number;
 }): string {
-  const { needsToday, departing7, openPipeline, travellingNow, openTasks } = args;
+  const { needsToday, departing7, openPipeline, travellingNow, openTasks, enquiriesWaiting, enquiriesOverdue } = args;
   const parts: string[] = [];
+
+  // The response clock outranks everything — a waiting enquiry is a customer
+  // deciding whether to book with you or the next agency that answers.
+  if (enquiriesWaiting > 0) {
+    parts.push(
+      `${enquiriesWaiting} enquir${enquiriesWaiting === 1 ? "y" : "ies"} waiting for a first response${
+        enquiriesOverdue > 0 ? ` (${enquiriesOverdue} past the target)` : ""
+      }`
+    );
+  }
 
   if (needsToday > 0) {
     parts.push(
@@ -829,6 +886,103 @@ function TripRow({
         </span>
       )}
     </Link>
+  );
+}
+
+// ─── Enquiries on the response clock ────────────────────────────────────
+// The blueprint's Today rule: "who needs a response?" comes first. Hidden
+// entirely when nothing is waiting (or the enquiries migration isn't run).
+
+function EnquiryClockPanel({
+  items,
+}: {
+  items: {
+    e: Pick<
+      Enquiry,
+      "id" | "contact_name" | "destination" | "budget" | "budget_basis" | "received_at"
+    >;
+    clock: { state: string; label: string };
+  }[];
+}) {
+  if (items.length === 0) return null;
+
+  const colour = (state: string) =>
+    state === "overdue"
+      ? { bg: "rgba(220, 38, 38, 0.12)", fg: "#dc2626" }
+      : state === "warning"
+        ? { bg: "rgba(217, 119, 6, 0.12)", fg: "#d97706" }
+        : { bg: "rgba(5, 150, 105, 0.10)", fg: "#059669" };
+
+  return (
+    <Panel
+      title="Awaiting first response"
+      action={<PanelLink href="/enquiries">Open enquiries →</PanelLink>}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {items.slice(0, 5).map(({ e, clock }) => {
+          const c = colour(clock.state);
+          return (
+            <Link
+              key={e.id}
+              href="/enquiries"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "9px 8px",
+                borderRadius: 9,
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              <MessageIcon
+                width={13}
+                height={13}
+                style={{ color: c.fg, flexShrink: 0 }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "var(--text)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {e.contact_name ?? "Unknown"}
+                  {e.destination ? ` · ${e.destination}` : ""}
+                </div>
+                <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                  {e.budget != null
+                    ? `£${Math.round(e.budget).toLocaleString("en-GB")}${e.budget_basis === "per_person" ? " pp" : ""} · `
+                    : ""}
+                  received{" "}
+                  {new Date(e.received_at).toLocaleTimeString("en-GB", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
+              </div>
+              <span
+                style={{
+                  background: c.bg,
+                  color: c.fg,
+                  borderRadius: 6,
+                  padding: "2px 8px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                {clock.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </Panel>
   );
 }
 

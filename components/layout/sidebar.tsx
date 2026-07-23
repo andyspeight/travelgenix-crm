@@ -20,11 +20,13 @@ import {
   ZapIcon,
   CheckSquareIcon,
   HelpIcon,
+  MessageIcon,
 } from "@/components/ui/icons";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: HomeIcon, match: (p: string) => p === "/" },
   { href: "/inbox", label: "Inbox", icon: InboxIcon, match: (p: string) => p.startsWith("/inbox") },
+  { href: "/enquiries", label: "Enquiries", icon: MessageIcon, match: (p: string) => p.startsWith("/enquiries") },
   { href: "/customers", label: "Customers", icon: UsersIcon, match: (p: string) => p.startsWith("/customers") },
   { href: "/trips", label: "Trips", icon: PlaneIcon, match: (p: string) => p.startsWith("/trips") },
   { href: "/journeys", label: "Journeys", icon: ZapIcon, match: (p: string) => p.startsWith("/journeys") },

@@ -58,6 +58,17 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     group: "Feature",
+    title: "Enquiries — the front door",
+    points: [
+      "Every new request lands here with a first-response clock already running.",
+      "Paste the customer's email and Read with Luna fills the form; you review, then save. Their original wording stays on the record.",
+      "Four honest scores per enquiry (likelihood, value, urgency, fit), then Respond, Convert to trip or Close with a reason.",
+    ],
+    href: "/enquiries",
+    cta: "Open Enquiries",
+  },
+  {
+    group: "Feature",
     title: "Customers & smart segments",
     points: [
       "Describe who you want in plain English, e.g. 'families who went to Greece and have gone quiet'.",
