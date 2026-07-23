@@ -27,6 +27,7 @@ import {
   dateOffsetDays,
   dateOffsetHours,
 } from "@/lib/seed/data";
+import { scoreEnquiry, type EnquiryFacts } from "@/lib/enquiries/scoring";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -276,6 +277,189 @@ async function seed() {
     }
   }
 
+  // ─── 3. Enquiries (best-effort — table arrives with a later migration) ─
+  // A realistic front-door mix: one overdue, one inside the warning band, one
+  // fresh, one already responded. Sarah Thompson's email matches her seeded
+  // contact so hers demonstrates repeat-customer recognition.
+  let enquiryCount = 0;
+  {
+    const mk = (
+      hoursAgo: number,
+      fields: Record<string, unknown>,
+      respondedHoursAgo?: number
+    ) => {
+      const receivedAt = dateOffsetHours(-hoursAgo, now);
+      return {
+        agency_id: AGENCY_ID,
+        status: respondedHoursAgo != null ? "responded" : "new",
+        received_at: receivedAt,
+        first_response_due_at: dateOffsetHours(-hoursAgo + 4, now),
+        first_response_at:
+          respondedHoursAgo != null ? dateOffsetHours(-respondedHoursAgo, now) : null,
+        scores: scoreEnquiry(
+          fields as unknown as EnquiryFacts,
+          null,
+          receivedAt
+        ),
+        ...fields,
+      };
+    };
+
+    const enquiryRows = [
+      mk(6.5, {
+        source: "website",
+        contact_name: "Rachel Whitfield",
+        contact_email: "rachel.whitfield@outlook.com",
+        contact_phone: "+44 7700 900456",
+        destination: "Santorini",
+        depart_date: dateOffsetDays(75, now),
+        date_flexibility: "flexible",
+        duration_nights: 7,
+        adults: 2,
+        budget: 4200,
+        budget_basis: "total",
+        holiday_type: "beach",
+        occasion: "10th anniversary",
+        must_haves: ["sea view", "adults only"],
+        original_wording:
+          "Hi, my husband and I are looking at Santorini for our 10th anniversary, around 7 nights, budget about £4,200 all in. Sea view is a must and we'd prefer adults only. Dates are flexible either side.",
+        ai_summary:
+          "Couple want 7 nights in Santorini for their 10th anniversary, about £4,200 total, sea view and adults only, flexible dates.",
+        ai_extracted: true,
+      }),
+      mk(3.2, {
+        source: "email",
+        contact_name: "Dave Kowalski",
+        contact_email: "d.kowalski78@gmail.com",
+        destination: "Orlando",
+        depart_date: dateOffsetDays(320, now),
+        date_flexibility: "fixed",
+        duration_nights: 14,
+        adults: 2,
+        children: 2,
+        child_ages: "8 and 11",
+        budget: 2000,
+        budget_basis: "per_person",
+        holiday_type: "theme parks",
+        must_haves: ["villa with pool"],
+        original_wording:
+          "We're planning the big Florida trip next summer, two weeks in the school holidays, the four of us (kids are 8 and 11). Thinking villa with a pool. Around £2,000 a head is the ceiling.",
+        ai_summary:
+          "Family of four want two weeks in Orlando next summer in the school holidays, villa with pool, about £2,000 per person.",
+        ai_extracted: true,
+      }),
+      mk(0.5, {
+        source: "phone",
+        contact_name: "Margaret Ellison",
+        contact_phone: "+44 7700 900789",
+        destination: "Lake Garda",
+        duration_nights: 10,
+        adults: 2,
+        holiday_type: "lakes and mountains",
+        channel_preference: "phone",
+        original_wording:
+          "Call notes: Margaret and her sister want Lake Garda in late spring, about 10 nights, half board, quiet hotel, will call back Thursday. Prefers phone.",
+      }),
+      mk(28, {
+        source: "website",
+        contact_name: "Sarah Thompson",
+        contact_email: "sarah.thompson@gmail.com",
+        destination: "Lapland",
+        depart_date: dateOffsetDays(150, now),
+        duration_nights: 4,
+        adults: 2,
+        children: 2,
+        child_ages: "6 and 9",
+        budget: 6800,
+        budget_basis: "total",
+        holiday_type: "winter",
+        occasion: "Christmas treat",
+        original_wording:
+          "We'd love to surprise the kids with Lapland this December, 3 or 4 nights, the full Santa experience. Budget up to £6,800 for the four of us.",
+        ai_summary:
+          "The Thompsons want a 4-night Lapland Santa trip in December for two adults and two children, up to £6,800.",
+        ai_extracted: true,
+      }, 26),
+    ];
+
+    // Link Sarah's enquiry to her household by email, mirroring what the
+    // create route does automatically.
+    const { data: sarahContact } = await supabase
+      .from("contacts")
+      .select("household_id")
+      .eq("agency_id", AGENCY_ID)
+      .ilike("email", "sarah.thompson@gmail.com")
+      .limit(1)
+      .maybeSingle();
+    if (sarahContact?.household_id) {
+      (enquiryRows[3] as Record<string, unknown>).household_id =
+        sarahContact.household_id;
+    }
+
+    const { error: enqErr } = await supabase.from("enquiries").insert(enquiryRows);
+    if (!enqErr) enquiryCount = enquiryRows.length;
+    // A failure here (usually: migration not run) never fails the seed.
+  }
+
+  // ─── 4. Quotes (best-effort — table arrives with a later migration) ────
+  // Attached to quoted-stage trips so Quote Rescue has something honest to
+  // flag: one engaged-but-silent, one expiring, one healthy.
+  let quoteCount = 0;
+  {
+    const { data: quotedTrips } = await supabase
+      .from("trips")
+      .select("id, household_id, total_value")
+      .eq("agency_id", AGENCY_ID)
+      .eq("stage", "quoted")
+      .order("total_value", { ascending: false })
+      .limit(3);
+
+    const qt = (quotedTrips ?? []) as { id: string; household_id: string; total_value: number | null }[];
+    if (qt.length > 0) {
+      const risky = [
+        // The signature demo: viewed 4 times, no reply.
+        {
+          status: "viewed",
+          sent_at: dateOffsetHours(-6 * 24, now),
+          viewed_at: dateOffsetHours(-24, now),
+          view_count: 4,
+          expires_at: dateOffsetHours(8 * 24, now),
+        },
+        // Expiring in 2 days, opened once.
+        {
+          status: "viewed",
+          sent_at: dateOffsetHours(-10 * 24, now),
+          viewed_at: dateOffsetHours(-8 * 24, now),
+          view_count: 1,
+          expires_at: dateOffsetHours(2 * 24, now),
+        },
+        // Fresh and healthy.
+        {
+          status: "sent",
+          sent_at: dateOffsetHours(-20, now),
+          viewed_at: null,
+          view_count: 0,
+          expires_at: dateOffsetHours(12 * 24, now),
+        },
+      ];
+
+      const quoteRows = qt.map((t, i) => ({
+        agency_id: AGENCY_ID,
+        trip_id: t.id,
+        household_id: t.household_id,
+        version: 1,
+        total_price: t.total_value ?? 3000 + i * 800,
+        deposit: Math.round((t.total_value ?? 3000) * 0.15),
+        currency: "GBP",
+        ...risky[i % risky.length],
+      }));
+
+      const { error: quoteErr } = await supabase.from("quotes").insert(quoteRows);
+      if (!quoteErr) quoteCount = quoteRows.length;
+      // A failure here (usually: migration not run) never fails the seed.
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     seeded: true,
@@ -287,6 +471,8 @@ async function seed() {
       trips: tripCount,
       interactions: interactionCount,
       preferences: preferenceCount,
+      enquiries: enquiryCount,
+      quotes: quoteCount,
     },
   });
 }

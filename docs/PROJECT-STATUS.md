@@ -1,6 +1,6 @@
 # Project status & route to completion
 
-**Last updated:** 23 June 2026
+**Last updated:** 23 July 2026
 **Stack:** Next.js 14 (App Router) · Supabase · Anthropic Claude · Tailwind + CSS tokens · Vercel
 
 This is the living source of truth for where the build is and what is left. The
@@ -78,6 +78,34 @@ Track 3 of the post-completion roadmap. Ordered by value per unit of friction.
 - [x] **Ask Luna coverage** — 9 tools: added `customer_profile` ("tell me about X"), `business_report` ("build me a report for <period>") and `customers_gone_quiet` (the guide-promised question). Unit-tested against a fake Supabase builder.
 - [x] **Ask Luna act layer + follow-ups** — actionable answers now carry an action bar (Email all / Add to journey / Add tag, reusing the segment-bar endpoints; `GET /api/journeys/list` powers the picker). Follow-up questions work: the panel keeps the thread (last 4 turns, capped server-side) so "and just the VIPs?" resolves in context; "New question" resets. Guide §11 updated.
 - [ ] **Observability** — error logging on the API routes, surface the audit trail. Needs a Sentry DSN if used.
+
+---
+
+## Phase 3 — blueprint gap closure (in progress)
+
+Working through `docs/blueprint-gap-review.md` in its recommended order.
+
+- [x] **1. Enquiries — the front door** (this session). The structured enquiry object + AI extraction + first-response clock + the first events on the shared-data-loop spine:
+  - **Schema**: `supabase/migrations/20260723090000_enquiries_events.sql` — `enquiries` (structured request fields, verbatim `original_wording`, `ai_summary`, four-score `scores` jsonb, response-clock columns) and the generic `events` table (`type`, `source`, `subject_type/id`, `payload`) that Travelify and Luna Marketing will plug into.
+  - **Qualification**: `lib/enquiries/scoring.ts` — four SEPARATE deterministic scores (likelihood / value / urgency / relationship fit), each with a plain-English reason, null-with-honesty when data is missing. Blueprint rule: no single mysterious score. Unit-tested.
+  - **Clock**: `lib/enquiries/clock.ts` — 4-hour first-response target, ok → warning (final quarter) → overdue states. Unit-tested.
+  - **Events**: `lib/events/emit.ts` — best-effort emitter; `enquiry.created / responded / converted / closed` all fire.
+  - **API**: `POST /api/enquiries` (validated create, server-side scores, repeat-customer recognition by email match, timeline interaction), `POST /api/enquiries/extract` (Haiku reads pasted email/form/call notes into fields — REVIEW-BEFORE-SAVE, writes nothing, brief-route security pattern), `PATCH /api/enquiries/[id]` (respond / convert-to-trip incl. household+contact creation with rollback / close with lost reason).
+  - **UI**: `/enquiries` screen — clock-pressure-sorted "Needs response" tab, score pills with reasons on hover, respond (mailto + clock stop), convert, close-with-reason; "New enquiry" modal with paste-with-Luna extraction and blank-form paths. Sidebar + command palette + tour entries. Dashboard: "Awaiting first response" panel and briefing sentence lead with the response clock.
+  - **Seed**: 4 demo enquiries (overdue / warning / fresh / responded, one linked to the Thompsons by email).
+  - **Deploy note:** run `supabase/migrations/20260723090000_enquiries_events.sql` in Supabase. Until then /enquiries shows a run-the-migration notice and everything else keeps working.
+- [x] **2. Quotes + Quote Rescue** (this session). The sales story of every priced proposal, and the blueprint's differentiator 3:
+  - **Schema**: `supabase/migrations/20260723150000_quotes.sql` — versions (a revision is a new row, the old one 'superseded', so price changes stay countable), sent/expiry/viewed/view_count, deposit + expected margin, the customer's actual response, declined reason. `reference` points at Travelify's quote — pricing truth stays there.
+  - **Rescue detector**: `lib/quotes/rescue.ts` — deterministic at-risk signals (engaged-no-response ⇒ call; expiring/expired ⇒ extend-or-close; never-viewed ⇒ check it landed; gone-quiet ⇒ nudge; departure-approaching amplifies). Severity 1–3, every alert explains itself. 11 unit tests.
+  - **API**: `POST /api/quotes` (create/revise, send flips an enquiry-stage trip to quoted), `PATCH /api/quotes/[id]` (send / record_view / respond / accept — books the trip at the quoted price + refreshes rollups + stamps last_booking_at / decline with reason / extend). Events: `quote.sent/viewed/accepted/declined/revised`.
+  - **UI**: `/quotes` screen — Luna's rescue strip on top (worst first, named intervention), status tabs, full lifecycle actions, "New quote" modal against any enquiry/quoted trip. Dashboard: Quote rescue panel in the left column, briefing sentence counts quotes at risk. Sidebar + palette + tour entries.
+  - **Ask Luna**: 10th tool `quotes_at_risk` — same detector, so the spoken answer and the UI can never disagree.
+  - **Deploy note:** run `supabase/migrations/20260723150000_quotes.sql` in Supabase. Until then /quotes shows a run-the-migration notice.
+- [ ] **3. Consent v2** — per-channel consent records with evidence (PECR; prerequisite for the Luna Marketing audience handoff).
+- [ ] **4. Event spine emitters everywhere** — stage changes, journey runs, tasks; the Travelify/Luna Marketing socket already has its table.
+- [ ] **5. Luna Suggest feed** — deterministic detectors + narration on the Dashboard.
+- [ ] **6. Travel Memory panel + rebooking window** on the 360.
+- [ ] **7. CSV import + AI mapping + post-import health check.**
 
 ### Still genuinely future (not blocking)
 Auth + RLS for multi-tenant, generated Supabase types, a scheduled trigger for journeys (cron) instead of manual "Run now", and swapping the in-memory rate limiter for Upstash.

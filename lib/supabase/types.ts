@@ -117,6 +117,104 @@ export type Interaction = {
   occurred_at: string;
 };
 
+export type EnquiryStatus = "new" | "responded" | "converted" | "closed";
+
+/** One of the four separate qualification scores. Null score = insufficient data. */
+export type EnquiryScore = { score: number | null; reason: string };
+
+export type EnquiryScores = {
+  likelihood: EnquiryScore;
+  value: EnquiryScore;
+  urgency: EnquiryScore;
+  fit: EnquiryScore;
+};
+
+export type Enquiry = {
+  id: string;
+  agency_id: string;
+  household_id: string | null;
+  trip_id: string | null;
+  status: EnquiryStatus;
+  source: string | null;
+  channel_preference: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  destination: string | null;
+  depart_date: string | null;
+  date_flexibility: "fixed" | "flexible" | "very_flexible" | null;
+  duration_nights: number | null;
+  departure_airport: string | null;
+  adults: number | null;
+  children: number | null;
+  child_ages: string | null;
+  budget: number | null;
+  budget_basis: "total" | "per_person" | null;
+  holiday_type: string | null;
+  board_basis: string | null;
+  accommodation: string | null;
+  occasion: string | null;
+  must_haves: string[];
+  deal_breakers: string[];
+  original_wording: string | null;
+  ai_summary: string | null;
+  ai_extracted: boolean;
+  scores: EnquiryScores | null;
+  received_at: string;
+  first_response_due_at: string | null;
+  first_response_at: string | null;
+  assigned_user_id: string | null;
+  notes: string | null;
+  lost_reason: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type QuoteStatus =
+  | "draft"
+  | "sent"
+  | "viewed"
+  | "accepted"
+  | "declined"
+  | "expired"
+  | "superseded";
+
+export type Quote = {
+  id: string;
+  agency_id: string;
+  trip_id: string;
+  household_id: string | null;
+  reference: string | null;
+  version: number;
+  status: QuoteStatus;
+  total_price: number | null;
+  deposit: number | null;
+  expected_margin: number | null;
+  currency: string;
+  options_summary: string | null;
+  sent_at: string | null;
+  expires_at: string | null;
+  viewed_at: string | null;
+  view_count: number;
+  customer_response: string | null;
+  declined_reason: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EventRow = {
+  id: string;
+  agency_id: string;
+  type: string;
+  source: string;
+  subject_type: string | null;
+  subject_id: string | null;
+  household_id: string | null;
+  payload: Record<string, unknown>;
+  occurred_at: string;
+};
+
 /**
  * Permissive Database type — lets us insert/update without per-table type
  * fights during MVP. The proper generated type comes in phase 2.
