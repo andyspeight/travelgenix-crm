@@ -31,11 +31,13 @@ import {
   type ConsentChannel,
   type ChannelState,
 } from "@/lib/consent/state";
+import { computeTravelMemory } from "@/lib/memory/travel-memory";
 import type {
   Household,
   Contact,
   Trip,
   Interaction,
+  Quote,
 } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +69,7 @@ export default async function CustomerDetailPage({
   }
 
   // Then fetch related data in parallel
-  const [contactsRes, tripsRes, interactionsRes, prefsRes, consentsRes] = await Promise.all([
+  const [contactsRes, tripsRes, interactionsRes, prefsRes, consentsRes, quotesRes] = await Promise.all([
     supabase
       .from("contacts")
       .select("*")
@@ -93,6 +95,12 @@ export default async function CustomerDetailPage({
     supabase
       .from("consents")
       .select("contact_id, channel, granted, occurred_at, source")
+      .eq("household_id", params.id)
+      .eq("agency_id", AGENCY_ID),
+    // Quotes feed the Travel Memory watch-outs (decline reasons).
+    supabase
+      .from("quotes")
+      .select("*")
       .eq("household_id", params.id)
       .eq("agency_id", AGENCY_ID),
   ]);
@@ -125,6 +133,22 @@ export default async function CustomerDetailPage({
     name: [c.first_name, c.last_name].filter(Boolean).join(" "),
     role: c.role,
   }));
+
+  // ─── Travel Memory (deterministic, every fact cited) ─────────────────
+  const memoryFacts = computeTravelMemory({
+    household: householdRow,
+    contacts: contactRows,
+    trips: tripRows,
+    preferences: (prefRows as (Preference & { source?: string | null; confidence?: number | null })[]).map(
+      (p) => ({
+        category: p.category,
+        value: p.value,
+        source: p.source ?? null,
+        confidence: p.confidence ?? null,
+      })
+    ),
+    quotes: (quotesRes.data ?? []) as Quote[],
+  });
 
   // ─── Luna next steps (deterministic, from real rows) ────────────────
   const nextSteps = computeNextSteps(householdRow, contactRows, tripRows, interactionRows);
@@ -240,6 +264,7 @@ export default async function CustomerDetailPage({
         consentContacts={consentContacts}
         consentState={consentStateByContact}
         consentLedgerMissing={consentLedgerMissing}
+        memoryFacts={memoryFacts}
       />
     </>
   );
