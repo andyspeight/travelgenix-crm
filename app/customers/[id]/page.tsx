@@ -25,6 +25,12 @@ import {
 import { CustomerDetailView } from "./detail-view";
 import { computeRisk, computeOpportunity } from "@/lib/scoring/customer";
 import { computeNextSteps } from "@/lib/customer/next-steps";
+import {
+  currentConsent,
+  type ConsentLedgerRow,
+  type ConsentChannel,
+  type ChannelState,
+} from "@/lib/consent/state";
 import type {
   Household,
   Contact,
@@ -61,7 +67,7 @@ export default async function CustomerDetailPage({
   }
 
   // Then fetch related data in parallel
-  const [contactsRes, tripsRes, interactionsRes, prefsRes] = await Promise.all([
+  const [contactsRes, tripsRes, interactionsRes, prefsRes, consentsRes] = await Promise.all([
     supabase
       .from("contacts")
       .select("*")
@@ -82,6 +88,13 @@ export default async function CustomerDetailPage({
       .from("preferences")
       .select("*")
       .eq("household_id", params.id),
+    // Consent ledger — a missing table (migration not run) degrades to an
+    // honest "not set up yet" note in the panel.
+    supabase
+      .from("consents")
+      .select("contact_id, channel, granted, occurred_at, source")
+      .eq("household_id", params.id)
+      .eq("agency_id", AGENCY_ID),
   ]);
 
   const householdRow = household as Household;
@@ -89,6 +102,29 @@ export default async function CustomerDetailPage({
   const tripRows = (tripsRes.data ?? []) as Trip[];
   const prefRows = (prefsRes.data ?? []) as Preference[];
   const interactionRows = (interactionsRes.data ?? []) as Interaction[];
+
+  // ─── Consent state (per adult contact, per channel) ─────────────────
+  const consentLedgerMissing = Boolean(
+    consentsRes.error && /consents/.test(consentsRes.error.message ?? "")
+  );
+  const consentState = currentConsent(
+    (consentsRes.data ?? []) as ConsentLedgerRow[]
+  );
+  const adultContacts = contactRows.filter((c) => c.role !== "child");
+  const consentStateByContact: Record<
+    string,
+    Partial<Record<ConsentChannel, ChannelState>>
+  > = {};
+  for (const c of adultContacts) {
+    const channels = consentState.get(c.id);
+    if (!channels) continue;
+    consentStateByContact[c.id] = Object.fromEntries(channels);
+  }
+  const consentContacts = adultContacts.map((c) => ({
+    id: c.id,
+    name: [c.first_name, c.last_name].filter(Boolean).join(" "),
+    role: c.role,
+  }));
 
   // ─── Luna next steps (deterministic, from real rows) ────────────────
   const nextSteps = computeNextSteps(householdRow, contactRows, tripRows, interactionRows);
@@ -201,6 +237,9 @@ export default async function CustomerDetailPage({
         predictionCards={predictionCards}
         nextSteps={nextSteps}
         latestInboundId={latestInboundId}
+        consentContacts={consentContacts}
+        consentState={consentStateByContact}
+        consentLedgerMissing={consentLedgerMissing}
       />
     </>
   );

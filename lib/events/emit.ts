@@ -25,11 +25,12 @@ export type CrmEventType =
   | "quote.viewed"
   | "quote.accepted"
   | "quote.declined"
-  | "quote.revised";
+  | "quote.revised"
+  | "consent.updated";
 
 export type EmitArgs = {
   type: CrmEventType;
-  subjectType: "enquiry" | "trip" | "household" | "interaction" | "quote";
+  subjectType: "enquiry" | "trip" | "household" | "interaction" | "quote" | "contact";
   subjectId: string;
   householdId?: string | null;
   payload?: Record<string, unknown>;

@@ -26,6 +26,8 @@ import { BriefActions } from "./brief-actions";
 import { NextSteps } from "./next-steps";
 import { PreferencesPanelEditable } from "./preferences-panel";
 import { HouseholdEditButton } from "./household-edit";
+import { ConsentPanel, type ConsentPanelContact } from "./consent-panel";
+import type { ConsentChannel, ChannelState } from "@/lib/consent/state";
 import type { NextStep } from "@/lib/customer/next-steps";
 import type {
   Household,
@@ -50,6 +52,9 @@ type Props = {
   predictionCards?: PredictionCard[];
   nextSteps: NextStep[];
   latestInboundId: string | null;
+  consentContacts: ConsentPanelContact[];
+  consentState: Record<string, Partial<Record<ConsentChannel, ChannelState>>>;
+  consentLedgerMissing: boolean;
 };
 
 // Sarah Thompson's UUID changes per seed; we identify the exemplar by name
@@ -127,6 +132,9 @@ export function CustomerDetailView({
   predictionCards,
   nextSteps,
   latestInboundId,
+  consentContacts,
+  consentState,
+  consentLedgerMissing,
 }: Props) {
   const exemplar = isExemplar(household);
   const lead = contacts.find((c) => c.role === "lead") ?? contacts[0];
@@ -187,6 +195,11 @@ export function CustomerDetailView({
               category: p.category,
               value: p.value,
             }))}
+          />
+          <ConsentPanel
+            contacts={consentContacts}
+            state={consentState}
+            ledgerMissing={consentLedgerMissing}
           />
           <CompliancePanel
             household={household}
@@ -1259,7 +1272,6 @@ function CompliancePanel({
     (c) => c.passport_expiry && new Date(c.passport_expiry) > new Date()
   );
   const gdprActive = contacts.some((c) => c.gdpr_consent);
-  const marketingOptIn = contacts.some((c) => c.marketing_opt_in);
 
   return (
     <Panel title="Compliance">
@@ -1283,19 +1295,7 @@ function CompliancePanel({
             {gdprActive ? "Active" : "Not on file"}
           </span>
         </div>
-        <div style={prefRowStyle()}>
-          <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500 }}>
-            Marketing opt-in
-          </span>
-          <span
-            style={{
-              fontSize: 12,
-              color: marketingOptIn ? "var(--success)" : "var(--text-subtle)",
-            }}
-          >
-            {marketingOptIn ? "Yes" : "No"}
-          </span>
-        </div>
+        {/* Marketing opt-in moved to the per-channel Consent panel above. */}
         <div style={prefRowStyle()}>
           <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500 }}>
             Passports verified

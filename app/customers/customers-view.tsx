@@ -111,12 +111,19 @@ export function CustomersView({
       const data = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         emails?: string[];
+        excluded_no_consent?: number;
         error?: string;
       };
       if (!res.ok || !data.ok) throw new Error(data.error || `Failed (${res.status})`);
       const emails = data.emails ?? [];
+      const excluded = data.excluded_no_consent ?? 0;
       if (emails.length === 0) {
-        flash("err", "No email addresses on file for those customers.");
+        flash(
+          "err",
+          excluded > 0
+            ? `None of those customers has email marketing consent on file (${excluded} excluded). Record consent on their records first.`
+            : "No email addresses on file for those customers."
+        );
         return;
       }
       const params = new URLSearchParams();
@@ -124,7 +131,12 @@ export function CustomersView({
       if (subject) params.set("subject", subject);
       if (body) params.set("body", body);
       window.location.href = `mailto:?${params.toString()}`;
-      flash("ok", `Opened a draft to ${emails.length} customer${emails.length > 1 ? "s" : ""}.`);
+      flash(
+        "ok",
+        `Opened a draft to ${emails.length} customer${emails.length > 1 ? "s" : ""}.${
+          excluded > 0 ? ` ${excluded} excluded, no marketing consent.` : ""
+        }`
+      );
     } catch (err) {
       flash("err", err instanceof Error ? err.message : "Couldn't load emails");
     } finally {
