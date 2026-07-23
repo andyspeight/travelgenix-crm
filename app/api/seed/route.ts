@@ -401,6 +401,65 @@ async function seed() {
     // A failure here (usually: migration not run) never fails the seed.
   }
 
+  // ─── 4. Quotes (best-effort — table arrives with a later migration) ────
+  // Attached to quoted-stage trips so Quote Rescue has something honest to
+  // flag: one engaged-but-silent, one expiring, one healthy.
+  let quoteCount = 0;
+  {
+    const { data: quotedTrips } = await supabase
+      .from("trips")
+      .select("id, household_id, total_value")
+      .eq("agency_id", AGENCY_ID)
+      .eq("stage", "quoted")
+      .order("total_value", { ascending: false })
+      .limit(3);
+
+    const qt = (quotedTrips ?? []) as { id: string; household_id: string; total_value: number | null }[];
+    if (qt.length > 0) {
+      const risky = [
+        // The signature demo: viewed 4 times, no reply.
+        {
+          status: "viewed",
+          sent_at: dateOffsetHours(-6 * 24, now),
+          viewed_at: dateOffsetHours(-24, now),
+          view_count: 4,
+          expires_at: dateOffsetHours(8 * 24, now),
+        },
+        // Expiring in 2 days, opened once.
+        {
+          status: "viewed",
+          sent_at: dateOffsetHours(-10 * 24, now),
+          viewed_at: dateOffsetHours(-8 * 24, now),
+          view_count: 1,
+          expires_at: dateOffsetHours(2 * 24, now),
+        },
+        // Fresh and healthy.
+        {
+          status: "sent",
+          sent_at: dateOffsetHours(-20, now),
+          viewed_at: null,
+          view_count: 0,
+          expires_at: dateOffsetHours(12 * 24, now),
+        },
+      ];
+
+      const quoteRows = qt.map((t, i) => ({
+        agency_id: AGENCY_ID,
+        trip_id: t.id,
+        household_id: t.household_id,
+        version: 1,
+        total_price: t.total_value ?? 3000 + i * 800,
+        deposit: Math.round((t.total_value ?? 3000) * 0.15),
+        currency: "GBP",
+        ...risky[i % risky.length],
+      }));
+
+      const { error: quoteErr } = await supabase.from("quotes").insert(quoteRows);
+      if (!quoteErr) quoteCount = quoteRows.length;
+      // A failure here (usually: migration not run) never fails the seed.
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     seeded: true,
@@ -413,6 +472,7 @@ async function seed() {
       interactions: interactionCount,
       preferences: preferenceCount,
       enquiries: enquiryCount,
+      quotes: quoteCount,
     },
   });
 }

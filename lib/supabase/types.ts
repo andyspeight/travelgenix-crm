@@ -170,6 +170,39 @@ export type Enquiry = {
   updated_at: string;
 };
 
+export type QuoteStatus =
+  | "draft"
+  | "sent"
+  | "viewed"
+  | "accepted"
+  | "declined"
+  | "expired"
+  | "superseded";
+
+export type Quote = {
+  id: string;
+  agency_id: string;
+  trip_id: string;
+  household_id: string | null;
+  reference: string | null;
+  version: number;
+  status: QuoteStatus;
+  total_price: number | null;
+  deposit: number | null;
+  expected_margin: number | null;
+  currency: string;
+  options_summary: string | null;
+  sent_at: string | null;
+  expires_at: string | null;
+  viewed_at: string | null;
+  view_count: number;
+  customer_response: string | null;
+  declined_reason: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type EventRow = {
   id: string;
   agency_id: string;

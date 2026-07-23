@@ -113,6 +113,17 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     group: "Feature",
+    title: "Quotes & Quote Rescue",
+    points: [
+      "Every priced proposal tracked: sent, viewed, expiry, versions, the customer's actual words.",
+      "Luna's rescue strip flags quotes at risk — viewed four times with no reply, expiring in two days, sent but never opened — and names the best intervention.",
+      "Accepting a quote books the trip at that price in one click.",
+    ],
+    href: "/quotes",
+    cta: "Open Quotes",
+  },
+  {
+    group: "Feature",
     title: "Journeys (auto-pilot)",
     points: [
       "Rules that watch your customers and do the follow-ups for you.",

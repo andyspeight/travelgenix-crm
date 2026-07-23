@@ -94,7 +94,13 @@ Working through `docs/blueprint-gap-review.md` in its recommended order.
   - **UI**: `/enquiries` screen — clock-pressure-sorted "Needs response" tab, score pills with reasons on hover, respond (mailto + clock stop), convert, close-with-reason; "New enquiry" modal with paste-with-Luna extraction and blank-form paths. Sidebar + command palette + tour entries. Dashboard: "Awaiting first response" panel and briefing sentence lead with the response clock.
   - **Seed**: 4 demo enquiries (overdue / warning / fresh / responded, one linked to the Thompsons by email).
   - **Deploy note:** run `supabase/migrations/20260723090000_enquiries_events.sql` in Supabase. Until then /enquiries shows a run-the-migration notice and everything else keeps working.
-- [ ] **2. Quotes + Quote Rescue** — quotes table, deterministic at-risk signals, rescue suggestions.
+- [x] **2. Quotes + Quote Rescue** (this session). The sales story of every priced proposal, and the blueprint's differentiator 3:
+  - **Schema**: `supabase/migrations/20260723150000_quotes.sql` — versions (a revision is a new row, the old one 'superseded', so price changes stay countable), sent/expiry/viewed/view_count, deposit + expected margin, the customer's actual response, declined reason. `reference` points at Travelify's quote — pricing truth stays there.
+  - **Rescue detector**: `lib/quotes/rescue.ts` — deterministic at-risk signals (engaged-no-response ⇒ call; expiring/expired ⇒ extend-or-close; never-viewed ⇒ check it landed; gone-quiet ⇒ nudge; departure-approaching amplifies). Severity 1–3, every alert explains itself. 11 unit tests.
+  - **API**: `POST /api/quotes` (create/revise, send flips an enquiry-stage trip to quoted), `PATCH /api/quotes/[id]` (send / record_view / respond / accept — books the trip at the quoted price + refreshes rollups + stamps last_booking_at / decline with reason / extend). Events: `quote.sent/viewed/accepted/declined/revised`.
+  - **UI**: `/quotes` screen — Luna's rescue strip on top (worst first, named intervention), status tabs, full lifecycle actions, "New quote" modal against any enquiry/quoted trip. Dashboard: Quote rescue panel in the left column, briefing sentence counts quotes at risk. Sidebar + palette + tour entries.
+  - **Ask Luna**: 10th tool `quotes_at_risk` — same detector, so the spoken answer and the UI can never disagree.
+  - **Deploy note:** run `supabase/migrations/20260723150000_quotes.sql` in Supabase. Until then /quotes shows a run-the-migration notice.
 - [ ] **3. Consent v2** — per-channel consent records with evidence (PECR; prerequisite for the Luna Marketing audience handoff).
 - [ ] **4. Event spine emitters everywhere** — stage changes, journey runs, tasks; the Travelify/Luna Marketing socket already has its table.
 - [ ] **5. Luna Suggest feed** — deterministic detectors + narration on the Dashboard.

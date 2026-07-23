@@ -27,7 +27,8 @@ import {
   MessageIcon,
 } from "@/components/ui/icons";
 import { clockState } from "@/lib/enquiries/clock";
-import type { Enquiry } from "@/lib/supabase/types";
+import { rescueAlerts, type QuoteTripContext, type RescueAlert } from "@/lib/quotes/rescue";
+import type { Enquiry, Quote } from "@/lib/supabase/types";
 import {
   STAGE_META,
   BOARD_STAGES,
@@ -60,6 +61,7 @@ export default async function DashboardPage() {
     { data: journeyRuns },
     { count: openTasksCount },
     { data: enquiryRows },
+    { data: quoteRows },
   ] = await Promise.all([
     supabase
       .from("households")
@@ -98,6 +100,13 @@ export default async function DashboardPage() {
       .eq("status", "new")
       .order("received_at", { ascending: true })
       .limit(8),
+    // Missing table (migration not run) just means no rescue panel.
+    supabase
+      .from("quotes")
+      .select("*")
+      .eq("agency_id", AGENCY_ID)
+      .in("status", ["sent", "viewed"])
+      .limit(100),
   ]);
 
   const hh = (households ?? []) as Pick<
@@ -186,6 +195,13 @@ export default async function DashboardPage() {
     .sort((a, b) => a.clock.remainingMs - b.clock.remainingMs);
   const overdueEnquiries = enquiryClocks.filter((x) => x.clock.state === "overdue").length;
 
+  // ─── Quote rescue ─────────────────────────────────────────────────────
+  const openQuotes = (quoteRows ?? []) as Quote[];
+  const quoteTripCtx = new Map<string, QuoteTripContext>(
+    tr.map((t) => [t.id, { depart_date: t.depart_date, destination: t.destination }])
+  );
+  const quoteAlerts = rescueAlerts(openQuotes, quoteTripCtx, nowIso);
+
   // ─── Pipeline by stage ────────────────────────────────────────────────
   const stageRows = BOARD_STAGES.map((stage) => {
     const rows = tr.filter((t) => t.stage === stage);
@@ -203,6 +219,7 @@ export default async function DashboardPage() {
     openTasks,
     enquiriesWaiting: waitingEnquiries.length,
     enquiriesOverdue: overdueEnquiries,
+    quotesAtRisk: quoteAlerts.length,
   });
 
   return (
@@ -275,6 +292,7 @@ export default async function DashboardPage() {
           style={{ gap: 18, marginTop: 18, alignItems: "start" }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <QuoteRescuePanel alerts={quoteAlerts} nameById={nameById} />
             <PipelinePanel rows={stageRows} max={maxStageValue} />
             <DeparturesPanel
               travelling={travellingNow}
@@ -489,8 +507,9 @@ function buildBriefSentence(args: {
   openTasks: number;
   enquiriesWaiting: number;
   enquiriesOverdue: number;
+  quotesAtRisk: number;
 }): string {
-  const { needsToday, departing7, openPipeline, travellingNow, openTasks, enquiriesWaiting, enquiriesOverdue } = args;
+  const { needsToday, departing7, openPipeline, travellingNow, openTasks, enquiriesWaiting, enquiriesOverdue, quotesAtRisk } = args;
   const parts: string[] = [];
 
   // The response clock outranks everything — a waiting enquiry is a customer
@@ -501,6 +520,10 @@ function buildBriefSentence(args: {
         enquiriesOverdue > 0 ? ` (${enquiriesOverdue} past the target)` : ""
       }`
     );
+  }
+
+  if (quotesAtRisk > 0) {
+    parts.push(`${quotesAtRisk} quote${quotesAtRisk === 1 ? "" : "s"} at risk`);
   }
 
   if (needsToday > 0) {
@@ -886,6 +909,90 @@ function TripRow({
         </span>
       )}
     </Link>
+  );
+}
+
+// ─── Quote rescue (deterministic, from lib/quotes/rescue.ts) ─────────────
+// Hidden entirely when nothing is at risk or the quotes migration isn't run.
+
+function QuoteRescuePanel({
+  alerts,
+  nameById,
+}: {
+  alerts: RescueAlert[];
+  nameById: Map<string, string>;
+}) {
+  if (alerts.length === 0) return null;
+
+  const colour: Record<number, string> = {
+    3: "#dc2626",
+    2: "#d97706",
+    1: "var(--tg-accent-dark)",
+  };
+
+  return (
+    <Panel
+      title="Luna · Quote rescue"
+      action={<PanelLink href="/quotes">Open quotes →</PanelLink>}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {alerts.slice(0, 4).map((a) => (
+          <Link
+            key={a.quoteId}
+            href="/quotes"
+            style={{
+              display: "flex",
+              gap: 10,
+              padding: "9px 10px",
+              borderRadius: 9,
+              textDecoration: "none",
+              color: "inherit",
+              background: "var(--bg-subtle)",
+              borderLeft: `3px solid ${colour[a.severity]}`,
+              alignItems: "flex-start",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--text)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {a.title}
+              </div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: "var(--text-muted)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {a.householdId ? `${nameById.get(a.householdId) ?? "Unknown"} · ` : ""}
+                {a.reason}
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                color: colour[a.severity],
+                whiteSpace: "nowrap",
+                marginTop: 2,
+              }}
+            >
+              {a.actionLabel}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </Panel>
   );
 }
 
