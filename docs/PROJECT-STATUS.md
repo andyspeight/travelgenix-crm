@@ -106,7 +106,7 @@ Working through `docs/blueprint-gap-review.md` in its recommended order.
 - [ ] **4. Event spine emitters everywhere** — stage changes, journey runs, tasks; the Travelify/Luna Marketing socket already has its table.
 - [ ] **5. Luna Suggest feed** — deterministic detectors + narration on the Dashboard.
 - [ ] **6. Travel Memory panel + rebooking window** on the 360.
-- [ ] **7. CSV import + AI mapping + post-import health check.**
+- [x] **7. CSV import + AI mapping** — recovered from the stranded `claude/project-status-plan-gokkji` branch (built 2 Jul, never merged) and landed on main 23 Jul. See the Phase 2 entry above for detail. Post-import health check still to come (fold into the data-quality assistant / Suggest feed).
 
 ### Still genuinely future (not blocking)
 Auth + RLS for multi-tenant, generated Supabase types, a scheduled trigger for journeys (cron) instead of manual "Run now", and swapping the in-memory rate limiter for Upstash.
