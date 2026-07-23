@@ -77,6 +77,7 @@ Track 3 of the post-completion roadmap. Ordered by value per unit of friction.
   - Hardening: `AbortSignal.timeout` on every Anthropic fetch; household notes heads-up panel on the Customer 360; `/api/seed` now POST-first (GET kept for the documented browser fallback, idempotent); GitHub Actions CI (test + build); stale comment fixed.
 - [x] **Ask Luna coverage** — 9 tools: added `customer_profile` ("tell me about X"), `business_report` ("build me a report for <period>") and `customers_gone_quiet` (the guide-promised question). Unit-tested against a fake Supabase builder.
 - [x] **Ask Luna act layer + follow-ups** — actionable answers now carry an action bar (Email all / Add to journey / Add tag, reusing the segment-bar endpoints; `GET /api/journeys/list` powers the picker). Follow-up questions work: the panel keeps the thread (last 4 turns, capped server-side) so "and just the VIPs?" resolves in context; "New question" resets. Guide §11 updated.
+- [x] **CSV import (Luna-mapped)** — `/customers/import`: drop any CRM/spreadsheet export; Luna maps the columns from headers + sample values (`POST /api/import/map`, Haiku, whitelist-validated, deterministic synonym-matcher fallback so import works without AI). Review step has per-column override dropdowns and a live preview with row-level issues; import (`POST /api/import/customers`) re-validates server-side, bulk-inserts household + lead contact, and dedupes by name/lead email so re-running a file never duplicates. Pure library in `lib/import/` (RFC4180 CSV parser, mapping schema, name split/compose, UK-first date + money + type normalisation) with 15 tests incl. an end-to-end Capsule-export smoke test.
 - [ ] **Observability** — error logging on the API routes, surface the audit trail. Needs a Sentry DSN if used.
 
 ---
@@ -105,7 +106,7 @@ Working through `docs/blueprint-gap-review.md` in its recommended order.
 - [ ] **4. Event spine emitters everywhere** — stage changes, journey runs, tasks; the Travelify/Luna Marketing socket already has its table.
 - [ ] **5. Luna Suggest feed** — deterministic detectors + narration on the Dashboard.
 - [ ] **6. Travel Memory panel + rebooking window** on the 360.
-- [ ] **7. CSV import + AI mapping + post-import health check.**
+- [x] **7. CSV import + AI mapping** — recovered from the stranded `claude/project-status-plan-gokkji` branch (built 2 Jul, never merged) and landed on main 23 Jul. See the Phase 2 entry above for detail. Post-import health check still to come (fold into the data-quality assistant / Suggest feed).
 
 ### Still genuinely future (not blocking)
 Auth + RLS for multi-tenant, generated Supabase types, a scheduled trigger for journeys (cron) instead of manual "Run now", and swapping the in-memory rate limiter for Upstash.
