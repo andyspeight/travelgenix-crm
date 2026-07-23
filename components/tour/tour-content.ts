@@ -51,6 +51,7 @@ export const TOUR_STEPS: TourStep[] = [
     points: [
       "Your morning briefing: what needs you today, in one sentence.",
       "KPIs, pipeline by stage, upcoming departures and recent activity at a glance.",
+      "Luna's proactive panels: enquiries on the response clock, quotes needing rescue, and 'I noticed' — rebooking windows, lapsed customers, passport risks. All computed, never guessed.",
       "The auto-pilot strip shows what Luna did in the background.",
     ],
     href: "/",

@@ -20,6 +20,7 @@
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { refreshHouseholdRollups } from "@/lib/customer/rollups";
+import { emitEvent } from "@/lib/events/emit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -75,6 +76,16 @@ export async function POST(
 
   // ─── Update (agency-scoped) ─────────────────────────────────────────
   const supabase = createClient();
+
+  // Read the outgoing stage first so the event can carry from -> to.
+  const { data: before } = await supabase
+    .from("trips")
+    .select("stage")
+    .eq("id", tripId)
+    .eq("agency_id", AGENCY_ID)
+    .maybeSingle();
+  const fromStage = (before as { stage?: string } | null)?.stage ?? null;
+
   const { data, error } = await supabase
     .from("trips")
     .update({ stage, updated_at: new Date().toISOString() })
@@ -105,6 +116,36 @@ export async function POST(
     await refreshHouseholdRollups(supabase, AGENCY_ID, householdId, {
       setLastBookingAt: stage === "booked",
     });
+  }
+
+  // Event spine (best-effort): the generic stage change, plus the two
+  // blueprint-named moments when they occur.
+  if (fromStage !== stage) {
+    await emitEvent(supabase, AGENCY_ID, {
+      type: "trip.stage_changed",
+      subjectType: "trip",
+      subjectId: tripId,
+      householdId,
+      payload: { from: fromStage, to: stage },
+    });
+    if (stage === "booked") {
+      await emitEvent(supabase, AGENCY_ID, {
+        type: "booking.created",
+        subjectType: "trip",
+        subjectId: tripId,
+        householdId,
+        payload: { from: fromStage },
+      });
+    }
+    if (stage === "returned") {
+      await emitEvent(supabase, AGENCY_ID, {
+        type: "trip.completed",
+        subjectType: "trip",
+        subjectId: tripId,
+        householdId,
+        payload: { from: fromStage },
+      });
+    }
   }
 
   return NextResponse.json({ ok: true, trip: { id: data.id, stage: data.stage } });

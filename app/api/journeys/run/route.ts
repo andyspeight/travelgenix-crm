@@ -24,6 +24,7 @@ import {
   type EvalContext,
 } from "@/lib/journeys/engine";
 import type { Household, Trip, Contact } from "@/lib/supabase/types";
+import { emitEvent } from "@/lib/events/emit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -221,6 +222,17 @@ export async function POST(request: Request) {
     .update({ last_run_at: nowIso, updated_at: nowIso })
     .in("id", journeyIds)
     .eq("agency_id", AGENCY_ID);
+
+  // Event spine (best-effort): one event per journey that actually fired.
+  for (const r of summary) {
+    if (r.fired === 0) continue;
+    await emitEvent(supabase, AGENCY_ID, {
+      type: "journey.executed",
+      subjectType: "journey",
+      subjectId: r.journeyId,
+      payload: { name: r.name, fired: r.fired, skipped: r.skipped },
+    });
+  }
 
   const totalFired = summary.reduce((s, r) => s + r.fired, 0);
   return NextResponse.json({ ok: true, totalFired, ran: summary });
