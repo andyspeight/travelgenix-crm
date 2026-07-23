@@ -28,7 +28,8 @@ import {
 } from "@/components/ui/icons";
 import { clockState } from "@/lib/enquiries/clock";
 import { rescueAlerts, type QuoteTripContext, type RescueAlert } from "@/lib/quotes/rescue";
-import type { Enquiry, Quote } from "@/lib/supabase/types";
+import { computeSuggestions, type Suggestion } from "@/lib/suggest/detectors";
+import type { Contact, Enquiry, Quote } from "@/lib/supabase/types";
 import {
   STAGE_META,
   BOARD_STAGES,
@@ -62,10 +63,11 @@ export default async function DashboardPage() {
     { count: openTasksCount },
     { data: enquiryRows },
     { data: quoteRows },
+    { data: contactRows },
   ] = await Promise.all([
     supabase
       .from("households")
-      .select("id, display_name, household_type, city, lifetime_value, tags")
+      .select("id, display_name, household_type, city, lifetime_value, tags, last_booking_at, trips_count")
       .eq("agency_id", AGENCY_ID),
     supabase
       .from("trips")
@@ -107,11 +109,23 @@ export default async function DashboardPage() {
       .eq("agency_id", AGENCY_ID)
       .in("status", ["sent", "viewed"])
       .limit(100),
+    // Contacts feed the Suggest detectors (passport risk, reachability).
+    supabase
+      .from("contacts")
+      .select("id, household_id, role, first_name, last_name, email, phone, passport_expiry, gdpr_consent, flags")
+      .eq("agency_id", AGENCY_ID),
   ]);
 
   const hh = (households ?? []) as Pick<
     Household,
-    "id" | "display_name" | "household_type" | "city" | "lifetime_value" | "tags"
+    | "id"
+    | "display_name"
+    | "household_type"
+    | "city"
+    | "lifetime_value"
+    | "tags"
+    | "last_booking_at"
+    | "trips_count"
   >[];
   const tr = (trips ?? []) as Trip[];
   const ix = (interactions ?? []) as Interaction[];
@@ -201,6 +215,27 @@ export default async function DashboardPage() {
     tr.map((t) => [t.id, { depart_date: t.depart_date, destination: t.destination }])
   );
   const quoteAlerts = rescueAlerts(openQuotes, quoteTripCtx, nowIso);
+
+  // ─── Luna Suggest ("I noticed…") ──────────────────────────────────────
+  const allContacts = (contactRows ?? []) as Contact[];
+  const contactsByHousehold = new Map<string, Contact[]>();
+  for (const c of allContacts) {
+    const arr = contactsByHousehold.get(c.household_id) ?? [];
+    arr.push(c);
+    contactsByHousehold.set(c.household_id, arr);
+  }
+  const tripsByHousehold = new Map<string, Trip[]>();
+  for (const t of tr) {
+    const arr = tripsByHousehold.get(t.household_id) ?? [];
+    arr.push(t);
+    tripsByHousehold.set(t.household_id, arr);
+  }
+  const suggestions = computeSuggestions(
+    hh as unknown as Household[],
+    contactsByHousehold,
+    tripsByHousehold,
+    new Date(nowIso)
+  );
 
   // ─── Pipeline by stage ────────────────────────────────────────────────
   const stageRows = BOARD_STAGES.map((stage) => {
@@ -303,6 +338,7 @@ export default async function DashboardPage() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <EnquiryClockPanel items={enquiryClocks} />
+            <SuggestPanel suggestions={suggestions} />
             <NeedsAttentionPanel items={needsToday} nameById={nameById} />
             <RecentActivityPanel items={recent} nameById={nameById} />
           </div>
@@ -991,6 +1027,96 @@ function QuoteRescuePanel({
             </span>
           </Link>
         ))}
+      </div>
+    </Panel>
+  );
+}
+
+// ─── Luna Suggest ("I noticed…") ─────────────────────────────────────────
+// The proactive layer: rebooking windows, lapsed value, passport risk and
+// unreachable records, each computed from real fields with the reason shown.
+// Hidden when Luna has noticed nothing worth saying.
+
+function SuggestPanel({ suggestions }: { suggestions: Suggestion[] }) {
+  if (suggestions.length === 0) return null;
+
+  const colour: Record<number, string> = {
+    3: "#dc2626",
+    2: "#d97706",
+    1: "var(--tg-accent-dark)",
+  };
+
+  return (
+    <Panel
+      title="Luna · I noticed"
+      action={
+        <span style={{ fontSize: 10.5, color: "var(--text-subtle)" }}>
+          computed, never guessed
+        </span>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {suggestions.slice(0, 5).map((s) => (
+          <Link
+            key={s.id}
+            href={s.href}
+            style={{
+              display: "flex",
+              gap: 10,
+              padding: "9px 10px",
+              borderRadius: 9,
+              textDecoration: "none",
+              color: "inherit",
+              background: "var(--bg-subtle)",
+              borderLeft: `3px solid ${colour[s.severity]}`,
+              alignItems: "flex-start",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--text)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {s.title}
+              </div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: "var(--text-muted)",
+                  lineHeight: 1.45,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
+                {s.reason}
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                color: colour[s.severity],
+                whiteSpace: "nowrap",
+                marginTop: 2,
+              }}
+            >
+              {s.actionLabel}
+            </span>
+          </Link>
+        ))}
+        {suggestions.length > 5 && (
+          <div style={{ fontSize: 11, color: "var(--text-subtle)", padding: "2px 10px" }}>
+            + {suggestions.length - 5} more on the customer records
+          </div>
+        )}
       </div>
     </Panel>
   );

@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { emitEvent } from "@/lib/events/emit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -64,7 +65,7 @@ export async function PATCH(
     .update(update)
     .eq("id", id)
     .eq("agency_id", AGENCY_ID)
-    .select("id, status, due_at, completed_at")
+    .select("id, status, due_at, completed_at, household_id, source")
     .maybeSingle();
 
   if (error) {
@@ -72,6 +73,17 @@ export async function PATCH(
   }
   if (!data) {
     return NextResponse.json({ ok: false, error: "Task not found" }, { status: 404 });
+  }
+
+  // Event spine: task completion is a blueprint timeline event.
+  if (status === "done") {
+    await emitEvent(supabase, AGENCY_ID, {
+      type: "task.completed",
+      subjectType: "task",
+      subjectId: id,
+      householdId: (data as { household_id?: string | null }).household_id ?? null,
+      payload: { source: (data as { source?: string | null }).source ?? null },
+    });
   }
 
   return NextResponse.json({ ok: true, task: data });

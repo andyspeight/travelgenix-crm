@@ -11,6 +11,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { emitEvent } from "@/lib/events/emit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -100,6 +101,14 @@ export async function POST(request: Request) {
     await supabase.from("households").delete().eq("id", householdId).eq("agency_id", AGENCY_ID);
     return NextResponse.json({ ok: false, error: contactErr.message }, { status: 500 });
   }
+
+  await emitEvent(supabase, AGENCY_ID, {
+    type: "customer.created",
+    subjectType: "household",
+    subjectId: householdId,
+    householdId,
+    payload: { source: "manual_add" },
+  });
 
   return NextResponse.json({ ok: true, id: householdId });
 }
