@@ -83,7 +83,7 @@ export const TOUR_STEPS: TourStep[] = [
     group: "Feature",
     title: "Customer 360",
     points: [
-      "Luna's brief, predictions and a full timeline of every interaction.",
+      "Luna's brief, predictions, the Travel memory (how they travel, every line citing its source) and a full timeline.",
       "Next steps suggests the best actions; the Do buttons create tasks or open a reply.",
       "Add a note, draft a reply, or schedule a call right from the record.",
       "Marketing consent is per channel with evidence — bulk emails only reach customers with a current grant.",

@@ -28,6 +28,7 @@ import { PreferencesPanelEditable } from "./preferences-panel";
 import { HouseholdEditButton } from "./household-edit";
 import { ConsentPanel, type ConsentPanelContact } from "./consent-panel";
 import type { ConsentChannel, ChannelState } from "@/lib/consent/state";
+import type { MemoryFact, MemoryCategory } from "@/lib/memory/travel-memory";
 import type { NextStep } from "@/lib/customer/next-steps";
 import type {
   Household,
@@ -55,6 +56,7 @@ type Props = {
   consentContacts: ConsentPanelContact[];
   consentState: Record<string, Partial<Record<ConsentChannel, ChannelState>>>;
   consentLedgerMissing: boolean;
+  memoryFacts: MemoryFact[];
 };
 
 // Sarah Thompson's UUID changes per seed; we identify the exemplar by name
@@ -135,6 +137,7 @@ export function CustomerDetailView({
   consentContacts,
   consentState,
   consentLedgerMissing,
+  memoryFacts,
 }: Props) {
   const exemplar = isExemplar(household);
   const lead = contacts.find((c) => c.role === "lead") ?? contacts[0];
@@ -167,6 +170,7 @@ export function CustomerDetailView({
           <HeaderCard household={household} contacts={contacts} lead={lead} />
           <AIBrief household={household} exemplar={exemplar} latestInboundId={latestInboundId} />
           <PredictionsRow exemplar={exemplar} cards={predictionCards} />
+          <TravelMemoryPanel facts={memoryFacts} />
           <Timeline interactions={interactions} />
           <ListeningFooter exemplar={exemplar} />
         </div>
@@ -1315,6 +1319,93 @@ function CompliancePanel({
         </div>
       </div>
     </Panel>
+  );
+}
+
+// ─── Travel memory — the signature feature ──────────────────────────────
+// A readable account of how this customer travels, assembled from real rows,
+// every line citing its source (lib/memory/travel-memory.ts). Hidden when
+// there is nothing honest to say yet.
+
+const MEMORY_GROUPS: { key: MemoryCategory; label: string }[] = [
+  { key: "places", label: "Where they go" },
+  { key: "rhythm", label: "How they book" },
+  { key: "money", label: "What they spend" },
+  { key: "party", label: "Who travels" },
+  { key: "tastes", label: "What they like" },
+  { key: "watchouts", label: "Worth knowing" },
+];
+
+function TravelMemoryPanel({ facts }: { facts: MemoryFact[] }) {
+  if (facts.length === 0) return null;
+
+  return (
+    <section
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 14,
+        marginTop: 16,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: "12px 18px",
+          borderBottom: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>
+          Travel memory
+        </span>
+        <span style={{ fontSize: 10.5, color: "var(--text-subtle)" }}>
+          every line cites its source
+        </span>
+      </div>
+      <div
+        className="rgrid rgrid-2"
+        style={{
+          padding: "14px 18px",
+          gap: "4px 24px",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+        }}
+      >
+        {MEMORY_GROUPS.map(({ key, label }) => {
+          const group = facts.filter((f) => f.category === key);
+          if (group.length === 0) return null;
+          return (
+            <div key={key} style={{ marginBottom: 10, breakInside: "avoid" }}>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: "var(--text-subtle)",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                  marginBottom: 4,
+                }}
+              >
+                {label}
+              </div>
+              {group.map((f, i) => (
+                <div key={`${key}-${i}`} style={{ marginBottom: 6 }}>
+                  <div style={{ fontSize: 12.5, color: "var(--text)", lineHeight: 1.45 }}>
+                    {f.text}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "var(--text-subtle)", fontStyle: "italic" }}>
+                    {f.source}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
