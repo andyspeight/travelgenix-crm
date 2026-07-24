@@ -140,6 +140,7 @@ export const TOUR_STEPS: TourStep[] = [
     title: "Journeys (auto-pilot)",
     points: [
       "Rules that watch your customers and do the follow-ups for you.",
+      "Describe a new rule in plain English — 'when a quote over £5,000 isn't answered in 3 days, create a call task' — and Luna builds it. You review the explanation and a live dry-run before it switches on.",
       "Install the four starter journeys, then Run to see who's eligible now.",
       "Luna queues tasks and drafts for your review. Nothing sends without you.",
     ],

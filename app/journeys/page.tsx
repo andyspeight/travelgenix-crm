@@ -22,8 +22,9 @@ import {
   type JourneyRun,
   type EvalContext,
 } from "@/lib/journeys/engine";
-import type { Household, Trip, Contact } from "@/lib/supabase/types";
+import type { Household, Trip, Contact, Quote } from "@/lib/supabase/types";
 import { JourneysView, type JourneyCard, type RunFeedItem } from "./journeys-view";
+import { ComposeJourney } from "./compose-journey";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function JourneysPage() {
     { data: contacts },
     { data: ixRows },
     { data: runRows },
+    { data: quoteRows },
   ] = await Promise.all([
     supabase.from("journeys").select("*").eq("agency_id", AGENCY_ID).order("created_at"),
     supabase
@@ -57,6 +59,12 @@ export default async function JourneysPage() {
       .select("*")
       .order("fired_at", { ascending: false })
       .limit(14),
+    // Live quotes feed quote-based custom rules (missing table = no matches).
+    supabase
+      .from("quotes")
+      .select("id, trip_id, household_id, status, sent_at, total_price, customer_response, view_count")
+      .eq("agency_id", AGENCY_ID)
+      .in("status", ["sent", "viewed"]),
   ]);
 
   const journeys = (journeyRows ?? []) as Journey[];
@@ -71,6 +79,7 @@ export default async function JourneysPage() {
     lastContactByHousehold: buildLastContactMap(
       (ixRows ?? []) as { household_id: string | null; occurred_at: string }[]
     ),
+    quotes: (quoteRows ?? []) as Quote[],
   };
 
   const cards: JourneyCard[] = journeys.map((j) => ({
@@ -133,6 +142,7 @@ export default async function JourneysPage() {
           </span>
         }
       />
+      <ComposeJourney />
       <JourneysView
         cards={cards}
         feed={feed}

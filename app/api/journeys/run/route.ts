@@ -23,7 +23,7 @@ import {
   type Journey,
   type EvalContext,
 } from "@/lib/journeys/engine";
-import type { Household, Trip, Contact } from "@/lib/supabase/types";
+import type { Household, Trip, Contact, Quote } from "@/lib/supabase/types";
 import { emitEvent } from "@/lib/events/emit";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
   }
 
   // ─── Load the data the matcher needs (agency-scoped, in parallel) ────
-  const [{ data: households }, { data: trips }, { data: contacts }, { data: ixRows }] =
+  const [{ data: households }, { data: trips }, { data: contacts }, { data: ixRows }, { data: quoteRows }] =
     await Promise.all([
       supabase
         .from("households")
@@ -97,6 +97,12 @@ export async function POST(request: Request) {
         .from("interactions")
         .select("household_id, occurred_at")
         .eq("agency_id", AGENCY_ID),
+      // Live quotes feed quote-based custom rules (missing table = no matches).
+      supabase
+        .from("quotes")
+        .select("id, trip_id, household_id, status, sent_at, total_price, customer_response, view_count")
+        .eq("agency_id", AGENCY_ID)
+        .in("status", ["sent", "viewed"]),
     ]);
 
   const hh = (households ?? []) as Household[];
@@ -110,6 +116,7 @@ export async function POST(request: Request) {
     lastContactByHousehold: buildLastContactMap(
       (ixRows ?? []) as { household_id: string | null; occurred_at: string }[]
     ),
+    quotes: (quoteRows ?? []) as Quote[],
   };
 
   // ─── Existing runs, for dedupe ──────────────────────────────────────

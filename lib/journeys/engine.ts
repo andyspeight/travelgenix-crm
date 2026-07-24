@@ -14,7 +14,7 @@
  * draft, so matching stays fast, free and testable.
  */
 
-import type { Household, Trip, Contact } from "@/lib/supabase/types";
+import type { Household, Trip, Contact, Quote } from "@/lib/supabase/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -143,6 +143,14 @@ export function describeTrigger(j: Pick<Journey, "trigger_kind" | "trigger_confi
       return "On a traveller's birthday";
     case "anniversary":
       return "On a trip anniversary";
+    case "custom": {
+      if (c.rule === "quote_unanswered") {
+        const minValue = Number(c.min_value) || 0;
+        const overBit = minValue > 0 ? ` over £${minValue.toLocaleString("en-GB")}` : "";
+        return `Quote${overBit} unanswered for ${days || 3} days`;
+      }
+      return "Custom rule";
+    }
     default:
       return "Custom rule";
   }
@@ -178,6 +186,11 @@ export type EvalContext = {
   contacts: Contact[];
   /** household_id -> ISO timestamp of the most recent interaction. */
   lastContactByHousehold: Map<string, string>;
+  /** Live quotes, for quote-based custom rules. Optional: absent matches nothing. */
+  quotes?: Pick<
+    Quote,
+    "id" | "trip_id" | "household_id" | "status" | "sent_at" | "total_price" | "customer_response" | "view_count"
+  >[];
 };
 
 /** Build the last-contact map from a list of (household_id, occurred_at) rows. */
@@ -276,10 +289,36 @@ export function evaluateJourney(journey: Journey, ctx: EvalContext): Candidate[]
       break;
     }
 
+    case "custom": {
+      // Custom rules dispatch on trigger_config.rule, so new rule kinds need
+      // no database enum change. First rule: quote_unanswered — the
+      // blueprint's own example ("a quote over £5,000 with no reply in three
+      // days"). A live quote counts as unanswered while nothing the customer
+      // said has been recorded against it.
+      if (cfg.rule === "quote_unanswered") {
+        const N = Number(cfg.days) || 3;
+        const minValue = Number(cfg.min_value) || 0;
+        for (const q of ctx.quotes ?? []) {
+          if (q.status !== "sent" && q.status !== "viewed") continue;
+          if (q.customer_response) continue;
+          if ((q.total_price ?? 0) < minValue) continue;
+          const s = daysSince(q.sent_at, now);
+          if (s == null || s < N) continue;
+          const price =
+            q.total_price != null ? `£${Math.round(q.total_price).toLocaleString("en-GB")} ` : "";
+          out.push({
+            household_id: q.household_id,
+            trip_id: q.trip_id,
+            reason: `${price}quote sent ${s} ${s === 1 ? "day" : "days"} ago with no reply${q.view_count > 0 ? ` (viewed ${q.view_count} time${q.view_count === 1 ? "" : "s"})` : ""}`,
+          });
+        }
+      }
+      break;
+    }
+
     // Triggers with no data source wired yet match nothing.
     case "birthday":
     case "anniversary":
-    case "custom":
     default:
       break;
   }
@@ -323,6 +362,26 @@ export function buildAction(
   }
 
   // draft_email
+  if (
+    journey.trigger_kind === "custom" &&
+    journey.trigger_config?.rule === "quote_unanswered"
+  ) {
+    return {
+      kind: "draft_email",
+      subject: "Your quote, and a thought",
+      body: [
+        `Hi ${firstName},`,
+        "",
+        "Just checking in on the quote we sent over. No pressure at all, but prices and availability do move, so if it is still of interest I would rather hold it for you than watch it drift.",
+        "",
+        "If anything about it is not quite right, the dates, the hotel, the budget, tell me and I will rework it. That is the easy part.",
+        "",
+        "Warm wishes,",
+        "Andy",
+      ].join("\n"),
+    };
+  }
+
   if (journey.trigger_kind === "days_after_return") {
     const place = candidate.destination ? ` from ${candidate.destination}` : "";
     return {
