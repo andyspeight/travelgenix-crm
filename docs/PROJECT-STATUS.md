@@ -124,7 +124,12 @@ Andy's chosen order: 1) service cases, 2) NL journey builder, 3) hardening.
   - **Priority engine**: `lib/cases/priority.ts` (8 tests) — deterministic and explained: travelling-now forces P1; departure ≤7 days forces at least P2; children in the party, vulnerable-traveller flags and £8k+ bookings each bump a notch; every priority carries an SLA target (P1 2h / P2 8h / P3 24h / P4 72h).
   - **API**: `POST /api/cases` (priority + SLA computed server-side from the real trip/traveller context, `case.opened` event, timeline entry), `PATCH /api/cases/[id]` (start / wait / resolve-with-outcome / reopen; `case.resolved` carries resolution minutes + within-SLA).
   - **UI**: `/service` queue — priority-then-SLA ordered, P-badge shows its computed reason on hover, SLA countdown reuses the enquiries clock, new-case modal reports back the computed priority. Sidebar (LifeBuoy icon) + palette + tour; the morning briefing now leads with urgent open cases.
-- [ ] **2. Natural-language journey builder.**
+- [x] **2. Natural-language journey builder** (blueprint §9) — "the user writes it, LUNA builds it, explains it, and the administrator tests it before activation":
+  - **Engine**: new dispatchable custom rule `quote_unanswered` (quotes join `EvalContext`; the blueprint's own £5k-quote example now runs), quote-chase email template, `describeTrigger` coverage. New rule kinds need no database change.
+  - **Validator**: `lib/journeys/compose.ts` — the model proposes, the whitelist disposes. Five composable triggers with per-parameter clamps, three actions, mandatory name + explanation. 8 tests incl. an end-to-end run of a validated spec through the real engine.
+  - **Compose route**: `POST /api/journeys/compose` — Sonnet translates the sentence into the engine's vocabulary (instructed to put anything unsupported into `caveats`, never invent), validation, then a live DRY RUN ("would fire for N customers today, e.g. …"). Writes nothing.
+  - **Activate route**: `POST /api/journeys/create` — re-validates the round-tripped spec from scratch, inserts the journey; it then behaves exactly like any hand-built rule (run endpoint + journeys page both feed quotes to the matcher now).
+  - **UI**: composer card on /journeys — sentence in, review card out (explanation, When/Then labels, dry-run count with examples, amber "Left out:" caveats), Activate / Discard.
 - [ ] **3. Production hardening** — Upstash rate limiting, auth + RLS.
 
 ### Still genuinely future (not blocking)
