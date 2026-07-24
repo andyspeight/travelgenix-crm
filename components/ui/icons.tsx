@@ -48,6 +48,17 @@ export const PlaneIcon = (p: IconProps) => (
   </svg>
 );
 
+export const LifeBuoyIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="4" />
+    <path d="m4.93 4.93 4.24 4.24" />
+    <path d="m14.83 9.17 4.24-4.24" />
+    <path d="m14.83 14.83 4.24 4.24" />
+    <path d="m9.17 14.83-4.24 4.24" />
+  </svg>
+);
+
 export const MessageIcon = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />

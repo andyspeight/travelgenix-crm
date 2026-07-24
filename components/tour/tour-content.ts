@@ -126,6 +126,17 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     group: "Feature",
+    title: "Service — travel-aware cases",
+    points: [
+      "Every customer problem becomes a case with a priority computed from real travel context: someone travelling right now automatically outranks a routine post-trip question.",
+      "Each priority carries a resolution target and a countdown; hover the P-badge to see exactly why Luna ranked it there.",
+      "Start, mark waiting, and resolve with the outcome recorded — the resolution lands on the customer's timeline.",
+    ],
+    href: "/service",
+    cta: "Open Service",
+  },
+  {
+    group: "Feature",
     title: "Journeys (auto-pilot)",
     points: [
       "Rules that watch your customers and do the follow-ups for you.",

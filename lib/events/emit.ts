@@ -32,11 +32,13 @@ export type CrmEventType =
   | "trip.completed"
   | "task.completed"
   | "customer.created"
-  | "journey.executed";
+  | "journey.executed"
+  | "case.opened"
+  | "case.resolved";
 
 export type EmitArgs = {
   type: CrmEventType;
-  subjectType: "enquiry" | "trip" | "household" | "interaction" | "quote" | "contact" | "task" | "journey";
+  subjectType: "enquiry" | "trip" | "household" | "interaction" | "quote" | "contact" | "task" | "journey" | "case";
   subjectId: string;
   householdId?: string | null;
   payload?: Record<string, unknown>;

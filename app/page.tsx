@@ -64,6 +64,7 @@ export default async function DashboardPage() {
     { data: enquiryRows },
     { data: quoteRows },
     { data: contactRows },
+    { count: urgentCasesCount },
   ] = await Promise.all([
     supabase
       .from("households")
@@ -114,6 +115,13 @@ export default async function DashboardPage() {
       .from("contacts")
       .select("id, household_id, role, first_name, last_name, email, phone, passport_expiry, gdpr_consent, flags")
       .eq("agency_id", AGENCY_ID),
+    // Urgent open service cases (missing table just means zero).
+    supabase
+      .from("cases")
+      .select("*", { count: "exact", head: true })
+      .eq("agency_id", AGENCY_ID)
+      .in("status", ["open", "in_progress", "waiting"])
+      .lte("priority", 2),
   ]);
 
   const hh = (households ?? []) as Pick<
@@ -255,6 +263,7 @@ export default async function DashboardPage() {
     enquiriesWaiting: waitingEnquiries.length,
     enquiriesOverdue: overdueEnquiries,
     quotesAtRisk: quoteAlerts.length,
+    urgentCases: urgentCasesCount ?? 0,
   });
 
   return (
@@ -544,9 +553,17 @@ function buildBriefSentence(args: {
   enquiriesWaiting: number;
   enquiriesOverdue: number;
   quotesAtRisk: number;
+  urgentCases: number;
 }): string {
-  const { needsToday, departing7, openPipeline, travellingNow, openTasks, enquiriesWaiting, enquiriesOverdue, quotesAtRisk } = args;
+  const { needsToday, departing7, openPipeline, travellingNow, openTasks, enquiriesWaiting, enquiriesOverdue, quotesAtRisk, urgentCases } = args;
   const parts: string[] = [];
+
+  // A customer in trouble comes before everything.
+  if (urgentCases > 0) {
+    parts.push(
+      `${urgentCases} urgent service case${urgentCases === 1 ? "" : "s"} open`
+    );
+  }
 
   // The response clock outranks everything — a waiting enquiry is a customer
   // deciding whether to book with you or the next agency that answers.

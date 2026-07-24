@@ -218,6 +218,28 @@ export type ConsentRow = {
   created_at: string;
 };
 
+export type CaseStatus = "open" | "in_progress" | "waiting" | "resolved" | "closed";
+
+export type CaseRow = {
+  id: string;
+  agency_id: string;
+  household_id: string | null;
+  trip_id: string | null;
+  case_type: string;
+  subject: string;
+  detail: string | null;
+  status: CaseStatus;
+  priority: 1 | 2 | 3 | 4;
+  priority_reason: string | null;
+  opened_at: string;
+  sla_due_at: string | null;
+  resolved_at: string | null;
+  resolution: string | null;
+  owner_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type EventRow = {
   id: string;
   agency_id: string;
