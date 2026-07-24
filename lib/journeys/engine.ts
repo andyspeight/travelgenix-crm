@@ -160,6 +160,75 @@ export function describeAction(j: Pick<Journey, "action_kind">): string {
   return ACTION_LABELS[j.action_kind] ?? j.action_kind;
 }
 
+// ─── Flow descriptor ────────────────────────────────────────────────────────
+// The rule drawn as connected steps: WHEN (what Luna watches) → IF (the
+// threshold) → THEN (what she does). Pure presentation over trigger_config —
+// the FlowStrip component renders this on the review card and every journey
+// card, so hand-built and Luna-built rules read one visual language.
+
+export type JourneyFlow = {
+  when: string;
+  condition: string;
+  then: string;
+};
+
+export function describeFlow(
+  j: Pick<Journey, "trigger_kind" | "trigger_config" | "action_kind" | "action_config">
+): JourneyFlow {
+  const c = j.trigger_config ?? {};
+  const days = Number(c.days);
+  const months = Number(c.months);
+
+  let when: string;
+  let condition: string;
+
+  switch (j.trigger_kind) {
+    case "days_to_departure":
+      when = "A trip approaches departure";
+      condition = `Within ${days || 10} days of departure`;
+      break;
+    case "days_after_return":
+      when = "A customer returns from a trip";
+      condition = `${days || 3} days after return`;
+      break;
+    case "passport_expiring":
+      when = "A passport nears expiry";
+      condition = `Within ${days || 180} days of expiry`;
+      break;
+    case "no_contact_period":
+      when = "A customer goes quiet";
+      condition = `No contact for ${months || 12} months`;
+      break;
+    case "custom":
+      if (c.rule === "quote_unanswered") {
+        const minValue = Number(c.min_value) || 0;
+        when = "A quote is awaiting a reply";
+        condition = `${minValue > 0 ? `Over £${minValue.toLocaleString("en-GB")} · ` : ""}unanswered ${days || 3}+ days`;
+        break;
+      }
+      when = "Custom trigger";
+      condition = describeTrigger(j);
+      break;
+    default:
+      when = describeTrigger(j);
+      condition = describeTrigger(j);
+  }
+
+  let then: string;
+  const title = (j.action_config as { title?: string } | null)?.title;
+  if (j.action_kind === "create_task") {
+    then = title ? `Create task: ${title}` : "Create a task";
+  } else if (j.action_kind === "draft_email") {
+    then = "Draft an email for review";
+  } else if (j.action_kind === "add_note") {
+    then = "Add a note to the record";
+  } else {
+    then = describeAction(j);
+  }
+
+  return { when, condition, then };
+}
+
 // ─── Date helpers (pure, relative to a passed-in "now") ─────────────────────
 
 function daysUntil(dateStr: string | null | undefined, now: Date): number | null {

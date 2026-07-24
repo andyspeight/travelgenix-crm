@@ -23,6 +23,7 @@ import {
   buildLastContactMap,
   describeTrigger,
   describeAction,
+  describeFlow,
   type EvalContext,
   type Journey,
 } from "@/lib/journeys/engine";
@@ -157,6 +158,7 @@ export async function POST(request: Request) {
     caveats: result.caveats,
     trigger_label: describeTrigger(previewJourney),
     action_label: describeAction(previewJourney),
+    flow: describeFlow(previewJourney),
     matches: {
       count: candidates.length,
       examples: candidates.slice(0, 3).map((c) => c.reason),
