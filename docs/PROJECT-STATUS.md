@@ -130,7 +130,11 @@ Andy's chosen order: 1) service cases, 2) NL journey builder, 3) hardening.
   - **Compose route**: `POST /api/journeys/compose` — Sonnet translates the sentence into the engine's vocabulary (instructed to put anything unsupported into `caveats`, never invent), validation, then a live DRY RUN ("would fire for N customers today, e.g. …"). Writes nothing.
   - **Activate route**: `POST /api/journeys/create` — re-validates the round-tripped spec from scratch, inserts the journey; it then behaves exactly like any hand-built rule (run endpoint + journeys page both feed quotes to the matcher now).
   - **UI**: composer card on /journeys — sentence in, review card out (explanation, When/Then labels, dry-run count with examples, amber "Left out:" caveats), Activate / Discard.
-- [ ] **3. Production hardening** — Upstash rate limiting, auth + RLS.
+- [x] **3. Production hardening, round 1** — the pre-tenant essentials:
+  - **Rate limiting v2**: `enforceRateLimit()` — a hard distributed window in Upstash Redis (REST pipeline INCR+PEXPIRE+PTTL, no SDK) when `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set; the per-instance window otherwise; an Upstash outage falls back to the local window rather than opening the tap. All SEVEN AI spend surfaces metered — the audit found the customers-page segmentation resolve was reachable from a bare `?q=` URL with no meter; over-limit it now degrades to the deterministic parser instead of spending. 8 tests.
+  - **Access gate**: set `LUNA_ACCESS_CODE` in Vercel and the whole app (pages AND API) requires it — edge middleware checks an HMAC-signed, expiring httpOnly cookie (`lib/auth/gate.ts`, Web Crypto, 6 tests); /login is a minimal branded screen; the code check is constant-time-ish and rate-limited 5/min. Env var unset = gate open, so nothing locks out dev or a fresh deploy. **ACTION FOR ANDY: add LUNA_ACCESS_CODE in Vercel project settings to switch the lock on** (and optionally the two Upstash vars for the distributed limiter).
+  - **Security headers**: X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy on every response. CSP deferred to the auth milestone (inline styles need nonce plumbing).
+  - **Still the real multi-tenant milestone** (unchanged): Supabase Auth + RLS policies + per-user agency scoping, passport field encryption, journeys cron.
 
 ### Still genuinely future (not blocking)
 Auth + RLS for multi-tenant, generated Supabase types, a scheduled trigger for journeys (cron) instead of manual "Run now", and swapping the in-memory rate limiter for Upstash.

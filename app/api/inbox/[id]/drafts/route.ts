@@ -22,7 +22,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
-import { rateLimit, clientKey } from "@/lib/ai/rate-limit";
+import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 import type { Contact, Trip, Household, Interaction } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -54,7 +54,7 @@ export async function POST(
     );
   }
 
-  const limit = rateLimit(clientKey(request, "drafts"), 12, 60_000);
+  const limit = await enforceRateLimit(clientKey(request, "drafts"), 12, 60_000);
   if (!limit.ok) {
     return NextResponse.json(
       { ok: false, error: "Drafting a little too fast. Try again shortly." },

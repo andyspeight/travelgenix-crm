@@ -16,7 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
-import { rateLimit, clientKey } from "@/lib/ai/rate-limit";
+import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 import { validateJourneySpec, type RawJourneySpec } from "@/lib/journeys/compose";
 import {
   evaluateJourney,
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const limit = rateLimit(clientKey(request, "compose"), 10, 60_000);
+  const limit = await enforceRateLimit(clientKey(request, "compose"), 10, 60_000);
   if (!limit.ok) {
     return NextResponse.json(
       { ok: false, error: "Building journeys a little too fast. Try again shortly." },

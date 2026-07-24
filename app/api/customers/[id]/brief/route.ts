@@ -27,7 +27,7 @@
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { buildScoringContext } from "@/lib/scoring/customer";
-import { rateLimit, clientKey } from "@/lib/ai/rate-limit";
+import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 import type { Contact, Trip, Household } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +62,7 @@ export async function POST(
   }
 
   // Brief generation is a model call per household, so cap it per client.
-  const limit = rateLimit(clientKey(request, "brief"), 10, 60_000);
+  const limit = await enforceRateLimit(clientKey(request, "brief"), 10, 60_000);
   if (!limit.ok) {
     return NextResponse.json(
       { ok: false, error: "Generating briefs a little too fast. Try again shortly." },

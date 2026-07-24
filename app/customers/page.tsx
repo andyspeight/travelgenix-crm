@@ -17,8 +17,10 @@ import { Topbar } from "@/components/layout/topbar";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { CustomersView } from "./customers-view";
 import { SeedPrompt } from "./seed-prompt";
-import { SAVED_SEGMENTS, type Token } from "@/lib/segmentation/parse";
+import { headers } from "next/headers";
+import { SAVED_SEGMENTS, parseQueryToTokens, type Token } from "@/lib/segmentation/parse";
 import { resolveTokens } from "@/lib/segmentation/resolve";
+import { enforceRateLimit, clientKeyFromHeaders } from "@/lib/ai/rate-limit";
 import { fetchHouseholdsForTokens } from "@/lib/segmentation/query";
 import { listSavedSegments, getSavedSegment } from "@/lib/segmentation/segments";
 import { AddCustomer } from "./add-customer";
@@ -58,7 +60,16 @@ export default async function CustomersPage({
     }
   } else if (rawQuery) {
     // Claude-backed, falls back to the rules-based parser on any failure.
-    tokens = await resolveTokens(rawQuery);
+    // Rate-limited per client: this is an AI spend reachable from a bare URL
+    // parameter, so it gets the same meter as the API routes. Over the limit
+    // the deterministic parser still answers — nothing breaks, it just stops
+    // spending.
+    const limit = await enforceRateLimit(
+      clientKeyFromHeaders(headers(), "segment-resolve"),
+      20,
+      60_000
+    );
+    tokens = limit.ok ? await resolveTokens(rawQuery) : parseQueryToTokens(rawQuery);
   }
 
   // ─── Total count for the banner / empty-state check ─────────────────
