@@ -15,6 +15,8 @@
 import { useState, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ZapIcon, SparklesIcon, ClockIcon, CheckIcon, NoteIcon, SendIcon } from "@/components/ui/icons";
+import type { JourneyFlow } from "@/lib/journeys/engine";
+import { FlowStrip } from "./flow-strip";
 
 export type JourneyCard = {
   id: string;
@@ -23,6 +25,7 @@ export type JourneyCard = {
   triggerLabel: string;
   actionKind: string;
   actionLabel: string;
+  flow: JourneyFlow;
   isActive: boolean;
   lastRunAt: string | null;
   eligibleNow: number;
@@ -335,14 +338,7 @@ function JourneyRow({
           >
             {card.description}
           </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-            <Pill icon={<ClockIcon width={11} height={11} />} text={card.triggerLabel} />
-            <Pill
-              icon={<SparklesIcon width={11} height={11} />}
-              text={card.actionLabel}
-              accent
-            />
-          </div>
+          <FlowStrip flow={card.flow} compact />
         </div>
 
         {/* Pause / activate */}

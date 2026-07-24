@@ -11,8 +11,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SparklesIcon, ZapIcon } from "@/components/ui/icons";
+import { SparklesIcon } from "@/components/ui/icons";
 import type { RawJourneySpec } from "@/lib/journeys/compose";
+import type { JourneyFlow } from "@/lib/journeys/engine";
+import { FlowStrip } from "./flow-strip";
 
 type Composed = {
   spec: RawJourneySpec;
@@ -20,6 +22,7 @@ type Composed = {
   caveats: string | null;
   trigger_label: string;
   action_label: string;
+  flow: JourneyFlow;
   matches: { count: number; examples: string[] };
 };
 
@@ -195,11 +198,8 @@ export function ComposeJourney() {
           <div style={{ fontSize: 12.5, color: "var(--text)", lineHeight: 1.55, marginBottom: 8 }}>
             {composed.explanation}
           </div>
+          <FlowStrip flow={composed.flow} />
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-            <span style={chip}>
-              <ZapIcon width={10} height={10} style={{ verticalAlign: -1 }} /> When: {composed.trigger_label}
-            </span>
-            <span style={chip}>Then: {composed.action_label}</span>
             <span
               style={{
                 ...chip,
