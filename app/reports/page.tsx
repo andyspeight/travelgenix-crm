@@ -14,6 +14,9 @@
 import { Topbar } from "@/components/layout/topbar";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { ReportsView, type ReportTrip, type ReportHousehold } from "./reports-view";
+import { InsightPanels } from "./insight-panels";
+import { detectTrends } from "@/lib/trends/detect";
+import { computeForecast } from "@/lib/forecast/forecast";
 import { ChartIcon } from "@/components/ui/icons";
 import type { Trip } from "@/lib/supabase/types";
 
@@ -22,12 +25,26 @@ export const dynamic = "force-dynamic";
 export default async function ReportsPage() {
   const supabase = createClient();
 
-  const { data: trips, error } = await supabase
-    .from("trips")
-    .select(
-      "id, household_id, stage, destination, destination_country, total_value, source, depart_date, return_date, created_at"
-    )
-    .eq("agency_id", AGENCY_ID);
+  const [{ data: trips, error }, { data: enquiryRows }, { data: quoteRows }] = await Promise.all([
+    supabase
+      .from("trips")
+      .select(
+        "id, household_id, stage, destination, destination_country, total_value, source, depart_date, return_date, created_at, updated_at"
+      )
+      .eq("agency_id", AGENCY_ID),
+    // Enquiries feed the trends (volume, destinations, response time,
+    // conversion). Missing table just means fewer trends.
+    supabase
+      .from("enquiries")
+      .select("destination, received_at, first_response_at, status")
+      .eq("agency_id", AGENCY_ID),
+    // Live quotes feed the forecast's engagement weighting.
+    supabase
+      .from("quotes")
+      .select("trip_id, status, view_count, total_price")
+      .eq("agency_id", AGENCY_ID)
+      .in("status", ["sent", "viewed"]),
+  ]);
 
   if (error) {
     return (
@@ -54,8 +71,36 @@ export default async function ReportsPage() {
 
   const rows = (trips ?? []) as Pick<
     Trip,
-    "id" | "household_id" | "stage" | "destination" | "destination_country" | "total_value" | "source" | "depart_date" | "return_date" | "created_at"
+    "id" | "household_id" | "stage" | "destination" | "destination_country" | "total_value" | "source" | "depart_date" | "return_date" | "created_at" | "updated_at"
   >[];
+
+  // ─── Luna's insight layer (deterministic) ───────────────────────────
+  const trends = detectTrends({
+    trips: rows.map((t) => ({
+      stage: t.stage,
+      destination: t.destination,
+      total_value: t.total_value,
+      created_at: t.created_at,
+      updated_at: t.updated_at,
+    })),
+    enquiries: (enquiryRows ?? []) as {
+      destination: string | null;
+      received_at: string;
+      first_response_at: string | null;
+      status: string;
+    }[],
+  });
+
+  const forecast = computeForecast(
+    rows.map((t) => ({
+      id: t.id,
+      stage: t.stage,
+      destination: t.destination,
+      total_value: t.total_value,
+      depart_date: t.depart_date,
+    })),
+    (quoteRows ?? []) as { trip_id: string; status: string; view_count: number; total_price: number | null }[]
+  );
 
   // Household summaries for the customer-mix reports (new vs repeat, value bands).
   const { data: households } = await supabase
@@ -125,6 +170,7 @@ export default async function ReportsPage() {
   return (
     <>
       <Topbar title="Reports" />
+      <InsightPanels trends={trends} forecast={forecast} />
       <ReportsView trips={reportTrips} households={reportHouseholds} />
     </>
   );
