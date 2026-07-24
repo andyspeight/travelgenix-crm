@@ -136,6 +136,19 @@ Andy's chosen order: 1) service cases, 2) NL journey builder, 3) hardening.
   - **Security headers**: X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy on every response. CSP deferred to the auth milestone (inline styles need nonce plumbing).
   - **Still the real multi-tenant milestone** (unchanged): Supabase Auth + RLS policies + per-user agency scoping, passport field encryption, journeys cron.
 
+---
+
+## Phase 5 — agreed remaining order (one at a time, fully tested, plain-English report between each)
+
+Order agreed 24 Jul: 1) trends + forecasting, 2) real email sending, 3) multi-tenant platform milestone.
+
+- [x] **1. Trend detection + forecasting** (blueprint §7 forecasting + gap-review item 9):
+  - **Trends**: `lib/trends/detect.ts` (7 tests) — deterministic period-over-period deltas (60-day windows): enquiry volume, rising/falling destinations, first-response speed, conversion of resolved enquiries, cancellations, average booking value. A minimum-sample honesty guard means Luna says nothing rather than calling 3-vs-1 a "200% surge"; every headline carries both numbers. Bad news sorts first.
+  - **Forecast**: `lib/forecast/forecast.ts` (6 tests) — the blueprint's two views. Booking-date view: open pipeline weighted by stage (enquiry 20% / quoted 45% / quoted-and-viewed 60% — a viewed live quote upgrades the weight, engagement is information), weights printed next to the numbers. Departure-date view: committed revenue (booked/pre-departure/travelling) vs weighted potential by departure month, six months out. Margin deliberately absent until commission capture lands.
+  - **UI**: two "Luna" panels at the top of /reports (server-rendered, no new queries beyond enquiries + live quotes): "What's changing" with tone-coloured ▲/▼ receipts, and "Forecast" with the weighted pipeline lines and a committed/potential bar per departure month. Hidden entirely when the data can't honestly support them.
+- [ ] **2. Real email sending** — first live channel (provider TBD: Brevo/Resend), replacing the mailto flows; per-send consent check, suppression on bounce, events on the spine.
+- [ ] **3. Multi-tenant platform milestone** — Supabase Auth + RLS, passport field encryption, roles/branches, journeys cron, observability.
+
 ### Still genuinely future (not blocking)
 Auth + RLS for multi-tenant, generated Supabase types, a scheduled trigger for journeys (cron) instead of manual "Run now", and swapping the in-memory rate limiter for Upstash.
 </content>

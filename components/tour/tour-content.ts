@@ -162,7 +162,8 @@ export const TOUR_STEPS: TourStep[] = [
     title: "Reports",
     points: [
       "Booked revenue, open pipeline, conversion, destinations and sources.",
-      "Flip between this year, last 12 months and all time instantly.",
+      "Luna's trend panel says what's changing — enquiries, destinations, response times — with the numbers behind every claim.",
+      "The forecast weights the open pipeline by stage (weights shown) and maps committed vs potential revenue by departure month.",
     ],
     href: "/reports",
     cta: "Open Reports",
