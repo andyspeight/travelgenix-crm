@@ -13,7 +13,7 @@ import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { runAsk, type AskTurn } from "@/lib/ask/router";
 import type { QueryContext } from "@/lib/ask/contract";
-import { rateLimit, clientKey } from "@/lib/ai/rate-limit";
+import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Luna Ask is not configured yet." }, { status: 503 });
   }
 
-  const limit = rateLimit(clientKey(request, "ask"), 20, 60_000);
+  const limit = await enforceRateLimit(clientKey(request, "ask"), 20, 60_000);
   if (!limit.ok) {
     return NextResponse.json(
       { ok: false, error: "Too many questions just now. Give it a moment." },

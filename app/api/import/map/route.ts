@@ -16,7 +16,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { rateLimit, clientKey } from "@/lib/ai/rate-limit";
+import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 import {
   TARGET_FIELDS,
   heuristicMapping,
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, mappings: fallback, engine: "rules" });
   }
 
-  const limit = rateLimit(clientKey(request, "import-map"), 10, 60_000);
+  const limit = await enforceRateLimit(clientKey(request, "import-map"), 10, 60_000);
   if (!limit.ok) {
     // Rate-limited? The heuristic answer is still a good one.
     return NextResponse.json({ ok: true, mappings: fallback, engine: "rules" });

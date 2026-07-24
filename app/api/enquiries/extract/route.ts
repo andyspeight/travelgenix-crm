@@ -15,7 +15,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { rateLimit, clientKey } from "@/lib/ai/rate-limit";
+import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const limit = rateLimit(clientKey(request, "extract"), 15, 60_000);
+  const limit = await enforceRateLimit(clientKey(request, "extract"), 15, 60_000);
   if (!limit.ok) {
     return NextResponse.json(
       { ok: false, error: "Extracting a little too fast. Try again shortly." },
