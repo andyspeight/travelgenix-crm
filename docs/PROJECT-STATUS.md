@@ -113,6 +113,20 @@ Working through `docs/blueprint-gap-review.md` in its recommended order.
 - [x] **6. Travel Memory + rebooking window** (this session / step 5) — the blueprint's signature feature. `lib/memory/travel-memory.ts` (8 tests): deterministic assembly of how the customer travels — places (with repeat counts), typical spend, booking rhythm and favoured months, trip length, who travels (children's ages from DOBs), occasions, recorded vs Luna-inferred preferences (provenance + confidence shown), dietary/flags, the latest quote-decline reason. EVERY line carries its citation; nothing computable honestly = nothing shown. Rendered as the "Travel memory" panel in the 360's main column, grouped (Where they go / How they book / What they spend / Who travels / What they like / Worth knowing). The rebooking window half shipped with step 5's Suggest feed.
 - [x] **7. CSV import + AI mapping** — recovered from the stranded `claude/project-status-plan-gokkji` branch (built 2 Jul, never merged) and landed on main 23 Jul. See the Phase 2 entry above for detail. Post-import health check still to come (fold into the data-quality assistant / Suggest feed).
 
+---
+
+## Phase 4 — growth pillars (in progress)
+
+Andy's chosen order: 1) service cases, 2) NL journey builder, 3) hardening.
+
+- [x] **1. Service cases with travel-aware priority** (blueprint §11, differentiator 5):
+  - **Schema**: `supabase/migrations/20260724090000_cases.sql` — case type (13 travel types), subject/detail, status lifecycle (open → in progress / waiting → resolved with the outcome recorded), computed `priority` + `priority_reason`, `sla_due_at`.
+  - **Priority engine**: `lib/cases/priority.ts` (8 tests) — deterministic and explained: travelling-now forces P1; departure ≤7 days forces at least P2; children in the party, vulnerable-traveller flags and £8k+ bookings each bump a notch; every priority carries an SLA target (P1 2h / P2 8h / P3 24h / P4 72h).
+  - **API**: `POST /api/cases` (priority + SLA computed server-side from the real trip/traveller context, `case.opened` event, timeline entry), `PATCH /api/cases/[id]` (start / wait / resolve-with-outcome / reopen; `case.resolved` carries resolution minutes + within-SLA).
+  - **UI**: `/service` queue — priority-then-SLA ordered, P-badge shows its computed reason on hover, SLA countdown reuses the enquiries clock, new-case modal reports back the computed priority. Sidebar (LifeBuoy icon) + palette + tour; the morning briefing now leads with urgent open cases.
+- [ ] **2. Natural-language journey builder.**
+- [ ] **3. Production hardening** — Upstash rate limiting, auth + RLS.
+
 ### Still genuinely future (not blocking)
 Auth + RLS for multi-tenant, generated Supabase types, a scheduled trigger for journeys (cron) instead of manual "Run now", and swapping the in-memory rate limiter for Upstash.
 </content>

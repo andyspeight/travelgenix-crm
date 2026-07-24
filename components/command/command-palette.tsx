@@ -24,6 +24,7 @@ import {
   SearchIcon,
   MessageIcon,
   NoteIcon,
+  LifeBuoyIcon,
 } from "@/components/ui/icons";
 
 const NAV = [
@@ -33,6 +34,7 @@ const NAV = [
   { label: "Customers", href: "/customers", Icon: UsersIcon },
   { label: "Trips", href: "/trips", Icon: PlaneIcon },
   { label: "Quotes", href: "/quotes", Icon: NoteIcon },
+  { label: "Service", href: "/service", Icon: LifeBuoyIcon },
   { label: "Journeys", href: "/journeys", Icon: ZapIcon },
   { label: "Tasks", href: "/tasks", Icon: CheckSquareIcon },
   { label: "Reports", href: "/reports", Icon: ChartIcon },
