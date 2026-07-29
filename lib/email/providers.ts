@@ -20,15 +20,23 @@
  * the AI routes: keys from env, hard timeout, fails closed with a readable
  * error that never contains the key.
  *
+ * WHO IT COMES FROM is not configured here. The sender is resolved PER
+ * AGENCY (lib/email/sender) because the recipient is the agency's customer,
+ * not ours — EMAIL_FROM is only the platform's authenticated fallback
+ * envelope, used with the agency's name on it until the agency's own domain
+ * is authenticated.
+ *
  * Env:
  *   SENDGRID_API_KEY      — transactional sends
  *   BREVO_API_KEY         — marketing sends
- *   EMAIL_FROM            — verified sender address (both providers)
- *   EMAIL_FROM_NAME       — optional display name (default "Luna Work")
- *   EMAIL_FROM_MARKETING  — optional separate marketing sender address
+ *   EMAIL_FROM            — the PLATFORM's authenticated address (fallback
+ *                           envelope only, never the displayed identity)
+ *   EMAIL_FROM_NAME       — platform name, last-resort display name only
+ *   EMAIL_FROM_MARKETING  — optional separate marketing envelope
  */
 
 import type { SendPurpose } from "@/lib/email/policy";
+import type { ResolvedSender } from "@/lib/email/sender";
 
 const TIMEOUT_MS = 10_000;
 
@@ -68,14 +76,23 @@ type SendArgs = {
   toName?: string | null;
   subject: string;
   text: string;
+  /** Who this is from — resolved per agency, never a platform constant. */
+  sender: ResolvedSender;
 };
 
-function fromFor(purpose: SendPurpose): { email: string; name: string } {
+/**
+ * The envelope sender. The agency's resolved identity wins; the marketing
+ * address only substitutes when the agency is NOT on its own verified
+ * domain, because an agency sending as itself should stay as itself on
+ * every purpose.
+ */
+function fromFor(purpose: SendPurpose, sender: ResolvedSender): { email: string; name: string } {
+  if (sender.ownDomain) return { email: sender.fromEmail, name: sender.fromName };
   const address =
     purpose === "marketing"
-      ? process.env.EMAIL_FROM_MARKETING || process.env.EMAIL_FROM!
-      : process.env.EMAIL_FROM!;
-  return { email: address, name: process.env.EMAIL_FROM_NAME || "Luna Work" };
+      ? process.env.EMAIL_FROM_MARKETING || sender.fromEmail
+      : sender.fromEmail;
+  return { email: address, name: sender.fromName };
 }
 
 export async function sendEmail(args: SendArgs): Promise<ProviderSendResult> {
@@ -87,7 +104,7 @@ export async function sendEmail(args: SendArgs): Promise<ProviderSendResult> {
 // ─── SendGrid (transactional) ─────────────────────────────────────────────
 
 async function viaSendgrid(args: SendArgs): Promise<ProviderSendResult> {
-  const from = fromFor(args.purpose);
+  const from = fromFor(args.purpose, args.sender);
   try {
     const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
@@ -106,6 +123,7 @@ async function viaSendgrid(args: SendArgs): Promise<ProviderSendResult> {
           },
         ],
         from,
+        ...(args.sender.replyTo ? { reply_to: { email: args.sender.replyTo } } : {}),
         subject: args.subject,
         content: [{ type: "text/plain", value: args.text }],
       }),
@@ -139,7 +157,7 @@ async function viaSendgrid(args: SendArgs): Promise<ProviderSendResult> {
 // ─── Brevo (marketing) ────────────────────────────────────────────────────
 
 async function viaBrevo(args: SendArgs): Promise<ProviderSendResult> {
-  const from = fromFor(args.purpose);
+  const from = fromFor(args.purpose, args.sender);
   try {
     const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
@@ -155,6 +173,7 @@ async function viaBrevo(args: SendArgs): Promise<ProviderSendResult> {
             ? { email: args.toEmail, name: args.toName }
             : { email: args.toEmail },
         ],
+        ...(args.sender.replyTo ? { replyTo: { email: args.sender.replyTo } } : {}),
         subject: args.subject,
         textContent: args.text,
       }),

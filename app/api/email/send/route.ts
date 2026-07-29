@@ -26,6 +26,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { apiAgencyId } from "@/lib/auth/session";
 import { emailConfigured, sendEmail } from "@/lib/email/providers";
+import { resolveSender } from "@/lib/email/sender";
 import { decideSend, type SendFacts } from "@/lib/email/policy";
 import { currentConsent, channelState, type ConsentLedgerRow } from "@/lib/consent/state";
 import { emitEvent } from "@/lib/events/emit";
@@ -174,9 +175,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: decision.reason }, { status: 403 });
   }
 
+  // ─── Who it comes from ────────────────────────────────────────────────
+  // The agency's identity, not the platform's: the recipient is their
+  // customer. Until their domain is authenticated we send from the
+  // platform's address under their name, with replies routed to them.
+  const { data: agencyRow } = await supabase
+    .from("agencies")
+    .select("name, email_from_address, email_from_name, email_reply_to, email_sender_verified")
+    .eq("id", agencyId)
+    .maybeSingle();
+
+  const sender = resolveSender(
+    {
+      name: (agencyRow?.name as string | undefined) ?? "",
+      emailFromAddress: (agencyRow?.email_from_address as string | null) ?? null,
+      emailFromName: (agencyRow?.email_from_name as string | null) ?? null,
+      emailReplyTo: (agencyRow?.email_reply_to as string | null) ?? null,
+      emailSenderVerified: Boolean(agencyRow?.email_sender_verified),
+    },
+    {
+      address: process.env.EMAIL_FROM!,
+      name: process.env.EMAIL_FROM_NAME || "Luna Work",
+    }
+  );
+
   // ─── Dispatch — purpose-routed: operational → SendGrid, marketing →
   // Brevo (each falls back to the other when only one is configured) ─────
-  const result = await sendEmail({ purpose, toEmail: toEmail!, toName, subject, text: body });
+  const result = await sendEmail({ purpose, toEmail: toEmail!, toName, subject, text: body, sender });
 
   // Audit row either way — failed sends are worth seeing too.
   const { data: sendRow } = await supabase
