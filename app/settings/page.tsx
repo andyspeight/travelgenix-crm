@@ -10,7 +10,7 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, rlsReady } from "@/lib/supabase/server";
+import { createClient, dbAccessMode } from "@/lib/supabase/server";
 import { requireAgencyId } from "@/lib/auth/session";
 import { daysUntil } from "@/lib/trips/presentation";
 import { sendgridReady, brevoReady } from "@/lib/email/providers";
@@ -79,6 +79,7 @@ export default async function SettingsPage() {
   const controlOn = controlConfigured();
   const accessCodeOn = Boolean(process.env.LUNA_ACCESS_CODE);
   const session = await getSession();
+  const dbMode = dbAccessMode();
 
   // ─── Compliance roll-ups ──────────────────────────────────────────────
   const totalPeople = people.length;
@@ -289,11 +290,13 @@ export default async function SettingsPage() {
             </>
           )}
           <Row
-            label="Database enforcement"
+            label="Database access"
             value={
-              rlsReady()
-                ? "On — the database itself refuses cross-agency reads"
-                : "Off — tenant separation is enforced by the app only"
+              dbMode === "tenant_token"
+                ? "Server key + per-request tenant token — the database enforces the boundary itself"
+                : dbMode === "service_role"
+                  ? "Server key — the public key is refused by the database; queries are scoped per request"
+                  : "Public key — no server key set"
             }
             last
           />

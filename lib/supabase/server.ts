@@ -113,9 +113,22 @@ export function createSystemClient() {
   });
 }
 
-/** True when database-level tenant enforcement is switched on. */
-export function rlsReady(): boolean {
-  return tenantTokenConfigured() && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+/**
+ * How the database is being reached, so Settings can say so honestly rather
+ * than claiming a posture it doesn't have.
+ *
+ *   "service_role" — the live arrangement: the server holds a privileged key
+ *   and the published anon key is refused by RLS. The tenant boundary for app
+ *   traffic is the per-request agency filter on every query.
+ *   "tenant_token" — the stronger arrangement, where the database itself
+ *   enforces the boundary. Needs a shared HS256 signing secret.
+ *   "anon" — no server key: the app is using the published key, as it did
+ *   before this work.
+ */
+export function dbAccessMode(): "tenant_token" | "service_role" | "anon" {
+  if (tenantTokenConfigured()) return "tenant_token";
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) return "service_role";
+  return "anon";
 }
 
 /**
