@@ -24,6 +24,8 @@ type Props = {
   contacts: Contact[];
   initialSelectedId: string | null;
   initialLane: Lane;
+  /** True when the server has a configured email provider — sends are real. */
+  emailLive: boolean;
 };
 
 // ─── Avatar helpers ─────────────────────────────────────────────────────
@@ -284,6 +286,7 @@ export function InboxView({
   contacts,
   initialSelectedId,
   initialLane,
+  emailLive,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -416,6 +419,7 @@ export function InboxView({
             lead={selectedLead}
             activeDraftIdx={activeDraftIdx}
             onDraftChange={setActiveDraftIdx}
+            emailLive={emailLive}
           />
         ) : (
           <NothingSelected />
@@ -800,12 +804,14 @@ function FocusedMessage({
   lead,
   activeDraftIdx,
   onDraftChange,
+  emailLive,
 }: {
   ix: Interaction;
   household: Household | null | undefined;
   lead: Contact | null | undefined;
   activeDraftIdx: number;
   onDraftChange: (i: number) => void;
+  emailLive: boolean;
 }) {
   // Live drafts from Luna (null until the agent presses Regenerate). The
   // hand-crafted library is the instant default underneath.
@@ -858,20 +864,65 @@ function FocusedMessage({
   const draft = draftSet.drafts[activeDraftIdx] ?? draftSet.drafts[0];
   const hasMultipleDrafts = draftSet.drafts.length > 1;
 
-  // Sending opens the user's own mail client pre-addressed with the draft —
-  // the same real-send path the customer list uses. Nothing sends silently.
+  // With a configured provider the button genuinely sends (consent-checked
+  // and recorded server-side); otherwise it opens the user's own mail client
+  // pre-addressed. Either way a human pressed Send — nothing sends silently.
   const leadEmail = lead?.email ?? null;
-  function sendReply() {
+  const [sending, setSending] = useState(false);
+
+  function openMailto(subject: string, body: string) {
+    const params = new URLSearchParams();
+    params.set("subject", subject);
+    params.set("body", body);
+    window.location.href = `mailto:${leadEmail}?${params.toString()}`;
+    setSendNote("Draft opened in your email app, addressed and ready to send.");
+  }
+
+  async function sendReply() {
     const body = editing ? editedBody : draft.body;
+    const subject = ix.subject ? `Re: ${ix.subject}` : "Re: your message";
     if (!leadEmail) {
       setSendNote("No email address on file for this customer. Add one on their record first.");
       return;
     }
-    const params = new URLSearchParams();
-    params.set("subject", ix.subject ? `Re: ${ix.subject}` : "Re: your message");
-    params.set("body", body);
-    window.location.href = `mailto:${leadEmail}?${params.toString()}`;
-    setSendNote("Draft opened in your email app, addressed and ready to send.");
+    if (!emailLive) {
+      openMailto(subject, body);
+      return;
+    }
+    setSending(true);
+    setSendNote(null);
+    try {
+      const res = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contact_id: lead?.id,
+          household_id: ix.household_id,
+          subject,
+          body,
+          purpose: "operational",
+          context: "inbox_reply",
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        not_configured?: boolean;
+        to?: string;
+      };
+      if (data.ok) {
+        setSendNote(`Sent to ${data.to} and recorded on the timeline.`);
+        setEditing(false);
+      } else if (data.not_configured) {
+        openMailto(subject, body); // provider vanished mid-session — degrade
+      } else {
+        setSendNote(data.error || "The send failed. Nothing was delivered.");
+      }
+    } catch {
+      setSendNote("Network error — the send did not go through.");
+    } finally {
+      setSending(false);
+    }
   }
   function toggleEdit() {
     setSendNote(null);
@@ -1205,8 +1256,14 @@ function FocusedMessage({
         >
           <button
             onClick={sendReply}
-            disabled={!leadEmail}
-            title={leadEmail ? `Opens your email app addressed to ${leadEmail}` : "No email address on file for this customer"}
+            disabled={!leadEmail || sending}
+            title={
+              !leadEmail
+                ? "No email address on file for this customer"
+                : emailLive
+                  ? `Sends for real to ${leadEmail} and records it on the timeline`
+                  : `Opens your email app addressed to ${leadEmail}`
+            }
             style={{
               background: leadEmail ? "var(--tg-primary)" : "var(--bg-subtle)",
               color: leadEmail ? "white" : "var(--text-subtle)",
@@ -1222,7 +1279,7 @@ function FocusedMessage({
             }}
           >
             <SendIcon width={13} height={13} />
-            {editing ? "Send edited" : "Send as is"}
+            {sending ? "Sending…" : editing ? "Send edited" : "Send as is"}
           </button>
           <button
             onClick={toggleEdit}

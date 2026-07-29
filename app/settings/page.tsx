@@ -12,6 +12,7 @@
 import { Topbar } from "@/components/layout/topbar";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { daysUntil } from "@/lib/trips/presentation";
+import { emailConfigured } from "@/lib/email/brevo";
 import {
   SettingsIcon,
   UsersIcon,
@@ -256,6 +257,12 @@ export default async function SettingsPage() {
             detail="The Luna AI engine"
             connected={anthropicConfigured}
             offLabel="Key not set"
+          />
+          <IntegrationRow
+            name="Brevo email"
+            detail="Real email sending — replies and journey drafts deliver for real"
+            connected={emailConfigured()}
+            offLabel="Key not set — sends open your mail app instead"
           />
           <IntegrationRow
             name="Vercel"

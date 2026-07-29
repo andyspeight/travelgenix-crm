@@ -14,6 +14,7 @@ import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { MessageIcon } from "@/components/ui/icons";
 import type { Enquiry } from "@/lib/supabase/types";
 import { EnquiriesView } from "./enquiries-view";
+import { emailConfigured } from "@/lib/email/brevo";
 import { NewEnquiry } from "./new-enquiry";
 
 export const dynamic = "force-dynamic";
@@ -87,7 +88,7 @@ export default async function EnquiriesPage() {
           </div>
         </div>
       ) : (
-        <EnquiriesView enquiries={enquiries} nameById={nameById} />
+        <EnquiriesView enquiries={enquiries} nameById={nameById} emailLive={emailConfigured()} />
       )}
     </>
   );

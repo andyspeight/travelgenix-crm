@@ -12,6 +12,7 @@
 import { Topbar } from "@/components/layout/topbar";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { InboxView } from "./inbox-view";
+import { emailConfigured } from "@/lib/email/brevo";
 import { SparklesIcon } from "@/components/ui/icons";
 import type {
   Household,
@@ -85,6 +86,7 @@ export default async function InboxPage({
         contacts={(contacts ?? []) as Contact[]}
         initialSelectedId={searchParams.id ?? null}
         initialLane={(searchParams.lane as "today" | "week" | "later" | "all") ?? "today"}
+        emailLive={emailConfigured()}
       />
     </>
   );
