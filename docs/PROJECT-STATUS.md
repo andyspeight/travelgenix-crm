@@ -171,7 +171,12 @@ Order agreed 24 Jul: 1) trends + forecasting, 2) real email sending, 3) multi-te
       - The server now uses the **service-role key**, and the RLS policies deny the published anon key everything. That closes the actual hole: the key in the page source stops being a way in.
       - Service role bypasses RLS, so the "forgotten filter" guarantee moves to **`lib/supabase/tenant-filters.test.ts`** — a static check that reads the source and fails the build if a query on a tenant table is left unnarrowed. It found 34 candidates on first run; after being sharpened to the real bug class (a query with NO narrowing at all, since id-narrowed follow-ups and inserts are safe) it is green, and it self-tests that it can still detect a regression.
       - The check also caught a latent bug: **`preferences` has no `agency_id` column** (it is scoped through its household), so the migration as originally written would have errored on apply. Fixed to a parent-scoped policy.
-    - **ACTION FOR ANDY — strict order, applying the migration first would empty the live CRM**: (1) set `SUPABASE_SERVICE_ROLE_KEY` in Vercel, (2) redeploy, (3) then apply the migration. Ask me and I'll run step 3 and verify. `SUPABASE_JWT_SECRET` is NOT needed.
+    - **✅ SWITCHED ON AND VERIFIED, 29 Jul.** `SUPABASE_SERVICE_ROLE_KEY` set in Vercel and deployed, then the migration applied. Verified in the database by assuming each role:
+      - **Before**: as `anon` — 30 households, 79 contacts, 53 trips readable. The hole was real.
+      - **After**: as `anon` — 0 rows on every table (households, contacts, trips, quotes, consents, preferences, agencies), and an INSERT is refused with *"new row violates row-level security policy"*.
+      - **After**: as `service_role` (what the app uses) — full data intact: 30 / 79 / 53 / 8 / 1.
+      - **Live app**: /customers renders real households and lifetime values, no empty state; no runtime errors in the hour after.
+      Settings now reports the honest **Database access** mode rather than a boolean that described the abandoned design.
   - [ ] **Stage B3 — remaining**: passport field encryption, journeys cron, observability.
   - **ACTION FOR ANDY**: point `crm.travelify.io` at the Vercel project; set `CONTROL_BASE_URL` (e.g. `https://widgets.travelify.io`); in Control, set the `crm` product's Launch URL to the new domain, flip it off staff-only when ready for clients, and map each agency by putting its Control client record id on the `agencies.control_client_id` column here.
 
