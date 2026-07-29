@@ -5,27 +5,40 @@ import type { Database } from "./types";
 import { mintTenantToken, tenantTokenConfigured } from "./tenant-token";
 
 /**
- * The tenant-scoped client. Every page, route and lib uses this.
+ * The server's database client. Every page, route and lib uses this.
  *
- * Each outgoing request carries a freshly minted JWT naming the agency
- * resolved from the caller's session, so row-level security can enforce the
- * tenant boundary in the database. The token is attached by wrapping fetch
- * rather than by threading it through 46 files — and because it's resolved
- * at call time, one client can safely serve the whole request.
+ * NOTHING in this app talks to Supabase from the browser — client components
+ * import types only — so the database is reached exclusively from the server.
+ * That lets us use the SERVICE-ROLE key here and deny the published anon key
+ * everything at the database, which is what actually closes the hole: the key
+ * in the page source stops being a way in.
  *
- * When SUPABASE_JWT_SECRET is unset, nothing is attached and this behaves
- * exactly as it always has (the anon key, no claims). That keeps the code
- * shippable before the secret and the policies are in place.
+ * TWO MODES, strongest first:
  *
- * Fails closed: if the session can't be resolved we attach no token, so once
- * policies are live the query returns nothing rather than everything.
+ *   SERVICE ROLE (SUPABASE_SERVICE_ROLE_KEY) — bypasses RLS by design, so the
+ *   tenant boundary is held by the per-request agency filters every query
+ *   already carries (see lib/auth/session), backed by the static check in
+ *   lib/supabase/tenant-filters.test.ts that fails the build if a query on a
+ *   tenant table forgets its filter.
+ *
+ *   TENANT TOKEN (SUPABASE_JWT_SECRET) — the stronger mode, where each request
+ *   carries a signed JWT naming its agency and RLS enforces the boundary in
+ *   the database itself. It needs a SHARED (HS256) signing secret, which this
+ *   project no longer uses: it has moved to asymmetric signing keys, whose
+ *   private half Supabase does not expose. Kept because it costs nothing and
+ *   becomes available again if a shared secret is ever reinstated.
+ *
+ * Neither set = the anon key, exactly as today.
  */
 export function createClient() {
   const cookieStore = cookies();
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    key,
     {
       global: { fetch: tenantFetch },
       cookies: {

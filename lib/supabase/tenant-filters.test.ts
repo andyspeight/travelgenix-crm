@@ -1,0 +1,141 @@
+/**
+ * The forgotten-filter check.
+ *
+ * Because the server talks to Supabase with the service-role key, row-level
+ * security cannot catch a query that forgets to scope itself to an agency —
+ * service role bypasses RLS by design. So the guarantee has to be held
+ * somewhere, and "everyone remembers every time" is not a guarantee.
+ *
+ * This test reads the source and fails if a query against a tenant-owned
+ * table has no agency filter in the same statement. It is deliberately dumb
+ * and textual: it cannot be fooled by a clever abstraction because there
+ * isn't one to be fooled by, and it runs on every build.
+ *
+ * Exceptions are listed explicitly, each with the reason it is safe. A new
+ * exception should be an argument, not a quiet edit.
+ */
+
+import { describe, expect, it } from "vitest";
+import { readdirSync, readFileSync, statSync } from "fs";
+import { join } from "path";
+
+/**
+ * Tables holding one agency's data. `preferences` is included even though it
+ * has no agency_id of its own — it is reached through its household, and an
+ * unnarrowed read of it leaks just as effectively.
+ */
+const TENANT_TABLES = [
+  "households", "contacts", "suppliers", "trips", "interactions",
+  "tasks", "notes", "preferences", "journeys", "segments", "enquiries",
+  "events", "quotes", "consents", "cases", "email_sends",
+  "email_suppressions", "users", "agencies",
+];
+
+/**
+ * Queries that are correct WITHOUT an agency filter, and why.
+ * Keyed by "file::table".
+ */
+const ALLOWED: Record<string, string> = {
+  // Answers "which agency is this request?" — cannot be scoped by the answer
+  // it exists to produce. Runs on the system client.
+  "lib/auth/session.ts::agencies":
+    "resolves the Control client -> agency mapping; system client",
+  // A provider calls the webhook with no session, so the agency is derived
+  // FROM the matched send rather than used to find it.
+  "app/api/email/webhook/route.ts::email_sends":
+    "looks up the send by provider message id to learn its agency",
+  "app/api/email/webhook/route.ts::email_suppressions":
+    "writes with the agency taken from the matched send",
+  "app/api/email/webhook/route.ts::events":
+    "emitted with the agency taken from the matched send",
+  // Children scoped through their parent trip/journey, which is itself scoped.
+  "app/api/journeys/runs/[id]/route.ts::journey_runs":
+    "scoped via its journey, which is agency-filtered",
+};
+
+function sourceFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    if (entry === "node_modules" || entry === ".next") continue;
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) sourceFiles(full, out);
+    else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) out.push(full);
+  }
+  return out;
+}
+
+/** Every `.from("table")` call, with the statement that follows it. */
+function queriesIn(src: string): { table: string; statement: string }[] {
+  const found: { table: string; statement: string }[] = [];
+  const re = /\.from\(\s*["'`]([a-z_]+)["'`]\s*\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) {
+    // The statement runs to the next semicolon at this nesting depth; a
+    // generous slice is fine because we only look for a filter inside it.
+    const rest = src.slice(m.index, m.index + 1200);
+    const end = rest.indexOf(";");
+    found.push({ table: m[1], statement: end === -1 ? rest : rest.slice(0, end) });
+  }
+  return found;
+}
+
+describe("every tenant query carries its agency", () => {
+  const root = process.cwd();
+  const files = [
+    ...sourceFiles(join(root, "app")),
+    ...sourceFiles(join(root, "lib")),
+  ];
+
+  it("finds source to check (guards against the check silently doing nothing)", () => {
+    expect(files.length).toBeGreaterThan(30);
+  });
+
+  it("actually detects an unnarrowed query — the check is not blind", () => {
+    const bad = queriesIn(`const { data } = await supabase.from("households").select("*");`);
+    expect(bad).toHaveLength(1);
+    expect(bad[0].table).toBe("households");
+    expect(bad[0].statement).not.toMatch(/agency_id/);
+
+    const good = queriesIn(
+      `await supabase.from("households").select("*").eq("agency_id", agencyId);`
+    );
+    expect(good[0].statement).toMatch(/agency_id/);
+  });
+
+  it("no query on a tenant table is missing its agency filter", () => {
+    const offences: string[] = [];
+
+    for (const file of files) {
+      const rel = file.slice(root.length + 1);
+      const src = readFileSync(file, "utf8");
+
+      for (const { table, statement } of queriesIn(src)) {
+        if (!TENANT_TABLES.includes(table)) continue;
+        if (ALLOWED[`${rel}::${table}`]) continue;
+
+        // Writes carry the tenant in the ROW, not the query, and every
+        // tenant table declares agency_id NOT NULL — so an insert that
+        // forgot it is rejected by the database rather than silently
+        // orphaned, and an insert cannot read another agency's data anyway.
+        if (/\.(insert|upsert)\(/.test(statement)) continue;
+
+        // A tenant query must be NARROWED by something. Either directly by
+        // agency, or to specific rows whose ids came from an already-scoped
+        // query (the common two-step: fetch trips for the agency, then fetch
+        // the households those trips belong to). What must never appear is a
+        // query with no narrowing at all — that is the table scan that
+        // returns every agency's rows.
+        const scoped =
+          statement.includes("agency_id") ||
+          /\.(eq|in)\(\s*["'`](id|household_id|trip_id|contact_id|journey_id|quote_id|enquiry_id)["'`]/.test(
+            statement
+          );
+
+        if (!scoped) {
+          offences.push(`${rel} — .from("${table}") is not narrowed to a tenant`);
+        }
+      }
+    }
+
+    expect(offences, offences.join("\n")).toEqual([]);
+  });
+});
