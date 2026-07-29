@@ -13,6 +13,8 @@ import { Topbar } from "@/components/layout/topbar";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { daysUntil } from "@/lib/trips/presentation";
 import { sendgridReady, brevoReady } from "@/lib/email/providers";
+import { controlConfigured } from "@/lib/auth/control";
+import { getSession } from "@/lib/auth/session";
 import {
   SettingsIcon,
   UsersIcon,
@@ -72,6 +74,9 @@ export default async function SettingsPage() {
   // The fact the page rendered means the Supabase client resolved.
   const supabaseConnected = agency !== null || true;
   const anthropicConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
+  const controlOn = controlConfigured();
+  const accessCodeOn = Boolean(process.env.LUNA_ACCESS_CODE);
+  const session = await getSession();
 
   // ─── Compliance roll-ups ──────────────────────────────────────────────
   const totalPeople = people.length;
@@ -239,6 +244,51 @@ export default async function SettingsPage() {
               tone="warn"
               text="ANTHROPIC_API_KEY is not set on this deployment, so live AI features fail closed until it is configured."
             />
+          )}
+        </Section>
+
+        {/* ─── Sign-in ───────────────────────────────────────────────── */}
+        <Section
+          title="Sign-in"
+          description="Luna Work uses Control, the Luna suite's shared sign-in. It keeps no users or passwords of its own."
+        >
+          <Row
+            label="Mode"
+            value={
+              controlOn
+                ? "Control SSO — the shared travelify.io sign-in"
+                : accessCodeOn
+                  ? "Access code (interim) — Control not yet configured"
+                  : "Open — no gate configured"
+            }
+          />
+          {controlOn && (
+            <>
+              <Row label="Signed in as" value={session?.control?.email || "Not signed in"} />
+              <Row
+                label="Working in"
+                value={
+                  session?.control
+                    ? `${session.control.clientName || "Unnamed client"}${
+                        session.control.isStaff ? " (Travelgenix staff)" : ""
+                      }`
+                    : "—"
+                }
+              />
+              <Row label="Your role here" value={session ? session.role : "—"} />
+              <Row
+                label="Workspace link"
+                value={
+                  session
+                    ? "Linked — this Control client maps to this workspace"
+                    : "Not linked — ask Travelgenix to map this agency"
+                }
+                last
+              />
+            </>
+          )}
+          {!controlOn && (
+            <ManagedNote text="Set CONTROL_BASE_URL to switch this workspace onto the shared Luna sign-in." />
           )}
         </Section>
 
