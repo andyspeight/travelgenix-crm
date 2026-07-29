@@ -10,7 +10,8 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import { daysUntil } from "@/lib/trips/presentation";
 import { sendgridReady, brevoReady } from "@/lib/email/providers";
 import { controlConfigured } from "@/lib/auth/control";
@@ -48,23 +49,24 @@ type ContactCompliance = {
 
 export default async function SettingsPage() {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   const [{ data: agency }, { data: users }, { data: contacts }] =
     await Promise.all([
       supabase
         .from("agencies")
         .select("id, name, slug, brand_color, brand_voice, timezone")
-        .eq("id", AGENCY_ID)
+        .eq("id", agencyId)
         .single(),
       supabase
         .from("users")
         .select("id, email, full_name, role, avatar_url")
-        .eq("agency_id", AGENCY_ID)
+        .eq("agency_id", agencyId)
         .order("created_at", { ascending: true }),
       supabase
         .from("contacts")
         .select("gdpr_consent, marketing_opt_in, passport_expiry")
-        .eq("agency_id", AGENCY_ID),
+        .eq("agency_id", agencyId),
     ]);
 
   const ag = (agency ?? null) as Agency | null;

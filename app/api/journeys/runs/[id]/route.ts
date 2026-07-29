@@ -11,7 +11,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -42,6 +43,13 @@ export async function PATCH(
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // Load the run, then verify its journey belongs to this agency.
   const { data: run, error: runErr } = await supabase
@@ -60,7 +68,7 @@ export async function PATCH(
     .from("journeys")
     .select("id")
     .eq("id", (run as { journey_id: string }).journey_id)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .maybeSingle();
   if (!journey) {
     return NextResponse.json({ ok: false, error: "Run not found" }, { status: 404 });

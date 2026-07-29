@@ -16,7 +16,8 @@
 
 import Link from "next/link";
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import {
   PlusIcon,
   SparklesIcon,
@@ -54,6 +55,7 @@ const FORWARD_STAGES: TripStage[] = ["booked", "pre_departure", "travelling"];
 
 export default async function DashboardPage() {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   const [
     { data: households },
@@ -69,17 +71,17 @@ export default async function DashboardPage() {
     supabase
       .from("households")
       .select("id, display_name, household_type, city, lifetime_value, tags, last_booking_at, trips_count")
-      .eq("agency_id", AGENCY_ID),
+      .eq("agency_id", agencyId),
     supabase
       .from("trips")
       .select(
         "id, household_id, stage, destination, destination_country, depart_date, return_date, total_value, occasion, reference"
       )
-      .eq("agency_id", AGENCY_ID),
+      .eq("agency_id", agencyId),
     supabase
       .from("interactions")
       .select("*")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .eq("direction", "inbound")
       .order("occurred_at", { ascending: false })
       .limit(60),
@@ -91,7 +93,7 @@ export default async function DashboardPage() {
     supabase
       .from("tasks")
       .select("*", { count: "exact", head: true })
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .in("status", ["open", "doing"]),
     // Missing table (migration not run) just means an empty panel here.
     supabase
@@ -99,7 +101,7 @@ export default async function DashboardPage() {
       .select(
         "id, contact_name, destination, budget, budget_basis, received_at, first_response_due_at, first_response_at, status, household_id"
       )
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .eq("status", "new")
       .order("received_at", { ascending: true })
       .limit(8),
@@ -107,19 +109,19 @@ export default async function DashboardPage() {
     supabase
       .from("quotes")
       .select("*")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .in("status", ["sent", "viewed"])
       .limit(100),
     // Contacts feed the Suggest detectors (passport risk, reachability).
     supabase
       .from("contacts")
       .select("id, household_id, role, first_name, last_name, email, phone, passport_expiry, gdpr_consent, flags")
-      .eq("agency_id", AGENCY_ID),
+      .eq("agency_id", agencyId),
     // Urgent open service cases (missing table just means zero).
     supabase
       .from("cases")
       .select("*", { count: "exact", head: true })
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .in("status", ["open", "in_progress", "waiting"])
       .lte("priority", 2),
   ]);

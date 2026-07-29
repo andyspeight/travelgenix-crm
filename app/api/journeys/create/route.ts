@@ -10,7 +10,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { validateJourneySpec, type RawJourneySpec } from "@/lib/journeys/compose";
 
 export const dynamic = "force-dynamic";
@@ -32,10 +33,17 @@ export async function POST(request: Request) {
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
   const { data: created, error } = await supabase
     .from("journeys")
     .insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       name: result.def.name,
       description: result.def.description,
       trigger_kind: result.def.trigger_kind,

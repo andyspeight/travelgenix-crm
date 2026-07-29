@@ -11,7 +11,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { listSavedSegments } from "@/lib/segmentation/segments";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,14 @@ function sanitizeTokens(input: unknown): Record<string, unknown>[] | null {
 
 export async function GET() {
   const supabase = createClient();
-  const segments = await listSavedSegments(supabase, AGENCY_ID);
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
+  const segments = await listSavedSegments(supabase, agencyId);
   return NextResponse.json({ ok: true, segments });
 }
 
@@ -64,9 +72,16 @@ export async function POST(request: Request) {
   const query = typeof parsed.query === "string" ? parsed.query.trim().slice(0, 300) : null;
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
   const { data, error } = await supabase
     .from("segments")
-    .insert({ agency_id: AGENCY_ID, label, query, tokens })
+    .insert({ agency_id: agencyId, label, query, tokens })
     .select("id, label")
     .maybeSingle();
 

@@ -6,17 +6,25 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
   const { count, error } = await supabase
     .from("interactions")
     .select("*", { count: "exact", head: true })
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .eq("direction", "inbound")
     .eq("ai_priority", "today");
 

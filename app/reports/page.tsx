@@ -12,7 +12,8 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import { ReportsView, type ReportTrip, type ReportHousehold } from "./reports-view";
 import { InsightPanels } from "./insight-panels";
 import { detectTrends } from "@/lib/trends/detect";
@@ -24,6 +25,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   const [{ data: trips, error }, { data: enquiryRows }, { data: quoteRows }] = await Promise.all([
     supabase
@@ -31,18 +33,18 @@ export default async function ReportsPage() {
       .select(
         "id, household_id, stage, destination, destination_country, total_value, source, depart_date, return_date, created_at, updated_at"
       )
-      .eq("agency_id", AGENCY_ID),
+      .eq("agency_id", agencyId),
     // Enquiries feed the trends (volume, destinations, response time,
     // conversion). Missing table just means fewer trends.
     supabase
       .from("enquiries")
       .select("destination, received_at, first_response_at, status")
-      .eq("agency_id", AGENCY_ID),
+      .eq("agency_id", agencyId),
     // Live quotes feed the forecast's engagement weighting.
     supabase
       .from("quotes")
       .select("trip_id, status, view_count, total_price")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .in("status", ["sent", "viewed"]),
   ]);
 
@@ -106,7 +108,7 @@ export default async function ReportsPage() {
   const { data: households } = await supabase
     .from("households")
     .select("id, customer_since, lifetime_value, trips_count")
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
 
   if (rows.length === 0) {
     return (

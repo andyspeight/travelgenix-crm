@@ -8,7 +8,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,13 +44,20 @@ export async function POST(
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // Confirm the household belongs to this agency before writing against it.
   const { data: hh, error: hhErr } = await supabase
     .from("households")
     .select("id")
     .eq("id", householdId)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .maybeSingle();
   if (hhErr) {
     return NextResponse.json({ ok: false, error: hhErr.message }, { status: 500 });
@@ -62,7 +70,7 @@ export async function POST(
   const { data, error } = await supabase
     .from("interactions")
     .insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       kind: "note",
       channel: "note",

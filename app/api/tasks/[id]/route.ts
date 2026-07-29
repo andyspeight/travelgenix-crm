@@ -12,7 +12,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { emitEvent } from "@/lib/events/emit";
 
 export const dynamic = "force-dynamic";
@@ -60,11 +61,18 @@ export async function PATCH(
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
   const { data, error } = await supabase
     .from("tasks")
     .update(update)
     .eq("id", id)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .select("id, status, due_at, completed_at, household_id, source")
     .maybeSingle();
 
@@ -77,7 +85,7 @@ export async function PATCH(
 
   // Event spine: task completion is a blueprint timeline event.
   if (status === "done") {
-    await emitEvent(supabase, AGENCY_ID, {
+    await emitEvent(supabase, agencyId, {
       type: "task.completed",
       subjectType: "task",
       subjectId: id,

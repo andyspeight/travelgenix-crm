@@ -8,7 +8,7 @@
  *   - The id must be a UUID (reject anything else outright).
  *   - The stage must be one of the known enum values (whitelist, never trust
  *     the client string). This is the only field we let the client set here.
- *   - The update is scoped to AGENCY_ID so a trip from another agency can't be
+ *   - The update is scoped to agencyId so a trip from another agency can't be
  *     touched even if its id were known.
  *
  * RLS is off in the MVP (single tenant), exactly as /api/seed documents. When
@@ -18,7 +18,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { refreshHouseholdRollups } from "@/lib/customer/rollups";
 import { emitEvent } from "@/lib/events/emit";
 
@@ -76,13 +77,20 @@ export async function POST(
 
   // ─── Update (agency-scoped) ─────────────────────────────────────────
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // Read the outgoing stage first so the event can carry from -> to.
   const { data: before } = await supabase
     .from("trips")
     .select("stage")
     .eq("id", tripId)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .maybeSingle();
   const fromStage = (before as { stage?: string } | null)?.stage ?? null;
 
@@ -90,7 +98,7 @@ export async function POST(
     .from("trips")
     .update({ stage, updated_at: new Date().toISOString() })
     .eq("id", tripId)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .select("id, stage, household_id")
     .maybeSingle();
 
@@ -113,7 +121,7 @@ export async function POST(
   // Best-effort: the stage change itself already succeeded.
   const householdId = (data as { household_id?: string }).household_id;
   if (householdId) {
-    await refreshHouseholdRollups(supabase, AGENCY_ID, householdId, {
+    await refreshHouseholdRollups(supabase, agencyId, householdId, {
       setLastBookingAt: stage === "booked",
     });
   }
@@ -121,7 +129,7 @@ export async function POST(
   // Event spine (best-effort): the generic stage change, plus the two
   // blueprint-named moments when they occur.
   if (fromStage !== stage) {
-    await emitEvent(supabase, AGENCY_ID, {
+    await emitEvent(supabase, agencyId, {
       type: "trip.stage_changed",
       subjectType: "trip",
       subjectId: tripId,
@@ -129,7 +137,7 @@ export async function POST(
       payload: { from: fromStage, to: stage },
     });
     if (stage === "booked") {
-      await emitEvent(supabase, AGENCY_ID, {
+      await emitEvent(supabase, agencyId, {
         type: "booking.created",
         subjectType: "trip",
         subjectId: tripId,
@@ -138,7 +146,7 @@ export async function POST(
       });
     }
     if (stage === "returned") {
-      await emitEvent(supabase, AGENCY_ID, {
+      await emitEvent(supabase, agencyId, {
         type: "trip.completed",
         subjectType: "trip",
         subjectId: tripId,

@@ -13,7 +13,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import {
   CASE_TYPES,
   CASE_TYPE_LABELS,
@@ -63,6 +64,13 @@ export async function POST(request: Request) {
     typeof body.trip_id === "string" && UUID_RE.test(body.trip_id) ? body.trip_id : null;
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // ─── Load the real travel context (agency-scoped) ───────────────────
   let trip: CaseTravelContext["trip"] = null;
@@ -73,7 +81,7 @@ export async function POST(request: Request) {
       .from("trips")
       .select("stage, depart_date, destination, total_value, household_id")
       .eq("id", tripId)
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .maybeSingle();
     if (!data) {
       return NextResponse.json({ ok: false, error: "Trip not found" }, { status: 404 });
@@ -88,7 +96,7 @@ export async function POST(request: Request) {
           .from("trips")
           .select("household_id")
           .eq("id", tripId)
-          .eq("agency_id", AGENCY_ID)
+          .eq("agency_id", agencyId)
           .maybeSingle()) .data as { household_id: string } | null)?.household_id ?? null
       : null);
 
@@ -97,7 +105,7 @@ export async function POST(request: Request) {
       .from("households")
       .select("id")
       .eq("id", effectiveHouseholdId)
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .maybeSingle();
     if (!hh) {
       return NextResponse.json({ ok: false, error: "Customer not found" }, { status: 404 });
@@ -106,7 +114,7 @@ export async function POST(request: Request) {
       .from("contacts")
       .select("role, flags")
       .eq("household_id", effectiveHouseholdId)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
     contacts = (contactRows ?? []) as Pick<Contact, "role" | "flags">[];
   }
 
@@ -117,7 +125,7 @@ export async function POST(request: Request) {
   const { data: created, error: insErr } = await supabase
     .from("cases")
     .insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: effectiveHouseholdId,
       trip_id: tripId,
       case_type: caseType,
@@ -147,7 +155,7 @@ export async function POST(request: Request) {
 
   const caseId = (created as { id: string }).id;
 
-  await emitEvent(supabase, AGENCY_ID, {
+  await emitEvent(supabase, agencyId, {
     type: "case.opened",
     subjectType: "case",
     subjectId: caseId,
@@ -158,7 +166,7 @@ export async function POST(request: Request) {
   if (effectiveHouseholdId) {
     try {
       await supabase.from("interactions").insert({
-        agency_id: AGENCY_ID,
+        agency_id: agencyId,
         household_id: effectiveHouseholdId,
         trip_id: tripId,
         kind: "system",

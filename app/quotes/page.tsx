@@ -10,7 +10,8 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import { NoteIcon } from "@/components/ui/icons";
 import { rescueAlerts, type QuoteTripContext } from "@/lib/quotes/rescue";
 import type { Quote } from "@/lib/supabase/types";
@@ -21,20 +22,21 @@ export const dynamic = "force-dynamic";
 
 export default async function QuotesPage() {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   const [{ data: quoteRows, error: qErr }, { data: tripRows }, { data: households }] =
     await Promise.all([
       supabase
         .from("quotes")
         .select("*")
-        .eq("agency_id", AGENCY_ID)
+        .eq("agency_id", agencyId)
         .order("created_at", { ascending: false })
         .limit(500),
       supabase
         .from("trips")
         .select("id, household_id, destination, depart_date, stage, reference")
-        .eq("agency_id", AGENCY_ID),
-      supabase.from("households").select("id, display_name").eq("agency_id", AGENCY_ID),
+        .eq("agency_id", agencyId),
+      supabase.from("households").select("id, display_name").eq("agency_id", agencyId),
     ]);
 
   const migrationMissing = Boolean(qErr && /quotes/.test(qErr.message ?? ""));

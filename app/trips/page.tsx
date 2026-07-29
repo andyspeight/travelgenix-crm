@@ -13,7 +13,8 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import { TripsBoard, type BoardTrip } from "./trips-view";
 import { PlaneIcon } from "@/components/ui/icons";
 import type { Trip, Household } from "@/lib/supabase/types";
@@ -22,12 +23,13 @@ export const dynamic = "force-dynamic";
 
 export default async function TripsPage() {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   // ─── Count for the empty-state check ────────────────────────────────
   const { count, error: countError } = await supabase
     .from("trips")
     .select("*", { count: "exact", head: true })
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
 
   if (countError) {
     return (
@@ -53,7 +55,7 @@ export default async function TripsPage() {
   const { data: trips, error: tripsError } = await supabase
     .from("trips")
     .select("*")
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .order("updated_at", { ascending: false });
 
   if (tripsError) {

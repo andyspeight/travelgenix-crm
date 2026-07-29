@@ -20,7 +20,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import {
   SEED_HOUSEHOLDS,
   SEED_SUPPLIERS,
@@ -42,13 +43,20 @@ export async function GET() {
 
 async function seed() {
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
   const now = new Date();
 
   // ─── 0. Idempotency check ──────────────────────────────────────────────
   const { count: existingCount, error: existingError } = await supabase
     .from("households")
     .select("*", { count: "exact", head: true })
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
 
   if (existingError) {
     return NextResponse.json(
@@ -68,7 +76,7 @@ async function seed() {
 
   // ─── 1. Suppliers ─────────────────────────────────────────────────────
   const supplierRows = SEED_SUPPLIERS.map((s) => ({
-    agency_id: AGENCY_ID,
+    agency_id: agencyId,
     name: s.name,
     category: s.category,
     rating: s.rating,
@@ -111,7 +119,7 @@ async function seed() {
     const { data: household, error: hhErr } = await supabase
       .from("households")
       .insert({
-        agency_id: AGENCY_ID,
+        agency_id: agencyId,
         display_name: seed.display_name,
         household_type: seed.household_type,
         city: seed.city,
@@ -148,7 +156,7 @@ async function seed() {
 
     // Contacts
     const contactRows = seed.contacts.map((c) => ({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       role: c.role,
       first_name: c.first_name,
@@ -181,7 +189,7 @@ async function seed() {
     // Trips
     if (seed.trips.length > 0) {
       const tripRows = seed.trips.map((t) => ({
-        agency_id: AGENCY_ID,
+        agency_id: agencyId,
         household_id: householdId,
         reference: t.reference,
         stage: t.stage,
@@ -220,7 +228,7 @@ async function seed() {
     // Interactions
     if (seed.interactions && seed.interactions.length > 0) {
       const interactionRows = seed.interactions.map((i) => ({
-        agency_id: AGENCY_ID,
+        agency_id: agencyId,
         household_id: householdId,
         kind: i.kind,
         channel: i.channel,
@@ -290,7 +298,7 @@ async function seed() {
     ) => {
       const receivedAt = dateOffsetHours(-hoursAgo, now);
       return {
-        agency_id: AGENCY_ID,
+        agency_id: agencyId,
         status: respondedHoursAgo != null ? "responded" : "new",
         received_at: receivedAt,
         first_response_due_at: dateOffsetHours(-hoursAgo + 4, now),
@@ -387,7 +395,7 @@ async function seed() {
     const { data: sarahContact } = await supabase
       .from("contacts")
       .select("household_id")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .ilike("email", "sarah.thompson@gmail.com")
       .limit(1)
       .maybeSingle();
@@ -409,7 +417,7 @@ async function seed() {
     const { data: quotedTrips } = await supabase
       .from("trips")
       .select("id, household_id, total_value")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .eq("stage", "quoted")
       .order("total_value", { ascending: false })
       .limit(3);
@@ -444,7 +452,7 @@ async function seed() {
       ];
 
       const quoteRows = qt.map((t, i) => ({
-        agency_id: AGENCY_ID,
+        agency_id: agencyId,
         trip_id: t.id,
         household_id: t.household_id,
         version: 1,

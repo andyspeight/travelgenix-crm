@@ -10,7 +10,8 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import { CheckSquareIcon } from "@/components/ui/icons";
 import { TasksView, type TaskRow } from "./tasks-view";
 
@@ -18,6 +19,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TasksPage() {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   const [{ data: taskRows }, { data: households }] = await Promise.all([
     supabase
@@ -25,9 +27,9 @@ export default async function TasksPage() {
       .select(
         "id, household_id, trip_id, title, description, status, priority, due_at, completed_at, source, source_meta, created_at"
       )
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .order("due_at", { ascending: true, nullsFirst: false }),
-    supabase.from("households").select("id, display_name").eq("agency_id", AGENCY_ID),
+    supabase.from("households").select("id, display_name").eq("agency_id", agencyId),
   ]);
 
   const tasks = (taskRows ?? []) as TaskRow[];

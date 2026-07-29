@@ -21,6 +21,7 @@
  */
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import {
   controlConfigured,
@@ -77,4 +78,31 @@ export async function getSession(): Promise<LunaSession | null> {
   if (!agencyId) return null; // entitled, but this agency isn't set up here yet
 
   return { agencyId, control, role: control.role };
+}
+
+/**
+ * The agency whose data this request may touch — for PAGES.
+ *
+ * Every server component that queries uses this instead of a module-level
+ * constant, so the tenant is a property of the request rather than of the
+ * deployment. When it can't be resolved (signed in but not entitled to Luna
+ * Work, or an agency nobody has linked yet) the page redirects to /no-access
+ * rather than rendering: no session, no data, no guessing.
+ */
+export async function requireAgencyId(): Promise<string> {
+  const session = await getSession();
+  if (!session) redirect("/no-access");
+  return session.agencyId;
+}
+
+/**
+ * The agency whose data this request may touch — for API ROUTES.
+ *
+ * Returns null instead of redirecting, so the route answers with JSON the
+ * caller can act on. Every route must treat null as 403 and return before
+ * touching the database.
+ */
+export async function apiAgencyId(): Promise<string | null> {
+  const session = await getSession();
+  return session ? session.agencyId : null;
 }

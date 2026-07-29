@@ -10,7 +10,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { emitEvent } from "@/lib/events/emit";
 import type { CaseRow } from "@/lib/supabase/types";
 
@@ -43,12 +44,19 @@ export async function PATCH(
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   const { data: caseRow } = await supabase
     .from("cases")
     .select("*")
     .eq("id", id)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .maybeSingle();
 
   if (!caseRow) {
@@ -67,7 +75,7 @@ export async function PATCH(
       .from("cases")
       .update({ status: "open", resolved_at: null })
       .eq("id", id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, status: "open" });
   }
@@ -82,7 +90,7 @@ export async function PATCH(
       .from("cases")
       .update({ status })
       .eq("id", id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, status });
   }
@@ -103,10 +111,10 @@ export async function PATCH(
     .from("cases")
     .update({ status: "resolved", resolved_at: nowIso, resolution })
     .eq("id", id)
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  await emitEvent(supabase, AGENCY_ID, {
+  await emitEvent(supabase, agencyId, {
     type: "case.resolved",
     subjectType: "case",
     subjectId: id,
@@ -125,7 +133,7 @@ export async function PATCH(
   if (c.household_id) {
     try {
       await supabase.from("interactions").insert({
-        agency_id: AGENCY_ID,
+        agency_id: agencyId,
         household_id: c.household_id,
         trip_id: c.trip_id,
         kind: "system",

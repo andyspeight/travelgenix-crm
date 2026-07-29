@@ -15,7 +15,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -58,11 +59,18 @@ export async function POST(request: Request) {
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // ── Existing records, for dedupe ─────────────────────────────────────
   const [{ data: existingHh, error: hhErr }, { data: existingContacts }] = await Promise.all([
-    supabase.from("households").select("display_name").eq("agency_id", AGENCY_ID),
-    supabase.from("contacts").select("email").eq("agency_id", AGENCY_ID).not("email", "is", null),
+    supabase.from("households").select("display_name").eq("agency_id", agencyId),
+    supabase.from("contacts").select("email").eq("agency_id", agencyId).not("email", "is", null),
   ]);
   if (hhErr) {
     return NextResponse.json({ ok: false, error: hhErr.message }, { status: 500 });
@@ -114,7 +122,7 @@ export async function POST(request: Request) {
     const ltv = typeof r.lifetime_value === "number" && r.lifetime_value >= 0 ? r.lifetime_value : null;
 
     householdRows.push({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       display_name: displayName,
       household_type: householdType,
       city: str(r.city, 80),
@@ -152,7 +160,7 @@ export async function POST(request: Request) {
   }
 
   const contactRows = (created as { id: string }[]).map((h, i) => ({
-    agency_id: AGENCY_ID,
+    agency_id: agencyId,
     household_id: h.id,
     role: "lead",
     first_name: leads[i].first_name,

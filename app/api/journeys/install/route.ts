@@ -9,7 +9,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { DEFAULT_JOURNEYS } from "@/lib/journeys/engine";
 
 export const dynamic = "force-dynamic";
@@ -17,11 +18,18 @@ export const runtime = "nodejs";
 
 export async function POST() {
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   const { count, error: countErr } = await supabase
     .from("journeys")
     .select("*", { count: "exact", head: true })
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
 
   if (countErr) {
     return NextResponse.json({ ok: false, error: countErr.message }, { status: 500 });
@@ -32,7 +40,7 @@ export async function POST() {
   }
 
   const rows = DEFAULT_JOURNEYS.map((d) => ({
-    agency_id: AGENCY_ID,
+    agency_id: agencyId,
     name: d.name,
     description: d.description,
     trigger_kind: d.trigger_kind,

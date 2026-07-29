@@ -14,7 +14,8 @@
 
 import Link from "next/link";
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import { CustomersView } from "./customers-view";
 import { SeedPrompt } from "./seed-prompt";
 import { headers } from "next/headers";
@@ -39,6 +40,7 @@ export default async function CustomersPage({
   searchParams: SearchParams;
 }) {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   // ─── Resolve tokens from URL ────────────────────────────────────────
   let tokens: Token[] = [];
@@ -52,7 +54,7 @@ export default async function CustomersPage({
       activeSegmentId = builtin.id;
     } else {
       // Not a built-in — try a user-saved segment from the DB.
-      const saved = await getSavedSegment(supabase, AGENCY_ID, searchParams.seg);
+      const saved = await getSavedSegment(supabase, agencyId, searchParams.seg);
       if (saved) {
         tokens = saved.tokens;
         activeSegmentId = saved.id;
@@ -76,7 +78,7 @@ export default async function CustomersPage({
   const { count: totalCount, error: countError } = await supabase
     .from("households")
     .select("*", { count: "exact", head: true })
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
 
   if (countError) {
     return (
@@ -94,7 +96,7 @@ export default async function CustomersPage({
   // ─── Fetch the actual rows (only if not empty) ──────────────────────
   const households = isEmpty
     ? []
-    : await fetchHouseholdsForTokens(supabase, AGENCY_ID, tokens);
+    : await fetchHouseholdsForTokens(supabase, agencyId, tokens);
 
   // ─── Live counts for each saved segment chip ────────────────────────
   const segmentCounts: Record<string, number> = {};
@@ -103,7 +105,7 @@ export default async function CustomersPage({
       SAVED_SEGMENTS.map(async (s) => {
         const rows = await fetchHouseholdsForTokens(
           supabase,
-          AGENCY_ID,
+          agencyId,
           s.tokens
         );
         segmentCounts[s.id] = rows.length;
@@ -112,11 +114,11 @@ export default async function CustomersPage({
   }
 
   // ─── Saved segments + active journeys for the segment action bar ────
-  const savedSegments = isEmpty ? [] : await listSavedSegments(supabase, AGENCY_ID);
+  const savedSegments = isEmpty ? [] : await listSavedSegments(supabase, agencyId);
   if (!isEmpty && savedSegments.length > 0) {
     await Promise.all(
       savedSegments.map(async (s) => {
-        const rows = await fetchHouseholdsForTokens(supabase, AGENCY_ID, s.tokens);
+        const rows = await fetchHouseholdsForTokens(supabase, agencyId, s.tokens);
         segmentCounts[s.id] = rows.length;
       })
     );
@@ -127,7 +129,7 @@ export default async function CustomersPage({
     : await supabase
         .from("journeys")
         .select("id, name")
-        .eq("agency_id", AGENCY_ID)
+        .eq("agency_id", agencyId)
         .eq("is_active", true)
         .order("name");
   const journeys = (journeyRows ?? []) as { id: string; name: string }[];

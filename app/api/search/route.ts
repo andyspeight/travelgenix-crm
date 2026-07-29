@@ -7,7 +7,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,18 +24,25 @@ export async function GET(request: Request) {
   // Escape the LIKE wildcards a user might type so they match literally.
   const safe = q.replace(/[%_]/g, (m) => `\\${m}`);
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   const [{ data: households }, { data: trips }] = await Promise.all([
     supabase
       .from("households")
       .select("id, display_name, city, household_type")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .ilike("display_name", `%${safe}%`)
       .limit(LIMIT),
     supabase
       .from("trips")
       .select("id, household_id, destination, destination_country, stage, reference")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .or(`destination.ilike.%${safe}%,reference.ilike.%${safe}%`)
       .limit(LIMIT),
   ]);

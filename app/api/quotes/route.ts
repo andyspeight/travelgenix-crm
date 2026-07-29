@@ -12,7 +12,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { emitEvent } from "@/lib/events/emit";
 
 export const dynamic = "force-dynamic";
@@ -51,12 +52,19 @@ export async function POST(request: Request) {
   const send = body.send === true;
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   const { data: trip } = await supabase
     .from("trips")
     .select("id, household_id, stage, destination")
     .eq("id", tripId)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .maybeSingle();
 
   if (!trip) {
@@ -71,7 +79,7 @@ export async function POST(request: Request) {
     .from("quotes")
     .select("id, version, status")
     .eq("trip_id", tripId)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .order("version", { ascending: false });
 
   const siblingRows = (siblings ?? []) as { id: string; version: number; status: string }[];
@@ -85,14 +93,14 @@ export async function POST(request: Request) {
       .from("quotes")
       .update({ status: "superseded" })
       .in("id", openSiblings.map((s) => s.id))
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
   }
 
   const nowIso = new Date().toISOString();
   const { data: created, error: insErr } = await supabase
     .from("quotes")
     .insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       trip_id: tripId,
       household_id: householdId,
       reference: str(body.reference, 60),
@@ -126,7 +134,7 @@ export async function POST(request: Request) {
 
   // Events + pipeline nudge + timeline, all best-effort after the save.
   if (version > 1) {
-    await emitEvent(supabase, AGENCY_ID, {
+    await emitEvent(supabase, agencyId, {
       type: "quote.revised",
       subjectType: "quote",
       subjectId: quoteId,
@@ -136,7 +144,7 @@ export async function POST(request: Request) {
   }
 
   if (send) {
-    await emitEvent(supabase, AGENCY_ID, {
+    await emitEvent(supabase, agencyId, {
       type: "quote.sent",
       subjectType: "quote",
       subjectId: quoteId,
@@ -149,13 +157,13 @@ export async function POST(request: Request) {
         .from("trips")
         .update({ stage: "quoted", updated_at: nowIso })
         .eq("id", tripId)
-        .eq("agency_id", AGENCY_ID);
+        .eq("agency_id", agencyId);
     }
 
     if (householdId) {
       try {
         await supabase.from("interactions").insert({
-          agency_id: AGENCY_ID,
+          agency_id: agencyId,
           household_id: householdId,
           trip_id: tripId,
           kind: "email_out",

@@ -17,7 +17,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { emitEvent } from "@/lib/events/emit";
 import type { Enquiry } from "@/lib/supabase/types";
 
@@ -50,12 +51,19 @@ export async function PATCH(
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   const { data: enquiryRow, error: loadErr } = await supabase
     .from("enquiries")
     .select("*")
     .eq("id", id)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .maybeSingle();
 
   if (loadErr || !enquiryRow) {
@@ -79,13 +87,13 @@ export async function PATCH(
       .from("enquiries")
       .update({ status: "responded", first_response_at: firstResponseAt })
       .eq("id", id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
 
     if (error) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     }
 
-    await emitEvent(supabase, AGENCY_ID, {
+    await emitEvent(supabase, agencyId, {
       type: "enquiry.responded",
       subjectType: "enquiry",
       subjectId: id,
@@ -124,13 +132,13 @@ export async function PATCH(
       .from("enquiries")
       .update({ status: "closed", lost_reason: lostReason })
       .eq("id", id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
 
     if (error) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     }
 
-    await emitEvent(supabase, AGENCY_ID, {
+    await emitEvent(supabase, agencyId, {
       type: "enquiry.closed",
       subjectType: "enquiry",
       subjectId: id,
@@ -163,7 +171,7 @@ export async function PATCH(
     const { data: hh, error: hhErr } = await supabase
       .from("households")
       .insert({
-        agency_id: AGENCY_ID,
+        agency_id: agencyId,
         display_name: lastName ? `The ${lastName} ${enquiry.children ? "Family" : "Household"}` : name,
         household_type: (enquiry.children ?? 0) > 0 ? "family" : (enquiry.adults ?? 0) > 1 ? "couple" : "solo",
         tags: [],
@@ -184,7 +192,7 @@ export async function PATCH(
     createdHousehold = true;
 
     const { error: contactErr } = await supabase.from("contacts").insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       role: "lead",
       first_name: firstName,
@@ -196,7 +204,7 @@ export async function PATCH(
       gdpr_consent: false,
     });
     if (contactErr) {
-      await supabase.from("households").delete().eq("id", householdId).eq("agency_id", AGENCY_ID);
+      await supabase.from("households").delete().eq("id", householdId).eq("agency_id", agencyId);
       return NextResponse.json({ ok: false, error: contactErr.message }, { status: 500 });
     }
   }
@@ -214,7 +222,7 @@ export async function PATCH(
   const { data: trip, error: tripErr } = await supabase
     .from("trips")
     .insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       stage: "enquiry",
       destination: enquiry.destination,
@@ -232,8 +240,8 @@ export async function PATCH(
   if (tripErr || !trip) {
     if (createdHousehold) {
       // Roll the fresh household back rather than leaving a tripless shell.
-      await supabase.from("contacts").delete().eq("household_id", householdId).eq("agency_id", AGENCY_ID);
-      await supabase.from("households").delete().eq("id", householdId).eq("agency_id", AGENCY_ID);
+      await supabase.from("contacts").delete().eq("household_id", householdId).eq("agency_id", agencyId);
+      await supabase.from("households").delete().eq("id", householdId).eq("agency_id", agencyId);
     }
     return NextResponse.json(
       { ok: false, error: tripErr?.message ?? "Couldn't create the trip" },
@@ -253,13 +261,13 @@ export async function PATCH(
       first_response_at: enquiry.first_response_at ?? nowIso,
     })
     .eq("id", id)
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
 
   if (updErr) {
     return NextResponse.json({ ok: false, error: updErr.message }, { status: 500 });
   }
 
-  await emitEvent(supabase, AGENCY_ID, {
+  await emitEvent(supabase, agencyId, {
     type: "enquiry.converted",
     subjectType: "enquiry",
     subjectId: id,
@@ -270,7 +278,7 @@ export async function PATCH(
   // Timeline entry on the household (best-effort).
   try {
     await supabase.from("interactions").insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       trip_id: tripId,
       kind: "system",

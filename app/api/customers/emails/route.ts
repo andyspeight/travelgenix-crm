@@ -21,7 +21,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { currentConsent, canMarket, type ConsentLedgerRow } from "@/lib/consent/state";
 
 export const dynamic = "force-dynamic";
@@ -50,13 +51,20 @@ export async function POST(request: Request) {
   const purpose = parsed.purpose === "operational" ? "operational" : "marketing";
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // Lead first, so when a household has several contacts we prefer the lead's
   // address; we still collect the rest as a fallback.
   const { data, error } = await supabase
     .from("contacts")
     .select("id, household_id, email, role, marketing_opt_in")
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .in("household_id", ids)
     .not("email", "is", null);
 
@@ -79,7 +87,7 @@ export async function POST(request: Request) {
     const { data: ledger, error: ledgerErr } = await supabase
       .from("consents")
       .select("contact_id, channel, granted, occurred_at, source")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .eq("channel", "email")
       .in("contact_id", rows.map((r) => r.id));
 

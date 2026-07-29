@@ -11,7 +11,7 @@
  *
  * Security (travelgenix-security skill):
  *   - Agency-scoped: every write checks the preference belongs to a household
- *     in AGENCY_ID, so a guessed id from another agency can't be touched.
+ *     in agencyId, so a guessed id from another agency can't be touched.
  *   - category is whitelisted (never trust the client string).
  *   - value is trimmed and length-capped (no unbounded writes).
  *   - Fails closed, generic client errors, no internal detail leaked.
@@ -22,7 +22,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -53,13 +54,14 @@ function isCategory(v: unknown): v is Category {
 /** Confirms the household exists and belongs to this agency. */
 async function householdInAgency(
   supabase: ReturnType<typeof createClient>,
+  agencyId: string,
   householdId: string
 ): Promise<boolean> {
   const { data } = await supabase
     .from("households")
     .select("id")
     .eq("id", householdId)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .maybeSingle();
   return !!data;
 }
@@ -67,6 +69,7 @@ async function householdInAgency(
 /** Confirms a preference belongs to a household in this agency. */
 async function prefInAgency(
   supabase: ReturnType<typeof createClient>,
+  agencyId: string,
   prefId: string,
   householdId: string
 ): Promise<boolean> {
@@ -77,7 +80,7 @@ async function prefInAgency(
     .eq("household_id", householdId)
     .maybeSingle();
   if (!data) return false;
-  return householdInAgency(supabase, householdId);
+  return householdInAgency(supabase, agencyId, householdId);
 }
 
 // ─── POST: add ──────────────────────────────────────────────────────────────
@@ -103,7 +106,14 @@ export async function POST(
   const value = valueRaw.trim().slice(0, MAX_VALUE_LEN);
 
   const supabase = createClient();
-  if (!(await householdInAgency(supabase, householdId))) {
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
+  if (!(await householdInAgency(supabase, agencyId, householdId))) {
     return NextResponse.json({ ok: false, error: "Customer not found" }, { status: 404 });
   }
 
@@ -123,7 +133,7 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Couldn't save preference" }, { status: 500 });
   }
 
-  await auditPref(supabase, householdId, `added ${category}: ${value}`);
+  await auditPref(supabase, agencyId, householdId, `added ${category}: ${value}`);
   return NextResponse.json({ ok: true, preference: data });
 }
 
@@ -163,7 +173,14 @@ export async function PATCH(
   }
 
   const supabase = createClient();
-  if (!(await prefInAgency(supabase, prefId, householdId))) {
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
+  if (!(await prefInAgency(supabase, agencyId, prefId, householdId))) {
     return NextResponse.json({ ok: false, error: "Preference not found" }, { status: 404 });
   }
 
@@ -200,7 +217,14 @@ export async function DELETE(
   }
 
   const supabase = createClient();
-  if (!(await prefInAgency(supabase, prefId, householdId))) {
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
+  if (!(await prefInAgency(supabase, agencyId, prefId, householdId))) {
     return NextResponse.json({ ok: false, error: "Preference not found" }, { status: 404 });
   }
 
@@ -221,12 +245,13 @@ export async function DELETE(
 // ─── Audit (best-effort) ────────────────────────────────────────────────────
 async function auditPref(
   supabase: ReturnType<typeof createClient>,
+  agencyId: string,
   householdId: string,
   summary: string
 ) {
   try {
     await supabase.from("interactions").insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       kind: "system",
       direction: "internal",
