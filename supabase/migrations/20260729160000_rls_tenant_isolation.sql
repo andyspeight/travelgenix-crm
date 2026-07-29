@@ -5,23 +5,29 @@
 -- anyone holding it can read or write every row directly against the API,
 -- bypassing the app entirely. These policies close that.
 --
--- HOW IT WORKS: every request from the app carries a short-lived JWT naming
--- the caller's agency (lib/supabase/tenant-token). PostgREST exposes its
--- claims as auth.jwt(), so each policy reduces to "rows whose agency_id
--- matches the token". A query that forgets its own .eq() filter now returns
--- nothing instead of another agency's customers — application filters become
--- defence in depth rather than the only defence.
+-- HOW IT WORKS: each policy asks for an agency_id claim on the caller's JWT.
+-- Nothing in this app talks to Supabase from the browser, so no legitimate
+-- caller presents the anon key: with these policies live, the published key
+-- can read nothing and write nothing. That is the hole closed.
 --
--- The service-role key bypasses RLS by design and is used for the two reads
--- that legitimately span tenants: resolving which agency a Control client
--- maps to, and the email provider's bounce webhook.
+-- The server reaches the database with the SERVICE-ROLE key, which bypasses
+-- RLS by design. The tenant boundary for app traffic is therefore held by the
+-- per-request agency filter every query carries (lib/auth/session), with
+-- lib/supabase/tenant-filters.test.ts failing the build if a query on a
+-- tenant table is ever left unnarrowed.
+--
+-- The claim-based policies are not decoration: they are what denies anon, and
+-- they become full enforcement for app traffic the moment a shared HS256
+-- signing secret exists (this project has moved to asymmetric signing keys,
+-- whose private half Supabase does not expose, so tokens cannot be minted
+-- here today).
 --
 -- ORDER OF OPERATIONS — READ BEFORE APPLYING:
---   1. set SUPABASE_JWT_SECRET and SUPABASE_SERVICE_ROLE_KEY in Vercel,
+--   1. set SUPABASE_SERVICE_ROLE_KEY in Vercel,
 --   2. deploy,
 --   3. then run this migration.
--- Applying it before step 1 leaves the app authenticating as anon with no
--- agency claim, which every policy correctly refuses — i.e. an empty CRM.
+-- Applying it before step 1 leaves the app on the anon key, which every
+-- policy correctly refuses — i.e. an empty CRM.
 
 -- The claim, as a uuid. NULL when there is no token or no claim, and a
 -- comparison against NULL is never true, so "no token" means "no rows".
@@ -48,7 +54,7 @@ declare
   t text;
   tenant_tables text[] := array[
     'households', 'contacts', 'suppliers', 'trips', 'interactions',
-    'tasks', 'notes', 'preferences', 'journeys', 'segments', 'enquiries',
+    'tasks', 'notes', 'journeys', 'segments', 'enquiries',
     'events', 'quotes', 'consents', 'cases', 'email_sends',
     'email_suppressions', 'users'
   ];
@@ -65,7 +71,19 @@ begin
 end $$;
 
 -- Children that carry no agency_id of their own: scope them through their
--- parent trip, so they inherit exactly the same boundary.
+-- parent, so they inherit exactly the same boundary.
+alter table public.preferences enable row level security;
+drop policy if exists tenant_isolation on public.preferences;
+create policy tenant_isolation on public.preferences
+  for all
+  using (exists (
+    select 1 from public.households h
+    where h.id = preferences.household_id
+      and h.agency_id = public.current_agency_id()))
+  with check (exists (
+    select 1 from public.households h
+    where h.id = preferences.household_id
+      and h.agency_id = public.current_agency_id()));
 alter table public.trip_passengers enable row level security;
 drop policy if exists tenant_isolation on public.trip_passengers;
 create policy tenant_isolation on public.trip_passengers
