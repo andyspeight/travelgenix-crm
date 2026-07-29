@@ -12,7 +12,7 @@
 import { Topbar } from "@/components/layout/topbar";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { InboxView } from "./inbox-view";
-import { emailConfigured } from "@/lib/email/brevo";
+import { emailConfigured } from "@/lib/email/providers";
 import { SparklesIcon } from "@/components/ui/icons";
 import type {
   Household,

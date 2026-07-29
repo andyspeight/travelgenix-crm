@@ -24,7 +24,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
-import { emailConfigured, sendViaBrevo } from "@/lib/email/brevo";
+import { emailConfigured, sendEmail } from "@/lib/email/providers";
 import { decideSend, type SendFacts } from "@/lib/email/policy";
 import { currentConsent, channelState, type ConsentLedgerRow } from "@/lib/consent/state";
 import { emitEvent } from "@/lib/events/emit";
@@ -54,7 +54,8 @@ export async function POST(request: Request) {
       {
         ok: false,
         not_configured: true,
-        error: "Email sending is not configured (BREVO_API_KEY / EMAIL_FROM).",
+        error:
+          "Email sending is not configured (SENDGRID_API_KEY or BREVO_API_KEY, plus EMAIL_FROM).",
       },
       { status: 503 }
     );
@@ -165,8 +166,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: decision.reason }, { status: 403 });
   }
 
-  // ─── Dispatch ─────────────────────────────────────────────────────────
-  const result = await sendViaBrevo({ toEmail: toEmail!, toName, subject, text: body });
+  // ─── Dispatch — purpose-routed: operational → SendGrid, marketing →
+  // Brevo (each falls back to the other when only one is configured) ─────
+  const result = await sendEmail({ purpose, toEmail: toEmail!, toName, subject, text: body });
 
   // Audit row either way — failed sends are worth seeing too.
   const { data: sendRow } = await supabase
@@ -181,6 +183,7 @@ export async function POST(request: Request) {
       purpose,
       context,
       status: result.ok ? "sent" : "failed",
+      provider: result.ok ? result.provider : null,
       provider_message_id: result.ok ? result.messageId : null,
       error: result.ok ? null : result.error,
     })

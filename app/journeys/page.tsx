@@ -26,7 +26,7 @@ import {
 import type { Household, Trip, Contact, Quote } from "@/lib/supabase/types";
 import { JourneysView, type JourneyCard, type RunFeedItem } from "./journeys-view";
 import { ComposeJourney } from "./compose-journey";
-import { emailConfigured } from "@/lib/email/brevo";
+import { emailConfigured } from "@/lib/email/providers";
 
 export const dynamic = "force-dynamic";
 

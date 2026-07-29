@@ -14,7 +14,7 @@ import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { MessageIcon } from "@/components/ui/icons";
 import type { Enquiry } from "@/lib/supabase/types";
 import { EnquiriesView } from "./enquiries-view";
-import { emailConfigured } from "@/lib/email/brevo";
+import { emailConfigured } from "@/lib/email/providers";
 import { NewEnquiry } from "./new-enquiry";
 
 export const dynamic = "force-dynamic";
