@@ -11,7 +11,8 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import { ZapIcon } from "@/components/ui/icons";
 import {
   evaluateJourney,
@@ -32,6 +33,7 @@ export const dynamic = "force-dynamic";
 
 export default async function JourneysPage() {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   const [
     { data: journeyRows },
@@ -42,20 +44,20 @@ export default async function JourneysPage() {
     { data: runRows },
     { data: quoteRows },
   ] = await Promise.all([
-    supabase.from("journeys").select("*").eq("agency_id", AGENCY_ID).order("created_at"),
+    supabase.from("journeys").select("*").eq("agency_id", agencyId).order("created_at"),
     supabase
       .from("households")
       .select("id, display_name, customer_since, last_booking_at, trips_count")
-      .eq("agency_id", AGENCY_ID),
+      .eq("agency_id", agencyId),
     supabase
       .from("trips")
       .select("id, household_id, stage, destination, depart_date, return_date")
-      .eq("agency_id", AGENCY_ID),
+      .eq("agency_id", agencyId),
     supabase
       .from("contacts")
       .select("id, household_id, first_name, last_name, passport_expiry, role, email")
-      .eq("agency_id", AGENCY_ID),
-    supabase.from("interactions").select("household_id, occurred_at").eq("agency_id", AGENCY_ID),
+      .eq("agency_id", agencyId),
+    supabase.from("interactions").select("household_id, occurred_at").eq("agency_id", agencyId),
     supabase
       .from("journey_runs")
       .select("*")
@@ -65,7 +67,7 @@ export default async function JourneysPage() {
     supabase
       .from("quotes")
       .select("id, trip_id, household_id, status, sent_at, total_price, customer_response, view_count")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .in("status", ["sent", "viewed"]),
   ]);
 

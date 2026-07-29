@@ -7,7 +7,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,11 +38,18 @@ export async function PATCH(
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
   const { data, error } = await supabase
     .from("journeys")
     .update({ is_active: isActive, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .select("id, is_active")
     .maybeSingle();
 

@@ -10,7 +10,8 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import { InboxView } from "./inbox-view";
 import { emailConfigured } from "@/lib/email/providers";
 import { SparklesIcon } from "@/components/ui/icons";
@@ -28,12 +29,13 @@ export default async function InboxPage({
   searchParams: { id?: string; lane?: string };
 }) {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   // Pull all inbound interactions for the agency, recent first
   const { data: interactions } = await supabase
     .from("interactions")
     .select("*")
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .eq("direction", "inbound")
     .order("occurred_at", { ascending: false })
     .limit(80);

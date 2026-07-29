@@ -10,7 +10,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { emitEvent } from "@/lib/events/emit";
 
 export const dynamic = "force-dynamic";
@@ -60,12 +61,19 @@ export async function POST(request: Request) {
   const phone = str(body.lead?.phone, 40);
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
   const nowIso = new Date().toISOString();
 
   const { data: household, error: hhErr } = await supabase
     .from("households")
     .insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       display_name: displayName,
       household_type: householdType,
       city,
@@ -84,7 +92,7 @@ export async function POST(request: Request) {
   const householdId = (household as { id: string }).id;
 
   const { error: contactErr } = await supabase.from("contacts").insert({
-    agency_id: AGENCY_ID,
+    agency_id: agencyId,
     household_id: householdId,
     role: "lead",
     first_name: firstName,
@@ -98,11 +106,11 @@ export async function POST(request: Request) {
 
   if (contactErr) {
     // Don't leave a contactless half-record behind.
-    await supabase.from("households").delete().eq("id", householdId).eq("agency_id", AGENCY_ID);
+    await supabase.from("households").delete().eq("id", householdId).eq("agency_id", agencyId);
     return NextResponse.json({ ok: false, error: contactErr.message }, { status: 500 });
   }
 
-  await emitEvent(supabase, AGENCY_ID, {
+  await emitEvent(supabase, agencyId, {
     type: "customer.created",
     subjectType: "household",
     subjectId: householdId,

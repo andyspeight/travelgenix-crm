@@ -16,7 +16,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { scoreEnquiry, type RelationshipFacts } from "@/lib/enquiries/scoring";
 import { responseDueAt } from "@/lib/enquiries/clock";
 import { emitEvent } from "@/lib/events/emit";
@@ -120,6 +121,13 @@ export async function POST(request: Request) {
   };
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // Repeat-customer recognition (blueprint §10, enquiry stage): if no
   // household was chosen but the email matches a contact we already hold,
@@ -129,7 +137,7 @@ export async function POST(request: Request) {
     const { data: match } = await supabase
       .from("contacts")
       .select("household_id")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .ilike("email", contactEmail)
       .limit(1)
       .maybeSingle();
@@ -144,7 +152,7 @@ export async function POST(request: Request) {
       .from("households")
       .select("lifetime_value, trips_count, last_booking_at, tags")
       .eq("id", linkedHouseholdId)
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .maybeSingle();
     if (!hh) {
       return NextResponse.json({ ok: false, error: "Customer not found" }, { status: 404 });
@@ -158,7 +166,7 @@ export async function POST(request: Request) {
   const { data: created, error: insErr } = await supabase
     .from("enquiries")
     .insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: linkedHouseholdId,
       status: "new",
       ...fields,
@@ -185,7 +193,7 @@ export async function POST(request: Request) {
   const enquiryId = (created as { id: string }).id;
 
   // Event + timeline entry are best-effort — the enquiry is already saved.
-  await emitEvent(supabase, AGENCY_ID, {
+  await emitEvent(supabase, agencyId, {
     type: "enquiry.created",
     subjectType: "enquiry",
     subjectId: enquiryId,
@@ -202,7 +210,7 @@ export async function POST(request: Request) {
   if (linkedHouseholdId) {
     try {
       await supabase.from("interactions").insert({
-        agency_id: AGENCY_ID,
+        agency_id: agencyId,
         household_id: linkedHouseholdId,
         kind: "enquiry",
         direction: "inbound",

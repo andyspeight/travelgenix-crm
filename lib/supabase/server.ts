@@ -29,4 +29,13 @@ export function createClient() {
   );
 }
 
+/**
+ * The single-tenant fallback agency.
+ *
+ * Do NOT reach for this in pages, routes or libs — the tenant is a property
+ * of the REQUEST, not of the deployment, so read it from the session instead
+ * (`requireAgencyId()` in pages, `apiAgencyId()` in API routes). This constant
+ * exists for exactly one caller: lib/auth/session, which returns it when
+ * Control isn't configured and the app is running as a single-agency demo.
+ */
 export const AGENCY_ID = process.env.NEXT_PUBLIC_AGENCY_ID!;

@@ -16,7 +16,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import {
   SparklesIcon,
   PlusIcon,
@@ -55,13 +56,14 @@ export default async function CustomerDetailPage({
   params: { id: string };
 }) {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   // Fetch the household first so we can 404 cleanly
   const { data: household, error: hhErr } = await supabase
     .from("households")
     .select("*")
     .eq("id", params.id)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .single();
 
   if (hhErr || !household) {
@@ -96,13 +98,13 @@ export default async function CustomerDetailPage({
       .from("consents")
       .select("contact_id, channel, granted, occurred_at, source")
       .eq("household_id", params.id)
-      .eq("agency_id", AGENCY_ID),
+      .eq("agency_id", agencyId),
     // Quotes feed the Travel Memory watch-outs (decline reasons).
     supabase
       .from("quotes")
       .select("*")
       .eq("household_id", params.id)
-      .eq("agency_id", AGENCY_ID),
+      .eq("agency_id", agencyId),
   ]);
 
   const householdRow = household as Household;

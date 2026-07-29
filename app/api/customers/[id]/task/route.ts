@@ -12,7 +12,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -56,13 +57,20 @@ export async function POST(
     typeof parsed.trip_id === "string" && UUID_RE.test(parsed.trip_id) ? parsed.trip_id : null;
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // Resolve the household (agency-scoped) and its name for a friendly title.
   const { data: hh, error: hhErr } = await supabase
     .from("households")
     .select("id, display_name")
     .eq("id", householdId)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .maybeSingle();
   if (hhErr) {
     return NextResponse.json({ ok: false, error: hhErr.message }, { status: 500 });
@@ -78,7 +86,7 @@ export async function POST(
   const { data, error } = await supabase
     .from("tasks")
     .insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       trip_id: tripId,
       title,

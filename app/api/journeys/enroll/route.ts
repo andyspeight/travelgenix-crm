@@ -15,7 +15,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { buildAction, type Journey, type Candidate } from "@/lib/journeys/engine";
 
 export const dynamic = "force-dynamic";
@@ -48,11 +49,18 @@ export async function POST(request: Request) {
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // Load the journey (agency-scoped) and the target households' names.
   const [{ data: journeyRow, error: jErr }, { data: hhRows, error: hErr }] = await Promise.all([
-    supabase.from("journeys").select("*").eq("id", journeyId).eq("agency_id", AGENCY_ID).maybeSingle(),
-    supabase.from("households").select("id, display_name").eq("agency_id", AGENCY_ID).in("id", householdIds),
+    supabase.from("journeys").select("*").eq("id", journeyId).eq("agency_id", agencyId).maybeSingle(),
+    supabase.from("households").select("id, display_name").eq("agency_id", agencyId).in("id", householdIds),
   ]);
   if (jErr) return NextResponse.json({ ok: false, error: jErr.message }, { status: 500 });
   if (hErr) return NextResponse.json({ ok: false, error: hErr.message }, { status: 500 });
@@ -101,7 +109,7 @@ export async function POST(request: Request) {
     let summary = "";
     if (action.kind === "create_task") {
       taskInserts.push({
-        agency_id: AGENCY_ID,
+        agency_id: agencyId,
         household_id: hid,
         title: action.title,
         description: action.description,
@@ -111,7 +119,7 @@ export async function POST(request: Request) {
       });
       summary = `Task created for ${name}: ${action.title}`;
     } else if (action.kind === "add_note") {
-      noteInserts.push({ agency_id: AGENCY_ID, household_id: hid, body: action.body });
+      noteInserts.push({ agency_id: agencyId, household_id: hid, body: action.body });
       status = "sent";
       summary = `Note added to ${name}`;
     } else {
@@ -152,7 +160,7 @@ export async function POST(request: Request) {
     .from("journeys")
     .update({ last_run_at: nowIso, updated_at: nowIso })
     .eq("id", journeyId)
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
 
   return NextResponse.json({ ok: true, enrolled, skipped, journey: journey.name });
 }

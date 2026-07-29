@@ -15,7 +15,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 import { validateJourneySpec, type RawJourneySpec } from "@/lib/journeys/compose";
 import {
@@ -90,25 +91,32 @@ export async function POST(request: Request) {
 
   // ─── Dry run against live data (writes nothing) ───────────────────────
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
   const [{ data: households }, { data: trips }, { data: contacts }, { data: ixRows }, { data: quotes }] =
     await Promise.all([
       supabase
         .from("households")
         .select("id, display_name, customer_since, last_booking_at, trips_count")
-        .eq("agency_id", AGENCY_ID),
+        .eq("agency_id", agencyId),
       supabase
         .from("trips")
         .select("id, household_id, stage, destination, depart_date, return_date")
-        .eq("agency_id", AGENCY_ID),
+        .eq("agency_id", agencyId),
       supabase
         .from("contacts")
         .select("id, household_id, first_name, last_name, passport_expiry")
-        .eq("agency_id", AGENCY_ID),
-      supabase.from("interactions").select("household_id, occurred_at").eq("agency_id", AGENCY_ID),
+        .eq("agency_id", agencyId),
+      supabase.from("interactions").select("household_id, occurred_at").eq("agency_id", agencyId),
       supabase
         .from("quotes")
         .select("id, trip_id, household_id, status, sent_at, total_price, customer_response, view_count")
-        .eq("agency_id", AGENCY_ID)
+        .eq("agency_id", agencyId)
         .in("status", ["sent", "viewed"]),
     ]);
 
@@ -125,7 +133,7 @@ export async function POST(request: Request) {
 
   const previewJourney = {
     id: "preview",
-    agency_id: AGENCY_ID,
+    agency_id: agencyId,
     is_active: true,
     last_run_at: null,
     created_at: "",

@@ -23,7 +23,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { emailConfigured, sendEmail } from "@/lib/email/providers";
 import { decideSend, type SendFacts } from "@/lib/email/policy";
 import { currentConsent, channelState, type ConsentLedgerRow } from "@/lib/consent/state";
@@ -98,6 +99,13 @@ export async function POST(request: Request) {
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // ─── Resolve the recipient ────────────────────────────────────────────
   let toEmail =
@@ -109,7 +117,7 @@ export async function POST(request: Request) {
     const { data: contact } = await supabase
       .from("contacts")
       .select("id, household_id, first_name, last_name, email")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .eq("id", contactId)
       .maybeSingle();
     if (!contact) {
@@ -124,7 +132,7 @@ export async function POST(request: Request) {
     const { data: ledger, error: ledgerErr } = await supabase
       .from("consents")
       .select("contact_id, channel, granted, occurred_at, source")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .eq("channel", "email")
       .eq("contact_id", contactId);
     if (ledgerErr) {
@@ -151,7 +159,7 @@ export async function POST(request: Request) {
     const { data: sup } = await supabase
       .from("email_suppressions")
       .select("reason")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .eq("email", toEmail)
       .maybeSingle();
     if (sup) {
@@ -174,7 +182,7 @@ export async function POST(request: Request) {
   const { data: sendRow } = await supabase
     .from("email_sends")
     .insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       contact_id: contactId,
       to_email: toEmail,
@@ -198,7 +206,7 @@ export async function POST(request: Request) {
   // but only when we can attach it to a household.
   if (householdId) {
     await supabase.from("interactions").insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       contact_id: contactId,
       kind: "email_out",
@@ -212,7 +220,7 @@ export async function POST(request: Request) {
     });
   }
 
-  await emitEvent(supabase, AGENCY_ID, {
+  await emitEvent(supabase, agencyId, {
     type: "email.sent",
     subjectType: "email",
     subjectId: sendRow?.id ?? toEmail!,

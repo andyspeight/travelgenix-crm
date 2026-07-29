@@ -10,7 +10,8 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import { MessageIcon } from "@/components/ui/icons";
 import type { Enquiry } from "@/lib/supabase/types";
 import { EnquiriesView } from "./enquiries-view";
@@ -21,15 +22,16 @@ export const dynamic = "force-dynamic";
 
 export default async function EnquiriesPage() {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   const [{ data: enquiryRows, error: enqErr }, { data: households }] = await Promise.all([
     supabase
       .from("enquiries")
       .select("*")
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .order("received_at", { ascending: false })
       .limit(500),
-    supabase.from("households").select("id, display_name").eq("agency_id", AGENCY_ID),
+    supabase.from("households").select("id, display_name").eq("agency_id", agencyId),
   ]);
 
   const migrationMissing = Boolean(

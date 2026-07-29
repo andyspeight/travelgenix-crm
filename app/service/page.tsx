@@ -9,7 +9,8 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAgencyId } from "@/lib/auth/session";
 import { ZapIcon } from "@/components/ui/icons";
 import type { CaseRow } from "@/lib/supabase/types";
 import { ServiceView } from "./service-view";
@@ -19,21 +20,22 @@ export const dynamic = "force-dynamic";
 
 export default async function ServicePage() {
   const supabase = createClient();
+  const agencyId = await requireAgencyId();
 
   const [{ data: caseRows, error: caseErr }, { data: households }, { data: trips }] =
     await Promise.all([
       supabase
         .from("cases")
         .select("*")
-        .eq("agency_id", AGENCY_ID)
+        .eq("agency_id", agencyId)
         .order("priority", { ascending: true })
         .order("sla_due_at", { ascending: true, nullsFirst: false })
         .limit(500),
-      supabase.from("households").select("id, display_name").eq("agency_id", AGENCY_ID),
+      supabase.from("households").select("id, display_name").eq("agency_id", agencyId),
       supabase
         .from("trips")
         .select("id, household_id, destination, depart_date, stage")
-        .eq("agency_id", AGENCY_ID),
+        .eq("agency_id", agencyId),
     ]);
 
   const migrationMissing = Boolean(caseErr && /cases/.test(caseErr.message ?? ""));

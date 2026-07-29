@@ -7,7 +7,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,12 +38,19 @@ export async function POST(request: Request) {
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // Read current tags so we can append without clobbering or duplicating.
   const { data: rows, error: readErr } = await supabase
     .from("households")
     .select("id, tags")
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .in("id", ids);
   if (readErr) {
     return NextResponse.json({ ok: false, error: readErr.message }, { status: 500 });
@@ -57,7 +65,7 @@ export async function POST(request: Request) {
       .from("households")
       .update({ tags: [...tags, tag], updated_at: nowIso })
       .eq("id", row.id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
     if (error) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     }

@@ -19,7 +19,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -85,11 +86,18 @@ export async function PATCH(
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
   const { data, error } = await supabase
     .from("households")
     .update(update)
     .eq("id", householdId)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .select("id, display_name, household_type, city, postcode")
     .maybeSingle();
 
@@ -104,7 +112,7 @@ export async function PATCH(
   // Audit (best-effort).
   try {
     await supabase.from("interactions").insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       kind: "system",
       direction: "internal",

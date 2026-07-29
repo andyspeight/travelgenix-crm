@@ -25,7 +25,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { buildScoringContext } from "@/lib/scoring/customer";
 import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 import type { Contact, Trip, Household } from "@/lib/supabase/types";
@@ -71,13 +72,20 @@ export async function POST(
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // ─── Load the household + its real data (agency-scoped) ─────────────
   const { data: household, error: hhErr } = await supabase
     .from("households")
     .select("*")
     .eq("id", householdId)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .single();
 
   if (hhErr || !household) {
@@ -150,7 +158,7 @@ export async function POST(
       updated_at: generatedAt,
     })
     .eq("id", householdId)
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
 
   if (writeErr) {
     console.error("[brief] write failed:", writeErr.message);
@@ -170,7 +178,7 @@ export async function POST(
   // No raw PII beyond what's needed to answer "where did this come from?".
   try {
     await supabase.from("interactions").insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       kind: "system",
       direction: "internal",

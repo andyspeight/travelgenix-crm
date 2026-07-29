@@ -22,7 +22,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { emitEvent } from "@/lib/events/emit";
 
 export const dynamic = "force-dynamic";
@@ -97,42 +97,58 @@ export async function POST(request: Request) {
   }
 
   const supabase = createClient();
+  let handled = 0;
 
   for (const ev of events) {
     const reason = SUPPRESS[ev.event];
 
-    // 1. Suppress. Upsert on (agency, email) — a second bounce is not news.
-    await supabase
-      .from("email_suppressions")
-      .upsert(
-        { agency_id: AGENCY_ID, email: ev.email, reason, detail: ev.detail },
-        { onConflict: "agency_id,email", ignoreDuplicates: true }
-      );
-
-    // 2. Flip the audit row so the record tells the truth.
+    // WHICH AGENCY? A provider has no session, so unlike every other route
+    // the tenant can't come from the caller. It comes from the send this
+    // event is about: we look the message id up in the audit table and take
+    // the agency that sent it. An event we can't tie to a real send of ours
+    // is skipped rather than guessed — suppressing an address for the wrong
+    // agency would silently stop THEIR mail on someone else's bounce.
     let sendId: string | null = null;
     let householdId: string | null = null;
+    let agencyId: string | null = null;
+
     if (ev.messageId) {
       const { data: send } = await supabase
         .from("email_sends")
         .update({ status: reason === "complaint" ? "complained" : "bounced" })
-        .eq("agency_id", AGENCY_ID)
         .eq("provider_message_id", ev.messageId)
-        .select("id, household_id")
+        .select("id, household_id, agency_id")
         .maybeSingle();
       sendId = (send?.id as string | undefined) ?? null;
       householdId = (send?.household_id as string | undefined) ?? null;
+      agencyId = (send?.agency_id as string | undefined) ?? null;
     }
 
-    // 3. Spine.
-    await emitEvent(supabase, AGENCY_ID, {
+    if (!agencyId) {
+      console.warn(
+        `[email/webhook] ${ev.event} for ${ev.email} matched no send — skipped`
+      );
+      continue;
+    }
+
+    // Suppress. Upsert on (agency, email) — a second bounce is not news.
+    await supabase
+      .from("email_suppressions")
+      .upsert(
+        { agency_id: agencyId, email: ev.email, reason, detail: ev.detail },
+        { onConflict: "agency_id,email", ignoreDuplicates: true }
+      );
+
+    // Spine.
+    await emitEvent(supabase, agencyId, {
       type: "email.bounced",
       subjectType: "email",
       subjectId: sendId ?? ev.email,
       householdId,
       payload: { email: ev.email, event: ev.event, reason, detail: ev.detail },
     });
+    handled++;
   }
 
-  return NextResponse.json({ ok: true, handled: events.length });
+  return NextResponse.json({ ok: true, handled });
 }

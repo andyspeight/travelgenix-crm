@@ -15,7 +15,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import {
   evaluateJourney,
   buildAction,
@@ -57,12 +58,19 @@ export async function POST(request: Request) {
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // ─── Load journeys to run ───────────────────────────────────────────
   let journeyQuery = supabase
     .from("journeys")
     .select("*")
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
   journeyQuery = journeyId
     ? journeyQuery.eq("id", journeyId)
     : journeyQuery.eq("is_active", true);
@@ -84,24 +92,24 @@ export async function POST(request: Request) {
         .select(
           "id, display_name, customer_since, last_booking_at, trips_count"
         )
-        .eq("agency_id", AGENCY_ID),
+        .eq("agency_id", agencyId),
       supabase
         .from("trips")
         .select("id, household_id, stage, destination, depart_date, return_date")
-        .eq("agency_id", AGENCY_ID),
+        .eq("agency_id", agencyId),
       supabase
         .from("contacts")
         .select("id, household_id, first_name, last_name, passport_expiry")
-        .eq("agency_id", AGENCY_ID),
+        .eq("agency_id", agencyId),
       supabase
         .from("interactions")
         .select("household_id, occurred_at")
-        .eq("agency_id", AGENCY_ID),
+        .eq("agency_id", agencyId),
       // Live quotes feed quote-based custom rules (missing table = no matches).
       supabase
         .from("quotes")
         .select("id, trip_id, household_id, status, sent_at, total_price, customer_response, view_count")
-        .eq("agency_id", AGENCY_ID)
+        .eq("agency_id", agencyId)
         .in("status", ["sent", "viewed"]),
     ]);
 
@@ -160,7 +168,7 @@ export async function POST(request: Request) {
 
       if (action.kind === "create_task") {
         taskInserts.push({
-          agency_id: AGENCY_ID,
+          agency_id: agencyId,
           household_id: cand.household_id,
           trip_id: cand.trip_id,
           title: action.title,
@@ -173,7 +181,7 @@ export async function POST(request: Request) {
         resultSummary = `Task created for ${name}: ${action.title}`;
       } else if (action.kind === "add_note") {
         noteInserts.push({
-          agency_id: AGENCY_ID,
+          agency_id: agencyId,
           household_id: cand.household_id,
           trip_id: cand.trip_id,
           body: action.body,
@@ -228,12 +236,12 @@ export async function POST(request: Request) {
     .from("journeys")
     .update({ last_run_at: nowIso, updated_at: nowIso })
     .in("id", journeyIds)
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
 
   // Event spine (best-effort): one event per journey that actually fired.
   for (const r of summary) {
     if (r.fired === 0) continue;
-    await emitEvent(supabase, AGENCY_ID, {
+    await emitEvent(supabase, agencyId, {
       type: "journey.executed",
       subjectType: "journey",
       subjectId: r.journeyId,

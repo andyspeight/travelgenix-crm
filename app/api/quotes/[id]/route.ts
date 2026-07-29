@@ -20,7 +20,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { refreshHouseholdRollups } from "@/lib/customer/rollups";
 import { emitEvent } from "@/lib/events/emit";
 import type { Quote } from "@/lib/supabase/types";
@@ -62,12 +63,19 @@ export async function PATCH(
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   const { data: quoteRow } = await supabase
     .from("quotes")
     .select("*")
     .eq("id", id)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .maybeSingle();
 
   if (!quoteRow) {
@@ -87,10 +95,10 @@ export async function PATCH(
       .from("quotes")
       .update({ status: "sent", sent_at: nowIso })
       .eq("id", id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-    await emitEvent(supabase, AGENCY_ID, {
+    await emitEvent(supabase, agencyId, {
       type: "quote.sent",
       subjectType: "quote",
       subjectId: id,
@@ -101,7 +109,7 @@ export async function PATCH(
       .from("trips")
       .update({ stage: "quoted", updated_at: nowIso })
       .eq("id", quote.trip_id)
-      .eq("agency_id", AGENCY_ID)
+      .eq("agency_id", agencyId)
       .eq("stage", "enquiry");
 
     return NextResponse.json({ ok: true, status: "sent" });
@@ -119,10 +127,10 @@ export async function PATCH(
       .from("quotes")
       .update({ status: "viewed", viewed_at: nowIso, view_count: quote.view_count + 1 })
       .eq("id", id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-    await emitEvent(supabase, AGENCY_ID, {
+    await emitEvent(supabase, agencyId, {
       type: "quote.viewed",
       subjectType: "quote",
       subjectId: id,
@@ -146,7 +154,7 @@ export async function PATCH(
       .from("quotes")
       .update({ customer_response: response })
       .eq("id", id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
@@ -168,7 +176,7 @@ export async function PATCH(
         status: quote.status === "expired" ? "sent" : quote.status,
       })
       .eq("id", id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, expires_at: dateRaw });
   }
@@ -183,7 +191,7 @@ export async function PATCH(
       .from("quotes")
       .update({ status: "accepted" })
       .eq("id", id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
     // The booking moment: trip takes the quoted price and moves to booked,
@@ -196,15 +204,15 @@ export async function PATCH(
         updated_at: nowIso,
       })
       .eq("id", quote.trip_id)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
 
     if (quote.household_id) {
-      await refreshHouseholdRollups(supabase, AGENCY_ID, quote.household_id, {
+      await refreshHouseholdRollups(supabase, agencyId, quote.household_id, {
         setLastBookingAt: true,
       });
       try {
         await supabase.from("interactions").insert({
-          agency_id: AGENCY_ID,
+          agency_id: agencyId,
           household_id: quote.household_id,
           trip_id: quote.trip_id,
           kind: "system",
@@ -218,7 +226,7 @@ export async function PATCH(
       }
     }
 
-    await emitEvent(supabase, AGENCY_ID, {
+    await emitEvent(supabase, agencyId, {
       type: "quote.accepted",
       subjectType: "quote",
       subjectId: id,
@@ -239,10 +247,10 @@ export async function PATCH(
     .from("quotes")
     .update({ status: "declined", declined_reason: reason })
     .eq("id", id)
-    .eq("agency_id", AGENCY_ID);
+    .eq("agency_id", agencyId);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  await emitEvent(supabase, AGENCY_ID, {
+  await emitEvent(supabase, agencyId, {
     type: "quote.declined",
     subjectType: "quote",
     subjectId: id,

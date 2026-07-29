@@ -21,7 +21,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 import type { Contact, Trip, Household, Interaction } from "@/lib/supabase/types";
 
@@ -63,13 +64,20 @@ export async function POST(
   }
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   // ─── Load the message (agency-scoped) ───────────────────────────────
   const { data: ixRow, error: ixErr } = await supabase
     .from("interactions")
     .select("*")
     .eq("id", id)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .single();
 
   if (ixErr || !ixRow) {
@@ -84,7 +92,7 @@ export async function POST(
 
   if (ix.household_id) {
     const [{ data: hh }, { data: cs }, { data: ts }] = await Promise.all([
-      supabase.from("households").select("*").eq("id", ix.household_id).eq("agency_id", AGENCY_ID).single(),
+      supabase.from("households").select("*").eq("id", ix.household_id).eq("agency_id", agencyId).single(),
       supabase.from("contacts").select("*").eq("household_id", ix.household_id),
       supabase.from("trips").select("*").eq("household_id", ix.household_id),
     ]);

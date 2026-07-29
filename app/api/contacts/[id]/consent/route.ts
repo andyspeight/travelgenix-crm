@@ -17,7 +17,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { CONSENT_CHANNELS, type ConsentChannel } from "@/lib/consent/state";
 import { emitEvent } from "@/lib/events/emit";
 
@@ -79,12 +80,19 @@ export async function POST(
   const evidence = str(body.evidence, 300);
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
 
   const { data: contact } = await supabase
     .from("contacts")
     .select("id, household_id, first_name, last_name")
     .eq("id", contactId)
-    .eq("agency_id", AGENCY_ID)
+    .eq("agency_id", agencyId)
     .maybeSingle();
 
   if (!contact) {
@@ -97,7 +105,7 @@ export async function POST(
   const { data: created, error: insErr } = await supabase
     .from("consents")
     .insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       contact_id: contactId,
       household_id: householdId,
       channel,
@@ -132,10 +140,10 @@ export async function POST(
         marketing_opt_in_at: granted ? nowIso : null,
       })
       .eq("id", contactId)
-      .eq("agency_id", AGENCY_ID);
+      .eq("agency_id", agencyId);
   }
 
-  await emitEvent(supabase, AGENCY_ID, {
+  await emitEvent(supabase, agencyId, {
     type: "consent.updated",
     subjectType: "contact",
     subjectId: contactId,
@@ -152,7 +160,7 @@ export async function POST(
       .filter(Boolean)
       .join(" ");
     await supabase.from("interactions").insert({
-      agency_id: AGENCY_ID,
+      agency_id: agencyId,
       household_id: householdId,
       contact_id: contactId,
       kind: "system",

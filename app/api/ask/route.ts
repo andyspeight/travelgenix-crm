@@ -10,7 +10,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { apiAgencyId } from "@/lib/auth/session";
 import { runAsk, type AskTurn } from "@/lib/ask/router";
 import type { QueryContext } from "@/lib/ask/contract";
 import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
@@ -55,8 +56,15 @@ export async function POST(request: Request) {
     : [];
 
   const supabase = createClient();
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json(
+      { ok: false, error: "No access to this workspace." },
+      { status: 403 }
+    );
+  }
   const ctx: QueryContext = {
-    agencyId: AGENCY_ID,
+    agencyId: agencyId,
     db: supabase as unknown as QueryContext["db"],
     now: new Date(),
   };
