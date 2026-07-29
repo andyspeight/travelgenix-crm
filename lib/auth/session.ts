@@ -20,9 +20,10 @@
  * not of touching every query by hand.
  */
 
+import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient, AGENCY_ID } from "@/lib/supabase/server";
+import { createSystemClient, AGENCY_ID } from "@/lib/supabase/server";
 import {
   controlConfigured,
   resolveControlSession,
@@ -45,7 +46,10 @@ export type LunaSession = {
 export async function agencyForControlClient(
   clientRecordId: string
 ): Promise<string | null> {
-  const supabase = createClient();
+  // The SYSTEM client deliberately: this lookup is what answers "which
+  // agency is this request?", so it cannot itself be scoped to an agency
+  // without asking the question it is here to answer.
+  const supabase = createSystemClient();
   const { data } = await supabase
     .from("agencies")
     .select("id")
@@ -60,7 +64,7 @@ export async function agencyForControlClient(
  * Null means "signed out or not entitled" — callers should redirect to
  * Control's sign-in rather than rendering anything.
  */
-export async function getSession(): Promise<LunaSession | null> {
+export const getSession = cache(async function getSession(): Promise<LunaSession | null> {
   if (!controlConfigured()) {
     // Single-tenant mode: the access gate (middleware) has already decided
     // whether this request may proceed at all.
@@ -78,6 +82,23 @@ export async function getSession(): Promise<LunaSession | null> {
   if (!agencyId) return null; // entitled, but this agency isn't set up here yet
 
   return { agencyId, control, role: control.role };
+});
+
+/**
+ * The agency for THIS request, or null — without redirecting or throwing.
+ *
+ * Used by the Supabase client's fetch wrapper to stamp the tenant token onto
+ * every query. It must stay quiet: a query is not the place to decide the
+ * user should be sent to a sign-in page, and throwing here would turn a
+ * missing session into a 500 instead of an empty, RLS-enforced result.
+ */
+export async function currentAgencyIdQuiet(): Promise<string | null> {
+  try {
+    const session = await getSession();
+    return session ? session.agencyId : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
