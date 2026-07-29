@@ -1,72 +1,43 @@
 /**
- * POST /api/email/webhook — delivery events (bounces, complaints) from BOTH
- * providers, one endpoint.
+ * POST /api/email/webhook — delivery events (bounces, complaints).
  *
  * Point each provider's webhook here with the shared secret in the URL:
  *   https://<app>/api/email/webhook?token=<EMAIL_WEBHOOK_SECRET>
  * The middleware lets this path through the access gate (a provider can't
- * hold a login cookie); the token check below authenticates it instead —
- * and the route refuses everything when the env var is unset (no secret,
- * no webhook).
+ * hold a login cookie); the token check below authenticates it instead — and
+ * the route refuses everything when the env var is unset.
  *
- * Shapes: Brevo posts ONE event object ({event: "hard_bounce", email,
- * "message-id"}). SendGrid posts an ARRAY of event objects ({event:
- * "bounce"|"dropped"|"spamreport", email, sg_message_id}). Both are
- * normalised below; suppress-worthy events do three things:
- *   1. the address goes on email_suppressions (future sends refuse with the
- *      reason — the policy lib enforces it),
- *   2. the original email_sends row flips to bounced/complained,
+ * A SHARED ACCOUNT. The SendGrid account serves the whole Travelgenix
+ * estate, so this endpoint receives events for every tool that sends, not
+ * just the CRM. Most of what arrives is not ours, and that is expected.
+ *
+ * So the shape is: normalise, ask ONCE which of these message ids we
+ * recorded, then act only on those. A batch containing nothing of ours costs
+ * a single indexed lookup and no writes — no per-event queries, and no log
+ * line per foreign event, because at this volume that is just noise with a
+ * bill attached.
+ *
+ * On an event that IS ours:
+ *   1. the address goes on email_suppressions for THAT agency (the policy lib
+ *      then refuses future sends to it, with the reason shown),
+ *   2. the email_sends row flips to bounced/complained,
  *   3. email.bounced lands on the event spine.
- * Soft bounces, opens and deliveries are acknowledged and ignored —
- * suppressing on a full mailbox would be trigger-happy.
+ *
+ * Soft bounces, deferrals, opens and deliveries are acknowledged and ignored.
  */
 
 import { NextResponse } from "next/server";
 import { createSystemClient } from "@/lib/supabase/server";
 import { emitEvent } from "@/lib/events/emit";
+import {
+  normaliseEvents,
+  messageIdsToCheck,
+  ourEvents,
+  type OwnedSend,
+} from "@/lib/email/webhook-events";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-// Provider event names → our suppression reason. Anything not here is ignored.
-// Brevo: hard_bounce / blocked / invalid_email / spam.
-// SendGrid: bounce / dropped / spamreport.
-const SUPPRESS: Record<string, "bounce" | "complaint"> = {
-  hard_bounce: "bounce",
-  blocked: "bounce",
-  invalid_email: "bounce",
-  bounce: "bounce",
-  dropped: "bounce",
-  spam: "complaint",
-  complaint: "complaint",
-  spamreport: "complaint",
-};
-
-type RawEvent = {
-  event?: unknown;
-  email?: unknown;
-  reason?: unknown;
-  ["message-id"]?: unknown; // Brevo
-  sg_message_id?: unknown; // SendGrid (id + routing suffix after a dot)
-};
-
-function normalise(raw: RawEvent): {
-  event: string;
-  email: string;
-  messageId: string | null;
-  detail: string | null;
-} {
-  const sgId = typeof raw.sg_message_id === "string" ? raw.sg_message_id : null;
-  const brevoId = typeof raw["message-id"] === "string" ? raw["message-id"] : null;
-  return {
-    event: typeof raw.event === "string" ? raw.event : "",
-    email: typeof raw.email === "string" ? raw.email.trim().toLowerCase() : "",
-    // SendGrid appends a routing suffix after the first dot; we stored the
-    // bare X-Message-Id header at send time, so strip back to it.
-    messageId: sgId ? sgId.split(".")[0] : brevoId,
-    detail: typeof raw.reason === "string" ? raw.reason.slice(0, 300) : null,
-  };
-}
 
 export async function POST(request: Request) {
   const secret = process.env.EMAIL_WEBHOOK_SECRET;
@@ -85,72 +56,75 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
 
-  // One endpoint, two shapes: SendGrid batches events in an array.
-  const events = (Array.isArray(payload) ? payload : [payload])
-    .slice(0, 100)
-    .map((e) => normalise((e ?? {}) as RawEvent))
-    .filter((e) => SUPPRESS[e.event] && e.email);
-
+  const events = normaliseEvents(payload);
   if (events.length === 0) {
-    // Nothing we act on — acknowledge so the provider doesn't retry.
-    return NextResponse.json({ ok: true, ignored: true });
+    // Deliveries, opens, deferrals — or another tool's non-bounce traffic.
+    return NextResponse.json({ ok: true, handled: 0 });
   }
 
-  // System client: a provider has no session, and this endpoint
-  // legitimately looks across agencies to find the send it is about.
+  const ids = messageIdsToCheck(events);
+  if (ids.length === 0) {
+    return NextResponse.json({ ok: true, handled: 0 });
+  }
+
+  // System client: a provider has no session, and this endpoint legitimately
+  // looks across agencies to find which of OUR sends an event refers to.
   const supabase = createSystemClient();
-  let handled = 0;
 
-  for (const ev of events) {
-    const reason = SUPPRESS[ev.event];
+  // The one lookup. Everything not returned here belongs to another tool.
+  const { data: sendRows, error } = await supabase
+    .from("email_sends")
+    .select("id, agency_id, household_id, provider_message_id")
+    .in("provider_message_id", ids);
 
-    // WHICH AGENCY? A provider has no session, so unlike every other route
-    // the tenant can't come from the caller. It comes from the send this
-    // event is about: we look the message id up in the audit table and take
-    // the agency that sent it. An event we can't tie to a real send of ours
-    // is skipped rather than guessed — suppressing an address for the wrong
-    // agency would silently stop THEIR mail on someone else's bounce.
-    let sendId: string | null = null;
-    let householdId: string | null = null;
-    let agencyId: string | null = null;
+  if (error) {
+    // Answer 200 anyway: a retry storm from the provider helps nobody, and
+    // the next bounce for a dead address will suppress it just as well.
+    console.error("[email/webhook] lookup failed:", error.message);
+    return NextResponse.json({ ok: true, handled: 0 });
+  }
 
-    if (ev.messageId) {
-      const { data: send } = await supabase
-        .from("email_sends")
-        .update({ status: reason === "complaint" ? "complained" : "bounced" })
-        .eq("provider_message_id", ev.messageId)
-        .select("id, household_id, agency_id")
-        .maybeSingle();
-      sendId = (send?.id as string | undefined) ?? null;
-      householdId = (send?.household_id as string | undefined) ?? null;
-      agencyId = (send?.agency_id as string | undefined) ?? null;
-    }
+  const mine = ourEvents(events, (sendRows ?? []) as OwnedSend[]);
+  if (mine.length === 0) {
+    return NextResponse.json({ ok: true, handled: 0 });
+  }
 
-    if (!agencyId) {
-      console.warn(
-        `[email/webhook] ${ev.event} for ${ev.email} matched no send — skipped`
-      );
-      continue;
-    }
+  for (const { event, send } of mine) {
+    // Suppress for the agency that actually sent it. Upsert on
+    // (agency, email) — a second bounce is not news.
+    await supabase.from("email_suppressions").upsert(
+      {
+        agency_id: send.agency_id,
+        email: event.email,
+        reason: event.reason,
+        detail: event.detail,
+      },
+      { onConflict: "agency_id,email", ignoreDuplicates: true }
+    );
 
-    // Suppress. Upsert on (agency, email) — a second bounce is not news.
     await supabase
-      .from("email_suppressions")
-      .upsert(
-        { agency_id: agencyId, email: ev.email, reason, detail: ev.detail },
-        { onConflict: "agency_id,email", ignoreDuplicates: true }
-      );
+      .from("email_sends")
+      .update({ status: event.reason === "complaint" ? "complained" : "bounced" })
+      .eq("id", send.id);
 
-    // Spine.
-    await emitEvent(supabase, agencyId, {
+    await emitEvent(supabase, send.agency_id, {
       type: "email.bounced",
       subjectType: "email",
-      subjectId: sendId ?? ev.email,
-      householdId,
-      payload: { email: ev.email, event: ev.event, reason, detail: ev.detail },
+      subjectId: send.id,
+      householdId: send.household_id,
+      payload: {
+        email: event.email,
+        event: event.event,
+        reason: event.reason,
+        detail: event.detail,
+      },
     });
-    handled++;
   }
 
-  return NextResponse.json({ ok: true, handled });
+  // One line, not one per event — this endpoint sees the whole estate.
+  console.log(
+    `[email/webhook] ${mine.length} of ${events.length} suppressible events were ours`
+  );
+
+  return NextResponse.json({ ok: true, handled: mine.length });
 }
