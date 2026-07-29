@@ -15,6 +15,7 @@ import { requireAgencyId } from "@/lib/auth/session";
 import { daysUntil } from "@/lib/trips/presentation";
 import { sendgridReady, brevoReady } from "@/lib/email/providers";
 import { controlConfigured } from "@/lib/auth/control";
+import { resolveSender } from "@/lib/email/sender";
 import { getSession } from "@/lib/auth/session";
 import {
   SettingsIcon,
@@ -31,6 +32,10 @@ type Agency = {
   brand_color: string | null;
   brand_voice: string | null;
   timezone: string | null;
+  email_from_address: string | null;
+  email_from_name: string | null;
+  email_reply_to: string | null;
+  email_sender_verified: boolean | null;
 };
 
 type TeamMember = {
@@ -55,7 +60,7 @@ export default async function SettingsPage() {
     await Promise.all([
       supabase
         .from("agencies")
-        .select("id, name, slug, brand_color, brand_voice, timezone")
+        .select("id, name, slug, brand_color, brand_voice, timezone, email_from_address, email_from_name, email_reply_to, email_sender_verified")
         .eq("id", agencyId)
         .single(),
       supabase
@@ -80,6 +85,18 @@ export default async function SettingsPage() {
   const accessCodeOn = Boolean(process.env.LUNA_ACCESS_CODE);
   const session = await getSession();
   const dbMode = dbAccessMode();
+
+  // What a customer actually sees in their inbox when this agency emails.
+  const sender = resolveSender(
+    {
+      name: ag?.name ?? "",
+      emailFromAddress: ag?.email_from_address ?? null,
+      emailFromName: ag?.email_from_name ?? null,
+      emailReplyTo: ag?.email_reply_to ?? null,
+      emailSenderVerified: Boolean(ag?.email_sender_verified),
+    },
+    { address: process.env.EMAIL_FROM || "not set", name: process.env.EMAIL_FROM_NAME || "Luna Work" }
+  );
 
   // ─── Compliance roll-ups ──────────────────────────────────────────────
   const totalPeople = people.length;
@@ -332,6 +349,20 @@ export default async function SettingsPage() {
             detail="Marketing email — campaigns and bulk outreach, shared with Luna Marketing"
             connected={brevoReady()}
             offLabel="Key not set"
+          />
+          <SubHeading text="What your customers see" />
+          <Row
+            label="Emails come from"
+            value={`${sender.fromName} <${sender.fromEmail}>`}
+          />
+          {sender.replyTo && <Row label="Replies go to" value={sender.replyTo} />}
+          <Row
+            label="Your own sending domain"
+            value={
+              sender.ownDomain
+                ? "Authenticated — mail is sent as your domain"
+                : "Not authenticated yet — sent under your name from the Travelgenix domain, replies routed to you"
+            }
           />
           <IntegrationRow
             name="Vercel"
