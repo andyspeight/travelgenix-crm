@@ -22,7 +22,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createSystemClient } from "@/lib/supabase/server";
 import { emitEvent } from "@/lib/events/emit";
 
 export const dynamic = "force-dynamic";
@@ -96,7 +96,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
-  const supabase = createClient();
+  // System client: a provider has no session, and this endpoint
+  // legitimately looks across agencies to find the send it is about.
+  const supabase = createSystemClient();
   let handled = 0;
 
   for (const ev of events) {

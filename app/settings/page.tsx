@@ -10,7 +10,7 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, rlsReady } from "@/lib/supabase/server";
 import { requireAgencyId } from "@/lib/auth/session";
 import { daysUntil } from "@/lib/trips/presentation";
 import { sendgridReady, brevoReady } from "@/lib/email/providers";
@@ -285,10 +285,18 @@ export default async function SettingsPage() {
                     ? "Linked — this Control client maps to this workspace"
                     : "Not linked — ask Travelgenix to map this agency"
                 }
-                last
               />
             </>
           )}
+          <Row
+            label="Database enforcement"
+            value={
+              rlsReady()
+                ? "On — the database itself refuses cross-agency reads"
+                : "Off — tenant separation is enforced by the app only"
+            }
+            last
+          />
           {!controlOn && (
             <ManagedNote text="Set CONTROL_BASE_URL to switch this workspace onto the shared Luna sign-in." />
           )}
