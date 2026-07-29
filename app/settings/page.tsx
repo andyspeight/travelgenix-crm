@@ -12,6 +12,7 @@
 import { Topbar } from "@/components/layout/topbar";
 import { createClient, AGENCY_ID } from "@/lib/supabase/server";
 import { daysUntil } from "@/lib/trips/presentation";
+import { sendgridReady, brevoReady } from "@/lib/email/providers";
 import {
   SettingsIcon,
   UsersIcon,
@@ -255,6 +256,18 @@ export default async function SettingsPage() {
             name="Anthropic Claude"
             detail="The Luna AI engine"
             connected={anthropicConfigured}
+            offLabel="Key not set"
+          />
+          <IntegrationRow
+            name="SendGrid"
+            detail="Transactional email — one-to-one replies and booking messages"
+            connected={sendgridReady()}
+            offLabel="Key not set — sends open your mail app instead"
+          />
+          <IntegrationRow
+            name="Brevo"
+            detail="Marketing email — campaigns and bulk outreach, shared with Luna Marketing"
+            connected={brevoReady()}
             offLabel="Key not set"
           />
           <IntegrationRow

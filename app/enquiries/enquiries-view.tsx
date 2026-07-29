@@ -19,6 +19,8 @@ import { MessageIcon, SendIcon, PlaneIcon, XIcon, SparklesIcon } from "@/compone
 export type EnquiriesViewProps = {
   enquiries: Enquiry[];
   nameById: Record<string, string>;
+  /** True when the server has a configured email provider — replies send for real. */
+  emailLive: boolean;
 };
 
 type Tab = "needs_response" | "responded" | "converted" | "closed" | "all";
@@ -96,7 +98,7 @@ function ScorePill({ letter, title, s }: { letter: string; title: string; s: Enq
   );
 }
 
-export function EnquiriesView({ enquiries, nameById }: EnquiriesViewProps) {
+export function EnquiriesView({ enquiries, nameById, emailLive }: EnquiriesViewProps) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("needs_response");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -172,8 +174,24 @@ export function EnquiriesView({ enquiries, nameById }: EnquiriesViewProps) {
     }
   }
 
+  // Inline reply composer (real sending). Opened per enquiry, like closingId.
+  const [replyingId, setReplyingId] = useState<string | null>(null);
+  const [replySubject, setReplySubject] = useState("");
+  const [replyBody, setReplyBody] = useState("");
+  const [replySending, setReplySending] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+
   function respond(e: Enquiry) {
-    // Open the reply first (a mailto draft when we can), then stop the clock.
+    if (emailLive && e.contact_email) {
+      // Real sending: open the inline composer; the clock stops when it sends.
+      setReplyingId(e.id);
+      setReplySubject(`Your ${e.destination ?? "holiday"} enquiry`);
+      setReplyBody("");
+      setReplyError(null);
+      return;
+    }
+    // No provider (or no address): the old flow — mailto when we can, then
+    // stop the clock.
     if (e.contact_email) {
       const subject = encodeURIComponent(
         `Your ${e.destination ?? "holiday"} enquiry`
@@ -181,6 +199,49 @@ export function EnquiriesView({ enquiries, nameById }: EnquiriesViewProps) {
       window.open(`mailto:${e.contact_email}?subject=${subject}`, "_self");
     }
     void act(e.id, "respond");
+  }
+
+  async function sendEnquiryReply(e: Enquiry) {
+    if (!e.contact_email || !replyBody.trim()) return;
+    setReplySending(true);
+    setReplyError(null);
+    try {
+      const res = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to_email: e.contact_email,
+          household_id: e.household_id ?? undefined,
+          subject: replySubject.trim() || `Your ${e.destination ?? "holiday"} enquiry`,
+          body: replyBody,
+          purpose: "operational",
+          context: "enquiry_response",
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        not_configured?: boolean;
+      };
+      if (data.ok) {
+        setReplyingId(null);
+        await act(e.id, "respond"); // stop the clock only after a real send
+      } else if (data.not_configured) {
+        // Provider vanished mid-session: degrade to the mailto flow.
+        setReplyingId(null);
+        const params = new URLSearchParams();
+        params.set("subject", replySubject);
+        params.set("body", replyBody);
+        window.open(`mailto:${e.contact_email}?${params.toString()}`, "_self");
+        void act(e.id, "respond");
+      } else {
+        setReplyError(data.error || "The send failed. Nothing was delivered.");
+      }
+    } catch {
+      setReplyError("Network error — the send did not go through.");
+    } finally {
+      setReplySending(false);
+    }
   }
 
   const btn: React.CSSProperties = {
@@ -422,7 +483,9 @@ export function EnquiriesView({ enquiries, nameById }: EnquiriesViewProps) {
                       disabled={busy}
                       title={
                         e.contact_email
-                          ? `Open a reply to ${e.contact_email} and stop the clock`
+                          ? emailLive
+                            ? `Write and genuinely send a reply to ${e.contact_email} — the clock stops when it sends`
+                            : `Open a reply to ${e.contact_email} and stop the clock`
                           : "Mark as responded (no email on file — reply by phone)"
                       }
                       style={{ ...btn, background: "var(--tg-primary)", border: "1px solid var(--tg-primary)", color: "white", fontWeight: 600, opacity: busy ? 0.6 : 1 }}
@@ -480,6 +543,84 @@ export function EnquiriesView({ enquiries, nameById }: EnquiriesViewProps) {
                       Close
                     </button>
                   )}
+                </div>
+              )}
+
+              {/* Inline reply composer — real sending, human on the button */}
+              {replyingId === e.id && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    paddingTop: 12,
+                    borderTop: "1px solid var(--border)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                    Replying to <strong style={{ color: "var(--text)" }}>{e.contact_email}</strong> — sends
+                    for real and stops the response clock.
+                  </div>
+                  <input
+                    value={replySubject}
+                    onChange={(ev) => setReplySubject(ev.target.value)}
+                    placeholder="Subject"
+                    style={{
+                      border: "1px solid var(--border)",
+                      borderRadius: 7,
+                      background: "var(--surface)",
+                      color: "var(--text)",
+                      padding: "7px 10px",
+                      fontSize: 12.5,
+                      fontFamily: "inherit",
+                    }}
+                  />
+                  <textarea
+                    autoFocus
+                    value={replyBody}
+                    onChange={(ev) => setReplyBody(ev.target.value)}
+                    placeholder={`Hi ${e.contact_name?.split(" ")[0] ?? "there"},…`}
+                    rows={6}
+                    style={{
+                      border: "1px solid var(--border)",
+                      borderRadius: 7,
+                      background: "var(--surface)",
+                      color: "var(--text)",
+                      padding: "8px 10px",
+                      fontSize: 12.5,
+                      fontFamily: "inherit",
+                      lineHeight: 1.55,
+                      resize: "vertical",
+                    }}
+                  />
+                  {replyError && (
+                    <div style={{ fontSize: 11.5, color: "#dc2626" }}>{replyError}</div>
+                  )}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => void sendEnquiryReply(e)}
+                      disabled={replySending || !replyBody.trim()}
+                      style={{
+                        ...btn,
+                        background: "var(--tg-primary)",
+                        border: "1px solid var(--tg-primary)",
+                        color: "white",
+                        fontWeight: 600,
+                        opacity: replySending || !replyBody.trim() ? 0.6 : 1,
+                      }}
+                    >
+                      <SendIcon width={12} height={12} />
+                      {replySending ? "Sending…" : "Send reply"}
+                    </button>
+                    <button
+                      onClick={() => setReplyingId(null)}
+                      disabled={replySending}
+                      style={{ ...btn, border: "none" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

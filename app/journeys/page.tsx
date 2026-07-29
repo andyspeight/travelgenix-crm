@@ -26,6 +26,7 @@ import {
 import type { Household, Trip, Contact, Quote } from "@/lib/supabase/types";
 import { JourneysView, type JourneyCard, type RunFeedItem } from "./journeys-view";
 import { ComposeJourney } from "./compose-journey";
+import { emailConfigured } from "@/lib/email/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -112,6 +113,7 @@ export default async function JourneysPage() {
       id: r.id,
       journeyName: journeyNameById.get(r.journey_id) ?? "Journey",
       household: r.household_id ? nameById.get(r.household_id) ?? null : null,
+      householdId: r.household_id ?? null,
       email: r.household_id ? leadEmailByHousehold.get(r.household_id) ?? null : null,
       summary: result.summary ?? "Action taken",
       action: result.action ?? "",
@@ -150,6 +152,7 @@ export default async function JourneysPage() {
         feed={feed}
         activeCount={activeCount}
         eligibleTotal={eligibleTotal}
+        emailLive={emailConfigured()}
       />
     </>
   );

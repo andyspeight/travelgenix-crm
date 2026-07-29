@@ -35,6 +35,7 @@ export type RunFeedItem = {
   id: string;
   journeyName: string;
   household: string | null;
+  householdId: string | null;
   email: string | null;
   summary: string;
   action: string;
@@ -49,11 +50,13 @@ export function JourneysView({
   feed,
   activeCount,
   eligibleTotal,
+  emailLive,
 }: {
   cards: JourneyCard[];
   feed: RunFeedItem[];
   activeCount: number;
   eligibleTotal: number;
+  emailLive: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -260,7 +263,7 @@ export function JourneysView({
           ))}
         </div>
 
-        <ActivityPanel feed={feed} />
+        <ActivityPanel feed={feed} emailLive={emailLive} />
       </div>
 
       {toast ? <Toast text={toast} /> : null}
@@ -422,11 +425,12 @@ function JourneyRow({
 
 // ─── Activity feed ──────────────────────────────────────────────────────────
 
-function ActivityPanel({ feed }: { feed: RunFeedItem[] }) {
+function ActivityPanel({ feed, emailLive }: { feed: RunFeedItem[]; emailLive: boolean }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [openId, setOpenId] = useState<string | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   async function resolve(id: string, status: "sent" | "skipped") {
     setResolving(id);
@@ -451,6 +455,44 @@ function ActivityPanel({ feed }: { feed: RunFeedItem[] }) {
     if (f.subject) params.set("subject", f.subject);
     params.set("body", f.body);
     window.location.href = `mailto:${f.email}?${params.toString()}`;
+  }
+
+  // Real send of a reviewed journey draft: the agent has seen the draft and
+  // pressed the button — Luna drafted, a human dispatched.
+  async function sendNow(f: RunFeedItem) {
+    if (!f.email || !f.body) return;
+    setResolving(f.id);
+    setSendError(null);
+    try {
+      const res = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          to_email: f.email,
+          household_id: f.householdId ?? undefined,
+          subject: f.subject ?? f.journeyName,
+          body: f.body,
+          purpose: "operational",
+          context: "journey",
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        not_configured?: boolean;
+      };
+      if (data.ok) {
+        await resolve(f.id, "sent");
+      } else if (data.not_configured) {
+        openInEmail(f);
+      } else {
+        setSendError(data.error || "The send failed. Nothing was delivered.");
+        setResolving(null);
+      }
+    } catch {
+      setSendError("Network error — the send did not go through.");
+      setResolving(null);
+    }
   }
 
   const smallBtn: React.CSSProperties = {
@@ -519,6 +561,9 @@ function ActivityPanel({ feed }: { feed: RunFeedItem[] }) {
                         <span> · skipped</span>
                       ) : null}
                     </div>
+                    {queued && sendError && resolving === null && openId === f.id && (
+                      <div style={{ fontSize: 11, color: "#dc2626", marginTop: 5 }}>{sendError}</div>
+                    )}
                     {queued && (
                       <div style={{ display: "flex", gap: 5, marginTop: 6, flexWrap: "wrap" }}>
                         {isDraft && (
@@ -529,10 +574,19 @@ function ActivityPanel({ feed }: { feed: RunFeedItem[] }) {
                         {isDraft && f.email && (
                           <button
                             style={{ ...smallBtn, color: "var(--tg-accent-dark)", borderColor: "var(--tg-accent)" }}
-                            onClick={() => openInEmail(f)}
-                            title={`Opens your email app addressed to ${f.email}`}
+                            disabled={resolving === f.id}
+                            onClick={() => (emailLive ? void sendNow(f) : openInEmail(f))}
+                            title={
+                              emailLive
+                                ? `Sends this draft for real to ${f.email} and records it on the timeline`
+                                : `Opens your email app addressed to ${f.email}`
+                            }
                           >
-                            Open in email
+                            {emailLive
+                              ? resolving === f.id
+                                ? "Sending…"
+                                : "Send now"
+                              : "Open in email"}
                           </button>
                         )}
                         <button

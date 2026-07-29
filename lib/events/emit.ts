@@ -34,11 +34,13 @@ export type CrmEventType =
   | "customer.created"
   | "journey.executed"
   | "case.opened"
-  | "case.resolved";
+  | "case.resolved"
+  | "email.sent"
+  | "email.bounced";
 
 export type EmitArgs = {
   type: CrmEventType;
-  subjectType: "enquiry" | "trip" | "household" | "interaction" | "quote" | "contact" | "task" | "journey" | "case";
+  subjectType: "enquiry" | "trip" | "household" | "interaction" | "quote" | "contact" | "task" | "journey" | "case" | "email";
   subjectId: string;
   householdId?: string | null;
   payload?: Record<string, unknown>;

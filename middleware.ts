@@ -23,7 +23,13 @@ export async function middleware(request: NextRequest) {
   if (!code) return NextResponse.next(); // gate not enabled
 
   const { pathname } = request.nextUrl;
-  if (pathname === "/login" || pathname === "/api/auth/access") {
+  // /api/email/webhook authenticates itself with a shared secret instead —
+  // the email provider can't hold a login cookie.
+  if (
+    pathname === "/login" ||
+    pathname === "/api/auth/access" ||
+    pathname === "/api/email/webhook"
+  ) {
     return NextResponse.next();
   }
 
