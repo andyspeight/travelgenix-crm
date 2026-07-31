@@ -12,6 +12,8 @@
  *   gone_quiet       — real lifetime value drifting away unattended
  *   passport_risk    — a computed risk flag on a household with travel ahead
  *   unreachable      — a customer we literally cannot contact
+ *   undeliverable    — we emailed them and it bounced, so they never got it.
+ *                      The screen said "sent"; the customer heard nothing.
  *
  * Pure functions, no I/O.
  */
@@ -23,7 +25,8 @@ export type SuggestionKind =
   | "rebooking_window"
   | "gone_quiet"
   | "passport_risk"
-  | "unreachable";
+  | "unreachable"
+  | "undeliverable";
 
 export type Suggestion = {
   /** Stable key, e.g. "rebooking_window:hh-id". */
@@ -44,11 +47,20 @@ const FORWARD_STAGES = new Set(["booked", "pre_departure", "travelling"]);
 const monthsSince = (iso: string, now: Date): number =>
   Math.round((now.getTime() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24 * 30));
 
+/** A send that came back undelivered, joined to the household it was for. */
+export type BouncedSend = {
+  household_id: string | null;
+  to_email: string;
+  /** "bounce" (address is dead) or "complaint" (they marked us as spam). */
+  status: string;
+};
+
 export function computeSuggestions(
   households: Household[],
   contactsByHousehold: Map<string, Contact[]>,
   tripsByHousehold: Map<string, Trip[]>,
-  now: Date = new Date()
+  now: Date = new Date(),
+  bouncedByHousehold: Map<string, BouncedSend> = new Map()
 ): Suggestion[] {
   const suggestions: Suggestion[] = [];
 
@@ -65,6 +77,28 @@ export function computeSuggestions(
         (t.stage === "travelling" ||
           (t.depart_date != null && new Date(t.depart_date) >= now))
     );
+
+    // ─── Undeliverable ──────────────────────────────────────────────
+    // Top of the pile: we think we answered them and we did not. The email
+    // bounced, so the customer is still waiting while the record says done.
+    const bounced = bouncedByHousehold.get(hh.id);
+    if (bounced) {
+      const complaint = bounced.status === "complained";
+      suggestions.push({
+        id: `undeliverable:${hh.id}`,
+        kind: "undeliverable",
+        severity: 3,
+        title: complaint
+          ? `${name} marked your email as spam`
+          : `${name} never received your email`,
+        reason: complaint
+          ? `${bounced.to_email} reported a message as spam, so nothing more will be sent there. Reach them another way and ask how they would like to be contacted.`
+          : `${bounced.to_email} bounced — the address is not reachable. They are still waiting for a reply. Get a working address, by phone if need be.`,
+        href,
+        actionLabel: "Open the record",
+        householdId: hh.id,
+      });
+    }
 
     // ─── Rebooking window (differentiator 4) ────────────────────────
     // Their own cadence says they're due, and nothing is on the books.

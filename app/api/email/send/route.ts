@@ -71,6 +71,7 @@ export async function POST(request: Request) {
     body?: unknown;
     purpose?: unknown;
     context?: unknown;
+    enquiry_id?: unknown;
   };
   try {
     parsed = await request.json();
@@ -90,6 +91,12 @@ export async function POST(request: Request) {
   let householdId =
     typeof parsed.household_id === "string" && UUID_RE.test(parsed.household_id)
       ? parsed.household_id
+      : null;
+  // What this send is answering. Recorded so that a bounce can put the
+  // enquiry back in the queue rather than leaving it marked responded.
+  const enquiryId =
+    typeof parsed.enquiry_id === "string" && UUID_RE.test(parsed.enquiry_id)
+      ? parsed.enquiry_id
       : null;
 
   if (!subject || subject.length > MAX_SUBJECT) {
@@ -203,6 +210,30 @@ export async function POST(request: Request) {
   // Brevo (each falls back to the other when only one is configured) ─────
   const result = await sendEmail({ purpose, toEmail: toEmail!, toName, subject, text: body, sender });
 
+  // Timeline entry first, so the audit row can point at it — a bounce then
+  // has something to correct.
+  let interactionId: string | null = null;
+  if (result.ok && householdId) {
+    const { data: ix } = await supabase
+      .from("interactions")
+      .insert({
+        agency_id: agencyId,
+        household_id: householdId,
+        contact_id: contactId,
+        kind: "email_out",
+        channel: "email",
+        direction: "outbound",
+        subject,
+        body,
+        is_read: true,
+        is_triaged: true,
+        occurred_at: new Date().toISOString(),
+      })
+      .select("id")
+      .maybeSingle();
+    interactionId = (ix?.id as string | undefined) ?? null;
+  }
+
   // Audit row either way — failed sends are worth seeing too.
   const { data: sendRow } = await supabase
     .from("email_sends")
@@ -219,30 +250,14 @@ export async function POST(request: Request) {
       provider: result.ok ? result.provider : null,
       provider_message_id: result.ok ? result.messageId : null,
       error: result.ok ? null : result.error,
+      interaction_id: interactionId,
+      enquiry_id: enquiryId,
     })
     .select("id")
     .maybeSingle();
 
   if (!result.ok) {
     return NextResponse.json({ ok: false, error: result.error }, { status: 502 });
-  }
-
-  // Timeline entry so the conversation lives on the record, like Attio —
-  // but only when we can attach it to a household.
-  if (householdId) {
-    await supabase.from("interactions").insert({
-      agency_id: agencyId,
-      household_id: householdId,
-      contact_id: contactId,
-      kind: "email_out",
-      channel: "email",
-      direction: "outbound",
-      subject,
-      body,
-      is_read: true,
-      is_triaged: true,
-      occurred_at: new Date().toISOString(),
-    });
   }
 
   await emitEvent(supabase, agencyId, {

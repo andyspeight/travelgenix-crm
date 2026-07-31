@@ -212,6 +212,7 @@ export function EnquiriesView({ enquiries, nameById, emailLive }: EnquiriesViewP
         body: JSON.stringify({
           to_email: e.contact_email,
           household_id: e.household_id ?? undefined,
+          enquiry_id: e.id,
           subject: replySubject.trim() || `Your ${e.destination ?? "holiday"} enquiry`,
           body: replyBody,
           purpose: "operational",
