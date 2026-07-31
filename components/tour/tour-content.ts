@@ -159,6 +159,17 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     group: "Feature",
+    title: "Sequences",
+    points: [
+      "A chase that runs over days — day 0, day 4, day 10 — instead of one email and hope.",
+      "It stops the moment it should: when they reply, when the quote is answered, or when the address turns out to be dead. That is what keeps it service rather than nagging.",
+      "Steps arrive in Tasks for you to review by default. Letting a sequence send on its own is a separate, deliberate switch.",
+    ],
+    href: "/sequences",
+    cta: "Open Sequences",
+  },
+  {
+    group: "Feature",
     title: "Reports",
     points: [
       "Booked revenue, open pipeline, conversion, destinations and sources.",

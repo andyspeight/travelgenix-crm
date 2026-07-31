@@ -207,3 +207,32 @@ Order agreed 24 Jul: 1) trends + forecasting, 2) real email sending, 3) multi-te
 Auth + RLS for multi-tenant, generated Supabase types, a scheduled trigger for journeys (cron) instead of manual "Run now", and swapping the in-memory rate limiter for Upstash.
 </content>
 </invoke>
+
+
+---
+
+## Phase 6 — the Attio review, revisited (in progress)
+
+Andy shared attio.com as the fastest-growing CRM in the general B2B space and
+asked what we could learn. Most of their playbook we were already running —
+AI in the data model rather than a bolted-on chatbot, a conversational layer,
+and reporting that is a documented weakness of theirs and a strength of ours.
+Three places they were genuinely ahead:
+
+1. **Sequences** — multi-step, stop-on-reply. ← DONE
+2. **Enrichment on create** — theirs is company/LinkedIn data; the travel
+   version is school-holiday flags, visa and passport-validity rules, flight
+   times, seasonality.
+3. **Reply and engagement tracking** — inbound email onto the timeline, opens
+   and replies, not just sends.
+
+- [x] **1. Sequences** (31 Jul) — a chase that runs over days and stops the moment it should.
+  - **Schema**: `sequences` / `sequence_steps` / `sequence_enrolments` (applied live, RLS policies included from the start). `delay_days` is measured from ENROLMENT, not from the previous step, so editing one step cannot silently shift everything after it. A unique index means nobody is ever chased twice down the same track for the same thing.
+  - **`lib/sequences/engine.ts` (14 tests)** — the decision, and the care is all in stopping. Every stop condition is checked BEFORE considering a send, on every evaluation, not only when a step is due: a reply on day 2 must stop the chase before day 3 comes round. Stop reasons, in priority order: an agent pressed stop, they replied, the thing resolved (quote accepted/declined/answered), the address is undeliverable, marketing consent withdrawn. Consent is consulted for MARKETING sequences only — chasing a live quote is service under PECR, and stopping it on a marketing withdrawal would abandon someone mid-booking. Plus: never two steps in one day even if a run was missed, so catching up cannot arrive as a burst.
+  - **`lib/email/send.ts`** — the send pipeline lifted out of its HTTP route so an unattended sequence send passes exactly the same consent check, suppression check and per-agency sender identity as a human-pressed one. The route is now a thin wrapper; there is one pipeline, not two.
+  - **`lib/sequences/runner.ts`** — enrols via the existing journeys matcher (one trigger vocabulary, not two), then evaluates every active enrolment. A provider refusal stops the whole chase and records the provider's own words, rather than retrying nightly.
+  - **Safety**: `auto_send` is per sequence and defaults FALSE. In review mode each step becomes a task in the queue agents already work, with the wording ready. The starter installs PAUSED and in review mode — nobody should discover their CRM chasing customers with words they have never read.
+  - **UI**: `/sequences` — the steps as chips, live counts, and a "Stopped — and why" list, which is the bit that tells an agent the automation is behaving itself. Sidebar, palette and tour entries.
+  - **Cron**: sequences run in the same nightly pass as journeys.
+- [ ] **2. Enrichment on enquiry** — the travel-native answer to Attio's auto-enrichment.
+- [ ] **3. Reply and engagement tracking** — inbound onto the timeline; opens and replies.
