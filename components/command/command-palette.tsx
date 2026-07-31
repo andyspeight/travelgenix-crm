@@ -13,6 +13,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useCommand } from "./command-context";
 import {
+  SendIcon,
   HomeIcon,
   InboxIcon,
   UsersIcon,
@@ -37,6 +38,7 @@ const NAV = [
   { label: "Service", href: "/service", Icon: LifeBuoyIcon },
   { label: "Journeys", href: "/journeys", Icon: ZapIcon },
   { label: "Tasks", href: "/tasks", Icon: CheckSquareIcon },
+  { label: "Sequences", href: "/sequences", Icon: SendIcon },
   { label: "Reports", href: "/reports", Icon: ChartIcon },
   { label: "Settings", href: "/settings", Icon: SettingsIcon },
 ];

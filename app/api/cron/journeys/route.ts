@@ -28,6 +28,7 @@
 import { NextResponse } from "next/server";
 import { createSystemClient } from "@/lib/supabase/server";
 import { runJourneysForAgency } from "@/lib/journeys/run";
+import { runSequencesForAgency } from "@/lib/sequences/runner";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -62,15 +63,30 @@ export async function GET(request: Request) {
   }
 
   const agencies = (agencyRows ?? []) as { id: string; name: string }[];
-  const results: { agency: string; fired: number; error?: string }[] = [];
+  const results: {
+    agency: string;
+    fired: number;
+    sequences?: { enrolled: number; sent: number; queued: number; stopped: number };
+    error?: string;
+  }[] = [];
 
   for (const agency of agencies) {
     try {
       const result = await runJourneysForAgency(supabase, agency.id);
+      // Sequences run in the same pass: they share the trigger matcher, and
+      // a chase that stops on a reply needs evaluating every night whether or
+      // not a step is due.
+      const seq = await runSequencesForAgency(supabase, agency.id);
       results.push({
         agency: agency.name,
         fired: result.totalFired,
-        ...(result.error ? { error: result.error } : {}),
+        sequences: {
+          enrolled: seq.enrolled,
+          sent: seq.sent,
+          queued: seq.queued,
+          stopped: seq.stopped,
+        },
+        ...(result.error || seq.error ? { error: result.error ?? seq.error } : {}),
       });
     } catch (err) {
       // One workspace failing must never stop the others.
