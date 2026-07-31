@@ -43,10 +43,21 @@ export async function GET(request: Request) {
   }
 
   const supabase = createSystemClient();
+  const startedAt = new Date().toISOString();
 
   const { data: agencyRows, error } = await supabase.from("agencies").select("id, name");
   if (error) {
     console.error("[cron/journeys] could not list agencies:", error.message);
+    // Record the failure: a run that could not proceed must still leave a
+    // trace, or the health panel reads it as "never ran" and nobody can tell
+    // a broken schedule from an unconfigured one.
+    await supabase.from("cron_runs").insert({
+      job: "journeys",
+      started_at: startedAt,
+      finished_at: new Date().toISOString(),
+      status: "failed",
+      error: error.message,
+    });
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
@@ -76,6 +87,18 @@ export async function GET(request: Request) {
       failed ? `, ${failed} failed` : ""
     }`
   );
+
+  // The heartbeat. Its ABSENCE is the signal the health panel reads: a
+  // schedule that stops does not error, it just goes quiet.
+  await supabase.from("cron_runs").insert({
+    job: "journeys",
+    started_at: startedAt,
+    finished_at: new Date().toISOString(),
+    status: failed === 0 ? "ok" : failed === agencies.length ? "failed" : "partial",
+    agencies: agencies.length,
+    actions: totalFired,
+    detail: { results },
+  });
 
   return NextResponse.json({ ok: true, agencies: agencies.length, totalFired, results });
 }

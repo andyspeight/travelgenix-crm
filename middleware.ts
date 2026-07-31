@@ -39,6 +39,9 @@ function isAlwaysOpen(pathname: string): boolean {
     pathname === "/login" ||
     pathname === "/api/auth/access" ||
     pathname === "/api/email/webhook" ||
+    // An uptime monitor cannot sign in. The route answers liveness only —
+    // no counts, no config, nothing that maps the estate.
+    pathname === "/api/health" ||
     // The scheduler cannot hold a sign-in cookie either; it authenticates
     // with CRON_SECRET inside the route.
     pathname.startsWith("/api/cron/")
