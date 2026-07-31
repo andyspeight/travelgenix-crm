@@ -51,6 +51,11 @@ const ALLOWED: Record<string, string> = {
   // Children scoped through their parent trip/journey, which is itself scoped.
   "app/api/journeys/runs/[id]/route.ts::journey_runs":
     "scoped via its journey, which is agency-filtered",
+  // The nightly schedule is the one caller that is SUPPOSED to work the whole
+  // estate: it lists agencies in order to then run each one separately, and
+  // passes the agency id explicitly into every query it makes.
+  "app/api/cron/journeys/route.ts::agencies":
+    "the estate-wide scheduler; lists agencies to run each one scoped",
 };
 
 function sourceFiles(dir: string, out: string[] = []): string[] {

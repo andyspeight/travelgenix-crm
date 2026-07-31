@@ -18,8 +18,10 @@
  *
  * Neither set = open, so a fresh deploy or local dev never locks anyone out.
  *
- * /api/email/webhook is always let through: email providers authenticate with
- * a shared secret in the URL, not a login cookie.
+ * /api/email/webhook and /api/cron/* are always let through: an email
+ * provider and a scheduler cannot hold a login cookie. They authenticate with
+ * a shared secret inside the route instead, and refuse everything when that
+ * secret is unset.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -36,7 +38,10 @@ function isAlwaysOpen(pathname: string): boolean {
   return (
     pathname === "/login" ||
     pathname === "/api/auth/access" ||
-    pathname === "/api/email/webhook"
+    pathname === "/api/email/webhook" ||
+    // The scheduler cannot hold a sign-in cookie either; it authenticates
+    // with CRON_SECRET inside the route.
+    pathname.startsWith("/api/cron/")
   );
 }
 
