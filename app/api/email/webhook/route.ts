@@ -74,7 +74,7 @@ export async function POST(request: Request) {
   // The one lookup. Everything not returned here belongs to another tool.
   const { data: sendRows, error } = await supabase
     .from("email_sends")
-    .select("id, agency_id, household_id, provider_message_id")
+    .select("id, agency_id, household_id, provider_message_id, interaction_id, enquiry_id, to_email")
     .in("provider_message_id", ids);
 
   if (error) {
@@ -106,6 +106,32 @@ export async function POST(request: Request) {
       .from("email_sends")
       .update({ status: event.reason === "complaint" ? "complained" : "bounced" })
       .eq("id", send.id);
+
+    // CORRECT THE RECORD. Suppressing the address is not enough on its own:
+    // without this the enquiry still reads "responded" and the timeline still
+    // shows an email the customer never received. Silence would leave someone
+    // waiting while the screen says the job is done.
+    const wording =
+      event.reason === "complaint"
+        ? "Reported as spam — not delivered"
+        : "Bounced — not delivered";
+
+    if (send.interaction_id) {
+      await supabase
+        .from("interactions")
+        .update({ body_summary: `${wording}. ${event.detail ?? ""}`.trim() })
+        .eq("id", send.interaction_id);
+    }
+
+    // A reply that bounced is not a reply. Put the enquiry back in the queue
+    // with its clock running again — the customer genuinely has not heard.
+    if (send.enquiry_id) {
+      await supabase
+        .from("enquiries")
+        .update({ status: "new", first_response_at: null })
+        .eq("id", send.enquiry_id)
+        .eq("agency_id", send.agency_id);
+    }
 
     await emitEvent(supabase, send.agency_id, {
       type: "email.bounced",

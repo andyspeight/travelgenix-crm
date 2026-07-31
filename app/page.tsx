@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/icons";
 import { clockState } from "@/lib/enquiries/clock";
 import { rescueAlerts, type QuoteTripContext, type RescueAlert } from "@/lib/quotes/rescue";
-import { computeSuggestions, type Suggestion } from "@/lib/suggest/detectors";
+import { computeSuggestions, type Suggestion, type BouncedSend } from "@/lib/suggest/detectors";
 import type { Contact, Enquiry, Quote } from "@/lib/supabase/types";
 import {
   STAGE_META,
@@ -240,11 +240,29 @@ export default async function DashboardPage() {
     arr.push(t);
     tripsByHousehold.set(t.household_id, arr);
   }
+  // Undelivered mail, newest first per household: the record says we replied,
+  // the customer never got it. Missing table just means no such suggestions.
+  const { data: bouncedRows } = await supabase
+    .from("email_sends")
+    .select("household_id, to_email, status, created_at")
+    .eq("agency_id", agencyId)
+    .in("status", ["bounced", "complained"])
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  const bouncedByHousehold = new Map<string, BouncedSend>();
+  for (const b of (bouncedRows ?? []) as (BouncedSend & { created_at: string })[]) {
+    if (b.household_id && !bouncedByHousehold.has(b.household_id)) {
+      bouncedByHousehold.set(b.household_id, b);
+    }
+  }
+
   const suggestions = computeSuggestions(
     hh as unknown as Household[],
     contactsByHousehold,
     tripsByHousehold,
-    new Date(nowIso)
+    new Date(nowIso),
+    bouncedByHousehold
   );
 
   // ─── Pipeline by stage ────────────────────────────────────────────────

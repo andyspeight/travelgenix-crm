@@ -99,6 +99,11 @@ export type OwnedSend = {
   agency_id: string;
   household_id: string | null;
   provider_message_id: string;
+  /** The timeline entry to correct when this send turns out undelivered. */
+  interaction_id?: string | null;
+  /** The enquiry to reopen — a reply that bounced is not a reply. */
+  enquiry_id?: string | null;
+  to_email?: string | null;
 };
 
 /**

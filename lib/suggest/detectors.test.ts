@@ -167,3 +167,56 @@ describe("ordering", () => {
     expect(out[0].severity).toBe(3);
   });
 });
+
+describe("undeliverable — the screen said sent, the customer heard nothing", () => {
+  const bounce = (hhId: string, over: Partial<{ to_email: string; status: string }> = {}) =>
+    new Map([
+      [
+        hhId,
+        {
+          household_id: hhId,
+          to_email: "dead@example.com",
+          status: "bounced",
+          ...over,
+        },
+      ],
+    ]);
+
+  it("says plainly that they never received it, and names the address", () => {
+    const hh = makeHousehold({ display_name: "The Whitfields" });
+    const [c, t] = maps(hh.id, [makeContact({ household_id: hh.id })], []);
+    const out = computeSuggestions([hh], c, t, NOW, bounce(hh.id));
+
+    const s = out.find((x) => x.kind === "undeliverable")!;
+    expect(s).toBeDefined();
+    expect(s.title).toMatch(/never received/);
+    expect(s.reason).toContain("dead@example.com");
+    expect(s.reason).toMatch(/still waiting/);
+  });
+
+  it("is the most urgent thing on the list — someone is waiting on us", () => {
+    const hh = makeHousehold();
+    const [c, t] = maps(hh.id, [makeContact({ household_id: hh.id })], []);
+    const out = computeSuggestions([hh], c, t, NOW, bounce(hh.id));
+    expect(out.find((x) => x.kind === "undeliverable")!.severity).toBe(3);
+  });
+
+  it("a spam complaint reads differently from a dead address", () => {
+    const hh = makeHousehold({ display_name: "The Patels" });
+    const [c, t] = maps(hh.id, [makeContact({ household_id: hh.id })], []);
+    const out = computeSuggestions([hh], c, t, NOW, bounce(hh.id, { status: "complained" }));
+
+    const s = out.find((x) => x.kind === "undeliverable")!;
+    expect(s.title).toMatch(/marked your email as spam/);
+    expect(s.reason).toMatch(/nothing more will be sent/);
+    expect(s.reason).not.toMatch(/bounced/);
+  });
+
+  it("says nothing when nothing bounced", () => {
+    const hh = makeHousehold();
+    const [c, t] = maps(hh.id, [makeContact({ household_id: hh.id })], []);
+    expect(
+      computeSuggestions([hh], c, t, NOW).find((x) => x.kind === "undeliverable")
+    ).toBeUndefined();
+  });
+});
