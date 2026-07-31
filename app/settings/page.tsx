@@ -17,6 +17,8 @@ import { sendgridReady, brevoReady } from "@/lib/email/providers";
 import { controlConfigured } from "@/lib/auth/control";
 import { resolveSender } from "@/lib/email/sender";
 import { getSession } from "@/lib/auth/session";
+import { computeHealth, overallState, type HealthState } from "@/lib/health/checks";
+import { createSystemClient } from "@/lib/supabase/server";
 import {
   SettingsIcon,
   UsersIcon,
@@ -85,6 +87,40 @@ export default async function SettingsPage() {
   const accessCodeOn = Boolean(process.env.LUNA_ACCESS_CODE);
   const session = await getSession();
   const dbMode = dbAccessMode();
+
+  // ─── System health ────────────────────────────────────────────────────
+  // The things that fail quietly. Read on the system client because the
+  // schedule is estate-wide and has no agency of its own.
+  const sys = createSystemClient();
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const [{ data: cronRow }, { data: recentSends }, { data: suppressedRows }] = await Promise.all([
+    sys.from("cron_runs").select("started_at, status, actions")
+      .eq("job", "journeys").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("email_sends").select("status")
+      .eq("agency_id", agencyId).gte("created_at", sevenDaysAgo),
+    supabase.from("email_suppressions").select("email").eq("agency_id", agencyId),
+  ]);
+
+  const sends = (recentSends ?? []) as { status: string }[];
+  const health = computeHealth({
+    now: new Date(),
+    lastCronRun: cronRow
+      ? {
+          startedAt: cronRow.started_at as string,
+          status: cronRow.status as string,
+          actions: (cronRow.actions as number) ?? 0,
+        }
+      : null,
+    cronEnabled: Boolean(process.env.CRON_SECRET),
+    emailConfigured: sendgridReady() || brevoReady(),
+    failedSends7d: sends.filter((x) => x.status === "failed").length,
+    bounced7d: sends.filter((x) => x.status === "bounced" || x.status === "complained").length,
+    totalSends7d: sends.length,
+    suppressed: (suppressedRows ?? []).length,
+    aiConfigured: anthropicConfigured,
+    controlConfigured: controlOn,
+  });
+  const healthOverall = overallState(health);
 
   // What a customer actually sees in their inbox when this agency emails.
   const sender = resolveSender(
@@ -320,6 +356,60 @@ export default async function SettingsPage() {
           {!controlOn && (
             <ManagedNote text="Set CONTROL_BASE_URL to switch this workspace onto the shared Luna sign-in." />
           )}
+        </Section>
+
+        {/* ─── System health ─────────────────────────────────────────── */}
+        <Section
+          title="System health"
+          description="The things that fail quietly — a stopped schedule, mail that is not arriving. Computed from real activity, not from a status page."
+        >
+          <div style={{ marginBottom: 4 }}>
+            <HealthDot state={healthOverall} />
+          </div>
+          {health.map((c, i) => (
+            <div
+              key={c.id}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 12,
+                padding: "11px 0",
+                borderBottom: i === health.length - 1 ? "none" : "1px solid var(--border)",
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: HEALTH_COLOUR[c.state],
+                  marginTop: 6,
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--text)" }}>
+                  {c.label}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                  {c.detail}
+                </div>
+              </div>
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: HEALTH_COLOUR[c.state],
+                  textAlign: "right",
+                  flexShrink: 0,
+                  maxWidth: 220,
+                }}
+              >
+                {c.value}
+              </span>
+            </div>
+          ))}
         </Section>
 
         {/* ─── Integrations ──────────────────────────────────────────── */}
@@ -724,5 +814,46 @@ function ManagedNote({ text, tone }: { text: string; tone?: "warn" }) {
     >
       {text}
     </p>
+  );
+}
+
+// ─── Health helpers ─────────────────────────────────────────────────────
+
+const HEALTH_COLOUR: Record<HealthState, string> = {
+  ok: "var(--success)",
+  warn: "var(--warning)",
+  bad: "var(--error)",
+  off: "var(--text-subtle)",
+};
+
+const HEALTH_WORD: Record<HealthState, string> = {
+  ok: "Everything is running",
+  warn: "Worth a look",
+  bad: "Needs attention",
+  off: "Partly switched off",
+};
+
+function HealthDot({ state }: { state: HealthState }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: HEALTH_COLOUR[state],
+      }}
+    >
+      <span
+        style={{
+          width: 9,
+          height: 9,
+          borderRadius: "50%",
+          background: HEALTH_COLOUR[state],
+        }}
+      />
+      {HEALTH_WORD[state]}
+    </span>
   );
 }

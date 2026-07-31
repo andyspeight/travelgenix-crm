@@ -56,6 +56,9 @@ const ALLOWED: Record<string, string> = {
   // passes the agency id explicitly into every query it makes.
   "app/api/cron/journeys/route.ts::agencies":
     "the estate-wide scheduler; lists agencies to run each one scoped",
+  // A liveness probe: head-only existence check, returns no rows at all.
+  "app/api/health/route.ts::agencies":
+    "head-only reachability check; returns a count, never rows",
 };
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
