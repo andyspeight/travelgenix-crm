@@ -85,6 +85,21 @@ export const getSession = cache(async function getSession(): Promise<LunaSession
 });
 
 /**
+ * Who Control says this caller is, EVEN IF no agency here maps to them.
+ *
+ * getSession() deliberately returns null in that case — an unmapped session
+ * must not reach any data. But then the person is left staring at a refusal
+ * with nothing to act on. This gives the /no-access page the one fact that
+ * makes it fixable: which Control client they arrived as, so it can be
+ * mapped without anyone guessing.
+ */
+export async function controlIdentity(): Promise<ControlSession | null> {
+  if (!controlConfigured()) return null;
+  const h = headers();
+  return resolveControlSession(h.get("cookie"), h.get("x-tg-act-as"));
+}
+
+/**
  * The agency for THIS request, or null — without redirecting or throwing.
  *
  * Used by the Supabase client's fetch wrapper to stamp the tenant token onto
