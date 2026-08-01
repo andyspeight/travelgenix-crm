@@ -15,6 +15,7 @@ import { requireAgencyId } from "@/lib/auth/session";
 import { MessageIcon } from "@/components/ui/icons";
 import type { Enquiry } from "@/lib/supabase/types";
 import { EnquiriesView } from "./enquiries-view";
+import { enrichEnquiry, type EnrichmentFact } from "@/lib/enrich/enquiry";
 import { emailConfigured } from "@/lib/email/providers";
 import { NewEnquiry } from "./new-enquiry";
 
@@ -34,11 +35,60 @@ export default async function EnquiriesPage() {
     supabase.from("households").select("id, display_name").eq("agency_id", agencyId),
   ]);
 
+  // Passport checks need the travellers, so pull contacts for the households
+  // these enquiries are linked to. An unconverted enquiry has none, and the
+  // date and destination checks still work without them.
+  const { data: contactRows } = await supabase
+    .from("contacts")
+    .select("household_id, first_name, last_name, passport_expiry")
+    .eq("agency_id", agencyId);
+
   const migrationMissing = Boolean(
     enqErr && /enquiries/.test(enqErr.message ?? "")
   );
 
   const enquiries = (enquiryRows ?? []) as Enquiry[];
+
+  const contactsByHousehold = new Map<string, { name: string; passportExpiry: string | null }[]>();
+  for (const c of (contactRows ?? []) as {
+    household_id: string;
+    first_name: string;
+    last_name: string | null;
+    passport_expiry: string | null;
+  }[]) {
+    const list = contactsByHousehold.get(c.household_id) ?? [];
+    list.push({
+      name: [c.first_name, c.last_name].filter(Boolean).join(" "),
+      passportExpiry: c.passport_expiry,
+    });
+    contactsByHousehold.set(c.household_id, list);
+  }
+
+  // What Luna worked out about each enquiry the moment it landed.
+  const enrichment: Record<string, EnrichmentFact[]> = {};
+  for (const e of enquiries) {
+    // An enquiry stores nights, not a return date — derive it so the
+    // passport checks have something to measure against.
+    const returnDate =
+      e.depart_date && e.duration_nights
+        ? new Date(
+            new Date(`${e.depart_date.slice(0, 10)}T00:00:00Z`).getTime() +
+              e.duration_nights * 86_400_000
+          )
+            .toISOString()
+            .slice(0, 10)
+        : e.depart_date;
+
+    const facts = enrichEnquiry({
+      destination: e.destination,
+      departDate: e.depart_date,
+      returnDate,
+      adults: e.adults,
+      children: e.children,
+      travellers: e.household_id ? contactsByHousehold.get(e.household_id) ?? [] : [],
+    });
+    if (facts.length) enrichment[e.id] = facts;
+  }
   const nameById = Object.fromEntries(
     (households ?? []).map((h: { id: string; display_name: string }) => [h.id, h.display_name])
   );
@@ -90,7 +140,7 @@ export default async function EnquiriesPage() {
           </div>
         </div>
       ) : (
-        <EnquiriesView enquiries={enquiries} nameById={nameById} emailLive={emailConfigured()} />
+        <EnquiriesView enquiries={enquiries} nameById={nameById} emailLive={emailConfigured()} enrichment={enrichment} />
       )}
     </>
   );
