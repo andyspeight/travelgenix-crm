@@ -38,6 +38,8 @@ export type CrmEventType =
   | "email.sent"
   | "email.bounced"
   | "commission.received"
+  // A batch action an agent approved in Ask Luna.
+  | "ask.action"
   | "email.replied"
   // An out-of-office. Recorded separately so nothing downstream can mistake
   // a machine's acknowledgement for a customer's answer.
