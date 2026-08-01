@@ -278,3 +278,8 @@ Three places they were genuinely ahead:
   - **Due dates are derived, not invented**: payment terms counted from the return date. No terms recorded means no date to chase against, and the chase list stays quiet rather than making one up.
   - **On the dashboard**: overdue commission joins the one list as a breached-promise row — the only item on it that is worth cash the moment it is actioned.
   - **Reports relabelled**: "Booked revenue" → "Booked turnover", "Revenue by destination" → "Turnover by destination". Now that the CRM knows the difference, the old labels were misleading.
+
+- [x] **Ask Luna on the dashboard** (1 Aug) — the assistant was a floating button and Cmd/Ctrl+K, which is a shortcut nobody discovers on their own. There is now a prompt line under the greeting with four dull, useful suggestions ("Who's travelling in the next month?", "What did we earn last month?").
+  - **It is a doorway, not a second assistant.** `components/luna-ask-context.tsx` provides `ask(question)`, and the dashboard bar calls it — opening the SAME panel, with the same history and the same tools. Building a second question box that answered its own way is how two assistants end up disagreeing with each other.
+  - The nonce on each request is what makes asking the same question twice work; without it the state would not change and the second ask would do nothing.
+  - Suggestions are static on purpose: a personalised suggestion means an AI call on every dashboard load, and this page is meant to be instant.

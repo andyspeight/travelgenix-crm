@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { AppShell } from "@/components/layout/app-shell";
-import { LunaAsk } from "@/components/luna-ask";
+import { LunaAskProvider } from "@/components/luna-ask-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,8 +18,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <AppShell>{children}</AppShell>
-          <LunaAsk />
+          {/* The provider owns the one Luna and renders it, so the dashboard
+              prompt line and the floating button open the same panel. */}
+          <LunaAskProvider>
+            <AppShell>{children}</AppShell>
+          </LunaAskProvider>
         </ThemeProvider>
       </body>
     </html>
