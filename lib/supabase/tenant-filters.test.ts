@@ -28,7 +28,7 @@ const TENANT_TABLES = [
   "households", "contacts", "suppliers", "trips", "interactions",
   "tasks", "notes", "preferences", "journeys", "segments", "enquiries",
   "events", "quotes", "consents", "cases", "email_sends",
-  "email_suppressions", "users", "agencies",
+  "email_suppressions", "email_inbound", "users", "agencies",
 ];
 
 /**
@@ -48,6 +48,15 @@ const ALLOWED: Record<string, string> = {
     "writes with the agency taken from the matched send",
   "app/api/email/webhook/route.ts::events":
     "emitted with the agency taken from the matched send",
+  // A customer's reply arrives with no session and no agency attached.
+  // Working out WHICH agency it belongs to is the entire job of these two
+  // lookups, so neither can be scoped by the answer it exists to find. Both
+  // are narrow (an id, a message id, one email address), and every write that
+  // follows uses the agency the match produced.
+  "app/api/email/inbound/route.ts::email_sends":
+    "finds the send a reply answers, by id or provider message id, to learn its agency",
+  "app/api/email/inbound/route.ts::contacts":
+    "finds who an inbound address belongs to; refuses to match when it spans agencies",
   // Children scoped through their parent trip/journey, which is itself scoped.
   "app/api/journeys/runs/[id]/route.ts::journey_runs":
     "scoped via its journey, which is agency-filtered",
@@ -71,6 +80,35 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/**
+ * Blank out the argument to .select(), because a column LIST is not a
+ * filter. `select("id, agency_id")` mentions agency_id while narrowing
+ * nothing, and a check that accepted it would wave through exactly the
+ * table scans it exists to catch.
+ */
+function withoutSelectArgs(statement: string): string {
+  let out = "";
+  let i = 0;
+  while (i < statement.length) {
+    const at = statement.indexOf(".select(", i);
+    if (at === -1) {
+      out += statement.slice(i);
+      break;
+    }
+    out += statement.slice(i, at) + ".select(";
+    let depth = 1;
+    let j = at + ".select(".length;
+    while (j < statement.length && depth > 0) {
+      if (statement[j] === "(") depth++;
+      else if (statement[j] === ")") depth--;
+      j++;
+    }
+    out += ")";
+    i = j;
+  }
+  return out;
+}
+
 /** Every `.from("table")` call, with the statement that follows it. */
 function queriesIn(src: string): { table: string; statement: string }[] {
   const found: { table: string; statement: string }[] = [];
@@ -81,7 +119,10 @@ function queriesIn(src: string): { table: string; statement: string }[] {
     // generous slice is fine because we only look for a filter inside it.
     const rest = src.slice(m.index, m.index + 1200);
     const end = rest.indexOf(";");
-    found.push({ table: m[1], statement: end === -1 ? rest : rest.slice(0, end) });
+    found.push({
+      table: m[1],
+      statement: withoutSelectArgs(end === -1 ? rest : rest.slice(0, end)),
+    });
   }
   return found;
 }
@@ -107,6 +148,13 @@ describe("every tenant query carries its agency", () => {
       `await supabase.from("households").select("*").eq("agency_id", agencyId);`
     );
     expect(good[0].statement).toMatch(/agency_id/);
+  });
+
+  it("is not fooled by agency_id appearing only in the column list", () => {
+    const [q] = queriesIn(
+      `await supabase.from("households").select("id, agency_id, display_name").limit(10);`
+    );
+    expect(q.statement).not.toMatch(/agency_id/);
   });
 
   it("no query on a tenant table is missing its agency filter", () => {

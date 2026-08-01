@@ -120,7 +120,7 @@ export async function runSequencesForAgency(
         .eq("agency_id", agencyId),
       supabase
         .from("interactions")
-        .select("household_id, occurred_at, direction")
+        .select("household_id, occurred_at, direction, metadata")
         .eq("agency_id", agencyId),
       supabase
         .from("quotes")
@@ -133,6 +133,7 @@ export async function runSequencesForAgency(
     household_id: string | null;
     occurred_at: string;
     direction: string;
+    metadata?: Record<string, unknown> | null;
   }[];
   const allQuotes = (quoteRows ?? []) as Quote[];
 
@@ -155,9 +156,14 @@ export async function runSequencesForAgency(
   }
 
   // Inbound messages, newest per household — our "they replied" signal.
+  //
+  // An out-of-office is skipped. It is a machine confirming nobody is
+  // reading, and stopping a chase on it would be exactly backwards: the one
+  // person we know has not seen the email would be the one we stop chasing.
   const lastInboundByHousehold = new Map<string, string>();
   for (const ix of allInteractions) {
     if (ix.direction !== "inbound" || !ix.household_id) continue;
+    if (ix.metadata?.auto_reply === true) continue;
     const seen = lastInboundByHousehold.get(ix.household_id);
     if (!seen || ix.occurred_at > seen) lastInboundByHousehold.set(ix.household_id, ix.occurred_at);
   }

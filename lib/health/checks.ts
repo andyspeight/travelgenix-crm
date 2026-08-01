@@ -9,6 +9,7 @@
  *   the schedule stopped        — no reminders go out, no page breaks
  *   emails are failing to send  — the audit table fills with failures nobody reads
  *   addresses are bouncing      — customers silently unreachable
+ *   replies are not coming back — customers answer and the CRM shows nothing
  *   a channel was never wired   — "why has nothing sent?" a week later
  *
  * Every check states what it looked at and what it means, in the same plain
@@ -46,6 +47,12 @@ export type HealthInputs = {
   suppressed: number;
   aiConfigured: boolean;
   controlConfigured: boolean;
+  /** True when EMAIL_INBOUND_DOMAIN is set — without it, replies land elsewhere. */
+  inboundConfigured?: boolean;
+  /** Replies received in the last 7 days. */
+  repliesReceived7d?: number;
+  /** Of those, the ones we could not tie to a customer. */
+  repliesUnmatched7d?: number;
 };
 
 const hoursSince = (iso: string, now: Date): number =>
@@ -203,6 +210,60 @@ function deliverabilityCheck(i: HealthInputs): HealthCheck {
   };
 }
 
+/**
+ * Replies coming back in. The failure this catches is the quietest one in the
+ * whole product: inbound misconfigured means customers ARE answering and the
+ * CRM shows nothing, so every chase keeps running and every agent believes
+ * they were ignored.
+ */
+function repliesCheck(i: HealthInputs): HealthCheck {
+  if (!i.inboundConfigured) {
+    return {
+      id: "replies",
+      label: "Replies coming back",
+      state: "off",
+      value: "not switched on",
+      detail:
+        "Replies go to whatever address you send from, not into the CRM, so the timeline only shows your side of the conversation. Point an inbound domain at /api/email/inbound and set EMAIL_INBOUND_DOMAIN to change that.",
+    };
+  }
+
+  const received = i.repliesReceived7d ?? 0;
+  const unmatched = i.repliesUnmatched7d ?? 0;
+
+  if (received === 0) {
+    return {
+      id: "replies",
+      label: "Replies coming back",
+      state: "ok",
+      value: "none this week",
+      detail:
+        "Inbound is switched on and nothing has arrived in 7 days. That is normal on low volume — worth a test reply if it stays that way.",
+    };
+  }
+  if (unmatched === 0) {
+    return {
+      id: "replies",
+      label: "Replies coming back",
+      state: "ok",
+      value: `${received} received, all filed`,
+      detail: "Every reply this week was matched to a customer and put on their timeline.",
+    };
+  }
+
+  const rate = unmatched / received;
+  return {
+    id: "replies",
+    label: "Replies coming back",
+    state: rate > 0.25 ? "bad" : "warn",
+    value: `${unmatched} of ${received} unfiled`,
+    detail:
+      rate > 0.25
+        ? "Most replies are arriving without anything to tie them to. They are kept, not lost — but nobody is seeing them on a customer record."
+        : "A few replies came from addresses we do not hold. They are kept and can be filed by hand.",
+  };
+}
+
 function configCheck(
   id: string,
   label: string,
@@ -224,6 +285,7 @@ export function computeHealth(i: HealthInputs): HealthCheck[] {
     scheduleCheck(i),
     sendFailureCheck(i),
     deliverabilityCheck(i),
+    repliesCheck(i),
     configCheck(
       "ai",
       "Luna AI",

@@ -15,6 +15,9 @@ const inputs = (over: Partial<HealthInputs> = {}): HealthInputs => ({
   suppressed: 0,
   aiConfigured: true,
   controlConfigured: true,
+  inboundConfigured: true,
+  repliesReceived7d: 0,
+  repliesUnmatched7d: 0,
   ...over,
 });
 
@@ -97,6 +100,34 @@ describe("configuration checks are honest about being off", () => {
 
   it("notes that AI falling back is not a breakage", () => {
     expect(check(inputs({ aiConfigured: false }), "ai").detail).toMatch(/Nothing breaks/);
+  });
+});
+
+describe("replies — the quietest failure of all", () => {
+  it("says plainly that replies are going somewhere else", () => {
+    const c = check(inputs({ inboundConfigured: false }), "replies");
+    expect(c.state).toBe("off");
+    expect(c.detail).toMatch(/only shows your side/);
+  });
+
+  it("does not treat a quiet week as a fault", () => {
+    expect(check(inputs(), "replies").state).toBe("ok");
+  });
+
+  it("is happy when everything that arrived was filed", () => {
+    const c = check(inputs({ repliesReceived7d: 12 }), "replies");
+    expect(c.state).toBe("ok");
+    expect(c.value).toMatch(/all filed/);
+  });
+
+  it("warns about a few strays and escalates when most are strays", () => {
+    expect(check(inputs({ repliesReceived7d: 20, repliesUnmatched7d: 2 }), "replies").state).toBe("warn");
+    expect(check(inputs({ repliesReceived7d: 8, repliesUnmatched7d: 6 }), "replies").state).toBe("bad");
+  });
+
+  it("never claims a reply was lost, because it never is", () => {
+    const c = check(inputs({ repliesReceived7d: 8, repliesUnmatched7d: 6 }), "replies");
+    expect(c.detail).toMatch(/kept, not lost/);
   });
 });
 
