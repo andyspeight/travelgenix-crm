@@ -10,6 +10,7 @@ import {
   SendIcon,
   NoteIcon,
 } from "@/components/ui/icons";
+import { EmailComposer } from "@/components/email/composer";
 import type {
   Household,
   Contact,
@@ -1214,23 +1215,23 @@ function FocusedMessage({
             {draft.rationale}
           </div>
           {editing ? (
-            <textarea
-              value={editedBody}
-              onChange={(e) => setEditedBody(e.target.value)}
-              rows={Math.min(14, Math.max(6, editedBody.split("\n").length + 1))}
-              autoFocus
-              style={{
-                width: "100%",
-                fontSize: 14,
-                lineHeight: 1.6,
-                color: "var(--text)",
-                fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                padding: "10px 12px",
-                resize: "vertical",
+            // The full composer, seeded with Luna's draft: formatting,
+            // attachments, emoji and a rewrite pass, rather than a textarea.
+            <EmailComposer
+              toLabel={lead ? [lead.first_name, lead.last_name].filter(Boolean).join(" ") : leadEmail ?? "this customer"}
+              toEmail={leadEmail}
+              contactId={lead?.id}
+              householdId={ix.household_id ?? undefined}
+              defaultSubject={ix.subject ? `Re: ${ix.subject}` : "Re: your message"}
+              defaultBody={editedBody}
+              context="inbox_reply"
+              emailLive={emailLive}
+              note="goes on their timeline"
+              onSent={() => {
+                setEditing(false);
+                setSendNote("Sent and recorded on the timeline.");
               }}
+              onCancel={() => setEditing(false)}
             />
           ) : (
             <div
@@ -1249,7 +1250,7 @@ function FocusedMessage({
 
         <div
           style={{
-            display: "flex",
+            display: editing ? "none" : "flex",
             gap: 8,
             paddingTop: 4,
           }}
@@ -1279,7 +1280,7 @@ function FocusedMessage({
             }}
           >
             <SendIcon width={13} height={13} />
-            {sending ? "Sending…" : editing ? "Send edited" : "Send as is"}
+            {sending ? "Sending…" : "Send as is"}
           </button>
           <button
             onClick={toggleEdit}
@@ -1294,7 +1295,7 @@ function FocusedMessage({
               cursor: "pointer",
             }}
           >
-            {editing ? "Cancel edit" : "Edit before sending"}
+            Edit before sending
           </button>
           <button
             onClick={regenerate}

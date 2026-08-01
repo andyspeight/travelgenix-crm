@@ -112,6 +112,8 @@ export type Interaction = {
   ai_priority: "today" | "week" | "later" | null;
   ai_reason: string | null;
   ai_drafts: Record<string, unknown>;
+  /** {attachments, auto_reply, matched_by, ...} — set by whatever wrote the row. */
+  metadata?: Record<string, unknown> | null;
   is_read: boolean;
   is_triaged: boolean;
   occurred_at: string;

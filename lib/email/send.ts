@@ -16,11 +16,24 @@
 
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { emailConfigured, sendEmail } from "@/lib/email/providers";
+import {
+  emailConfigured,
+  sendEmail,
+  type OutgoingAttachment,
+} from "@/lib/email/providers";
+import { ATTACHMENT_BUCKET } from "@/lib/email/attachments";
 import { resolveSender } from "@/lib/email/sender";
 import { decideSend, type SendFacts, type SendPurpose } from "@/lib/email/policy";
 import { currentConsent, channelState, type ConsentLedgerRow } from "@/lib/consent/state";
 import { emitEvent } from "@/lib/events/emit";
+
+/** An attachment already uploaded to storage and checked on the way in. */
+export type AttachmentRef = {
+  path: string;
+  filename: string;
+  contentType: string;
+  bytes: number;
+};
 
 export type SendRequest = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,7 +44,13 @@ export type SendRequest = {
   householdId?: string | null;
   enquiryId?: string | null;
   subject: string;
+  /** The plain-text body. Always required — it is what the timeline shows,
+   *  what a plain-text reader sees, and what the AI improve pass works on. */
   body: string;
+  /** The formatted version, when the agent used the composer. Rendered by
+   *  the server from a validated document, never accepted as HTML. */
+  bodyHtml?: string | null;
+  attachments?: AttachmentRef[];
   purpose: SendPurpose;
   context?: string | null;
 };
@@ -157,12 +176,40 @@ export async function sendCrmEmail(req: SendRequest): Promise<SendOutcome> {
   const replyTo =
     inboundDomain && !agencyChoseReplyTo ? `reply+${sendId}@${inboundDomain}` : sender.replyTo;
 
+  // ─── Attachments, fetched server-side ─────────────────────────────────
+  // The browser told us a path; it does not get to tell us the bytes. Each
+  // file is read from storage under the agency's own prefix, so a tampered
+  // path cannot reach another agency's uploads.
+  const outgoing: OutgoingAttachment[] = [];
+  for (const file of req.attachments ?? []) {
+    if (!file.path.startsWith(`${agencyId}/`)) {
+      return { ok: false, reason: "refused", error: "That attachment does not belong to this workspace." };
+    }
+    const { data: blob, error: dlErr } = await supabase.storage
+      .from(ATTACHMENT_BUCKET)
+      .download(file.path);
+    if (dlErr || !blob) {
+      return {
+        ok: false,
+        reason: "provider",
+        error: `Could not read the attachment ${file.filename}. Nothing was sent — try attaching it again.`,
+      };
+    }
+    outgoing.push({
+      filename: file.filename,
+      contentType: file.contentType,
+      contentBase64: Buffer.from(await blob.arrayBuffer()).toString("base64"),
+    });
+  }
+
   const result = await sendEmail({
     purpose: req.purpose,
     toEmail: toEmail!,
     toName,
     subject: req.subject,
     text: req.body,
+    html: req.bodyHtml ?? null,
+    attachments: outgoing,
     sender: { ...sender, replyTo },
   });
 
@@ -178,6 +225,13 @@ export async function sendCrmEmail(req: SendRequest): Promise<SendOutcome> {
         kind: "email_out",
         channel: "email",
         direction: "outbound",
+        metadata: {
+          attachments: (req.attachments ?? []).map((a) => ({
+            filename: a.filename,
+            bytes: a.bytes,
+          })),
+          formatted: Boolean(req.bodyHtml),
+        },
         subject: req.subject,
         body: req.body,
         is_read: true,
@@ -202,6 +256,13 @@ export async function sendCrmEmail(req: SendRequest): Promise<SendOutcome> {
       body: req.body,
       purpose: req.purpose,
       context: req.context ?? null,
+      body_html: req.bodyHtml ?? null,
+      attachments: (req.attachments ?? []).map((a) => ({
+        filename: a.filename,
+        content_type: a.contentType,
+        bytes: a.bytes,
+        path: a.path,
+      })),
       status: result.ok ? "sent" : "failed",
       provider: result.ok ? result.provider : null,
       provider_message_id: result.ok ? result.messageId : null,

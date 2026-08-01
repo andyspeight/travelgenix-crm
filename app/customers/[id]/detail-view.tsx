@@ -16,6 +16,7 @@ import {
   PlusIcon,
   ClockIcon,
   PlaneIcon,
+  PaperclipIcon,
 } from "@/components/ui/icons";
 import {
   STAGE_META,
@@ -727,6 +728,13 @@ function Timeline({
           // an open is labelled a hint, a click is labelled evidence, and a
           // reply outranks both (lib/email/engagement.ts).
           const eng = engagement?.[ix.id];
+          // What went with the message. Part of the record: "I sent you the
+          // itinerary" is only checkable if the timeline says which file.
+          const files = Array.isArray(ix.metadata?.attachments)
+            ? (ix.metadata!.attachments as { filename?: string }[])
+                .map((f) => f.filename)
+                .filter((n): n is string => Boolean(n))
+            : [];
           const engColour: Record<string, string> = {
             acted: "var(--success)",
             weak: "var(--text-muted)",
@@ -833,6 +841,22 @@ function Timeline({
                         : ix.body)}
                   </div>
                 ) : null}
+                {files.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <PaperclipIcon width={11} height={11} />
+                    {files.join(", ")}
+                  </div>
+                )}
                 {eng && (
                   <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5 }}>
                     <span

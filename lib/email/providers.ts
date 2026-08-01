@@ -70,12 +70,24 @@ export function providerFor(purpose: SendPurpose): EmailProvider | null {
   return null;
 }
 
+export type OutgoingAttachment = {
+  filename: string;
+  contentType: string;
+  /** base64, built server-side from storage — never from the browser. */
+  contentBase64: string;
+};
+
 type SendArgs = {
   purpose: SendPurpose;
   toEmail: string;
   toName?: string | null;
   subject: string;
+  /** The plain-text part. Always sent: a message with no text part looks
+   *  like spam to filters, and some people genuinely read in plain text. */
   text: string;
+  /** The formatted part, when the agent used the composer. */
+  html?: string | null;
+  attachments?: OutgoingAttachment[];
   /** Who this is from — resolved per agency, never a platform constant. */
   sender: ResolvedSender;
 };
@@ -125,7 +137,23 @@ async function viaSendgrid(args: SendArgs): Promise<ProviderSendResult> {
         from,
         ...(args.sender.replyTo ? { reply_to: { email: args.sender.replyTo } } : {}),
         subject: args.subject,
-        content: [{ type: "text/plain", value: args.text }],
+        // Plain text FIRST — the RFC says the richest alternative goes last,
+        // and clients that read the order literally show whichever they hit
+        // first.
+        content: [
+          { type: "text/plain", value: args.text },
+          ...(args.html ? [{ type: "text/html", value: args.html }] : []),
+        ],
+        ...(args.attachments?.length
+          ? {
+              attachments: args.attachments.map((a) => ({
+                content: a.contentBase64,
+                filename: a.filename,
+                type: a.contentType,
+                disposition: "attachment",
+              })),
+            }
+          : {}),
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
       cache: "no-store",
@@ -176,6 +204,15 @@ async function viaBrevo(args: SendArgs): Promise<ProviderSendResult> {
         ...(args.sender.replyTo ? { replyTo: { email: args.sender.replyTo } } : {}),
         subject: args.subject,
         textContent: args.text,
+        ...(args.html ? { htmlContent: args.html } : {}),
+        ...(args.attachments?.length
+          ? {
+              attachment: args.attachments.map((a) => ({
+                content: a.contentBase64,
+                name: a.filename,
+              })),
+            }
+          : {}),
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
       cache: "no-store",

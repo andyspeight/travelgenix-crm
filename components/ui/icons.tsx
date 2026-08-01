@@ -195,6 +195,87 @@ export const XIcon = (p: IconProps) => (
 );
 
 /** Helper to render an icon by string id (used by the segmentation tokens). */
+// ─── Composer toolbar ───────────────────────────────────────────────────
+export const BoldIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M6 4h8a4 4 0 0 1 0 8H6z" />
+    <path d="M6 12h9a4 4 0 0 1 0 8H6z" />
+  </svg>
+);
+
+export const ItalicIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <line x1="19" y1="4" x2="10" y2="4" />
+    <line x1="14" y1="20" x2="5" y2="20" />
+    <line x1="15" y1="4" x2="9" y2="20" />
+  </svg>
+);
+
+export const UnderlineIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M6 4v6a6 6 0 0 0 12 0V4" />
+    <line x1="4" y1="20" x2="20" y2="20" />
+  </svg>
+);
+
+export const ListIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <line x1="8" y1="6" x2="21" y2="6" />
+    <line x1="8" y1="12" x2="21" y2="12" />
+    <line x1="8" y1="18" x2="21" y2="18" />
+    <line x1="3" y1="6" x2="3.01" y2="6" />
+    <line x1="3" y1="12" x2="3.01" y2="12" />
+    <line x1="3" y1="18" x2="3.01" y2="18" />
+  </svg>
+);
+
+export const OrderedListIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <line x1="10" y1="6" x2="21" y2="6" />
+    <line x1="10" y1="12" x2="21" y2="12" />
+    <line x1="10" y1="18" x2="21" y2="18" />
+    <path d="M4 6h1v4" />
+    <path d="M4 10h2" />
+    <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
+  </svg>
+);
+
+export const LinkIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </svg>
+);
+
+export const QuoteIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M3 21c3 0 7-1 7-8V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3" />
+    <path d="M15 21c3 0 7-1 7-8V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3" />
+  </svg>
+);
+
+export const PaperclipIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  </svg>
+);
+
+export const SmileIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+    <line x1="9" y1="9" x2="9.01" y2="9" />
+    <line x1="15" y1="9" x2="15.01" y2="9" />
+  </svg>
+);
+
+export const EraserIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 21z" />
+    <line x1="22" y1="21" x2="7" y2="21" />
+  </svg>
+);
+
 export function iconById(
   id: "plane" | "clock" | "users" | "sparkles" | "home",
   props?: IconProps
