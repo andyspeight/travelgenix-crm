@@ -283,3 +283,18 @@ Three places they were genuinely ahead:
   - **It is a doorway, not a second assistant.** `components/luna-ask-context.tsx` provides `ask(question)`, and the dashboard bar calls it — opening the SAME panel, with the same history and the same tools. Building a second question box that answered its own way is how two assistants end up disagreeing with each other.
   - The nonce on each request is what makes asking the same question twice work; without it the state would not change and the second ask would do nothing.
   - Suggestions are static on purpose: a personalised suggestion means an AI call on every dashboard load, and this page is meant to be instant.
+
+## Phase 8 — the second Attio pass (in progress)
+
+A fresh look at what Attio shipped through 2026: Ask Attio taking actions, AI Attributes (fields that fill themselves, including a web-research agent), MCP/Slack access, and AI-triggered workflows. Taken in that order of value; the web research agent deliberately declined, because its own reviewers note it scrapes public pages and still needs checking, and a confidently wrong entry requirement costs a customer their holiday.
+
+- [x] **1. Luna acts, not just answers** (1 Aug) — Ask Luna could already email, tag and run a journey; it now creates tasks and starts sequences, and **every write is agreed before it happens**.
+  - **`lib/ask/actions.ts` (21 tests)** — the verbs, the plan, the ceiling. An action runs on THE ROWS OF AN ANSWER LUNA JUST GAVE: the model never produces an id, never writes a filter, never names a customer. There is no path from a sentence to a database write that does not go through a result the agent has seen.
+  - **A plan is not an action.** `POST /api/ask/act` without `confirm` returns the verb, the count and the names, and writes nothing. With `confirm: true` it carries out that plan. "Luna did something to 40 customers" should never be a discovery.
+  - **Targets are re-read, scoped, before anything is touched.** An id from another workspace resolves to nothing and is dropped, so a tampered request can only ever do less than it claimed. The names in the plan come from those re-read rows — what the agent confirms is what the server found, not what the browser said.
+  - **A ceiling of 50.** Past that an agent cannot meaningfully check what they are approving, so it refuses with the number rather than performing quietly.
+  - **Nothing sends.** Tasks, tags and enrolments land in a queue a human works; sequences stop on a reply and default to review mode, and the plan says so in words when auto-send is on.
+  - Already-there is not a failure: re-tagging and re-enrolling are skipped and counted, and the outcome line reports what actually happened rather than what was asked for.
+- [ ] **2. Derived attributes you can filter on** — Travel Memory and enquiry enrichment already compute the facts; they are display-only. Making them filterable and usable as sequence triggers turns "Luna noticed" into something actionable in bulk.
+- [ ] **3. Custom fields per agency** — their flexible data model, needed properly once several agencies want different fields.
+- [ ] **4. An MCP server for Luna Work** — low product value (agents live in email, not Slack), high value for querying the CRM from Claude.

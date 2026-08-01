@@ -431,12 +431,27 @@ function AnswerView({ answer, onNavigate }: { answer: AskResponse; onNavigate: (
 }
 
 // ─── The act layer ──────────────────────────────────────────────────────────
-// When an answer is a list of customers, the agent can act on it right here:
-// open a pre-addressed email to everyone, enrol them in a journey, or tag
-// them. Reuses the same endpoints as the customers segment bar, so acting on
-// an Ask answer and acting on a segment are the same operation.
+// Luna answers, and then does. When the answer is a list of customers the
+// agent can act on it here rather than opening eleven records by hand.
+//
+// EVERY WRITE IS AGREED FIRST. Pressing a button produces a PLAN — the verb,
+// the count, and the names — and nothing is written until the agent confirms
+// it. "Luna did something to 40 customers" should never be a discovery, and
+// the confirmation names them so it cannot be.
+//
+// Nothing here sends a message. Tasks, tags and sequence enrolments all land
+// in a queue a human works; "Email all" opens a draft in the agent's own mail
+// app and sends nothing by itself.
 
 const UUID_HREF = /^\/customers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+type ActPlan = {
+  action: string;
+  summary: string;
+  who: string;
+  notes: string[];
+  targets: { id: string; name: string }[];
+};
 
 function AskActions({ rows }: { rows: Row[] }) {
   const householdIds = Array.from(
@@ -445,12 +460,23 @@ function AskActions({ rows }: { rows: Row[] }) {
 
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Which composer is open: the task title, the tag, the sequence picker.
+  const [panel, setPanel] = useState<"task" | "tag" | "sequence" | "journey" | null>(null);
+  const [text, setText] = useState("");
+  const [sequences, setSequences] = useState<{ id: string; name: string; auto_send: boolean }[] | null>(null);
   const [journeys, setJourneys] = useState<{ id: string; name: string }[] | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [tagOpen, setTagOpen] = useState(false);
-  const [tag, setTag] = useState("");
+
+  // The agreed-to-yet plan. Nothing has been written while this is on screen.
+  const [plan, setPlan] = useState<{ action: string; value: string; plan: ActPlan } | null>(null);
 
   if (householdIds.length === 0) return null;
+
+  const reset = () => {
+    setPanel(null);
+    setPlan(null);
+    setText("");
+  };
 
   async function emailAll() {
     setMsg(null);
@@ -496,18 +522,120 @@ function AskActions({ rows }: { rows: Row[] }) {
     }
   }
 
-  async function openPicker() {
+  /** Ask the server what WOULD happen. Writes nothing. */
+  async function propose(action: string, value: string) {
     setMsg(null);
-    if (pickerOpen) {
-      setPickerOpen(false);
+    setBusy(action);
+    try {
+      const res = await fetch("/api/ask/act", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, targetIds: householdIds, value }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; plan?: ActPlan; error?: string };
+      if (!data.ok || !data.plan) throw new Error(data.error || "Luna couldn't work that out.");
+      setPlan({ action, value, plan: data.plan });
+      setPanel(null);
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : "Something went wrong." });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** The same request again, with permission this time. */
+  async function confirm() {
+    if (!plan) return;
+    setBusy("confirm");
+
+    // Journeys keep their own endpoint — one implementation of what a journey
+    // does, not two.
+    if (plan.action.startsWith("journey:")) {
+      try {
+        const res = await fetch("/api/journeys/enroll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ journeyId: plan.action.slice("journey:".length), householdIds }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          enrolled?: number;
+          skipped?: number;
+          error?: string;
+        };
+        if (!res.ok || !data.ok) throw new Error(data.error || "Couldn't run that journey");
+        setMsg({
+          ok: true,
+          text: `Ran "${plan.value}" for ${data.enrolled ?? 0}${data.skipped ? ` (${data.skipped} already in it)` : ""}.`,
+        });
+        reset();
+      } catch (err) {
+        setMsg({ ok: false, text: err instanceof Error ? err.message : "Couldn't run that journey" });
+      } finally {
+        setBusy(null);
+      }
       return;
     }
-    setPickerOpen(true);
-    setTagOpen(false);
+
+    try {
+      const res = await fetch("/api/ask/act", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: plan.action,
+          targetIds: plan.plan.targets.map((t) => t.id),
+          value: plan.value,
+          confirm: true,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        outcome?: { summary: string };
+        error?: string;
+      };
+      if (!data.ok || !data.outcome) throw new Error(data.error || "That didn't finish.");
+      setMsg({ ok: true, text: data.outcome.summary });
+      reset();
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : "That didn't finish." });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Journeys run through their own endpoint, but agree the work first. */
+  function proposeJourney(journeyId: string, name: string) {
+    const count = householdIds.length;
+    setPanel(null);
+    setPlan({
+      action: `journey:${journeyId}`,
+      value: name,
+      plan: {
+        action: "run_journey",
+        summary: `Run "${name}" for ${count} customer${count === 1 ? "" : "s"}`,
+        who: rows
+          .slice(0, 3)
+          .map((r) => r.title)
+          .join(", ") + (count > 3 ? ` and ${count - 3} more` : ""),
+        notes: [
+          "A journey creates the tasks and drafts it is set up to create. Nothing is sent to anyone.",
+        ],
+        targets: householdIds.map((id) => ({ id, name: "" })),
+      },
+    });
+  }
+
+  async function openJourneys() {
+    setMsg(null);
+    setPlan(null);
+    setPanel(panel === "journey" ? null : "journey");
     if (journeys === null) {
       try {
         const res = await fetch("/api/journeys/list");
-        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; journeys?: { id: string; name: string }[] };
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          journeys?: { id: string; name: string }[];
+        };
         setJourneys(data.ok ? data.journeys ?? [] : []);
       } catch {
         setJourneys([]);
@@ -515,47 +643,21 @@ function AskActions({ rows }: { rows: Row[] }) {
     }
   }
 
-  async function enroll(journeyId: string, name: string) {
-    setBusy("journey");
-    try {
-      const res = await fetch("/api/journeys/enroll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ journeyId, householdIds }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; enrolled?: number; skipped?: number; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error || "Couldn't add to journey");
-      setPickerOpen(false);
-      setMsg({
-        ok: true,
-        text: `Added ${data.enrolled ?? 0} to "${name}"${data.skipped ? ` (${data.skipped} already in it)` : ""}.`,
-      });
-    } catch (err) {
-      setMsg({ ok: false, text: err instanceof Error ? err.message : "Couldn't add to journey" });
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function addTag() {
-    const t = tag.trim();
-    if (!t) return;
-    setBusy("tag");
-    try {
-      const res = await fetch("/api/customers/tag", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: householdIds, tag: t }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; updated?: number; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error || "Couldn't add tag");
-      setTagOpen(false);
-      setTag("");
-      setMsg({ ok: true, text: `Tagged ${data.updated ?? 0} customer${data.updated === 1 ? "" : "s"} "${t}".` });
-    } catch (err) {
-      setMsg({ ok: false, text: err instanceof Error ? err.message : "Couldn't add tag" });
-    } finally {
-      setBusy(null);
+  async function openSequences() {
+    setMsg(null);
+    setPlan(null);
+    setPanel(panel === "sequence" ? null : "sequence");
+    if (sequences === null) {
+      try {
+        const res = await fetch("/api/ask/act");
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          sequences?: { id: string; name: string; auto_send: boolean }[];
+        };
+        setSequences(data.ok ? data.sequences ?? [] : []);
+      } catch {
+        setSequences([]);
+      }
     }
   }
 
@@ -570,6 +672,18 @@ function AskActions({ rows }: { rows: Row[] }) {
     cursor: "pointer",
   };
 
+  const field: React.CSSProperties = {
+    flex: 1,
+    maxWidth: 260,
+    border: "1px solid var(--border)",
+    borderRadius: 6,
+    background: "var(--surface)",
+    color: "var(--text)",
+    padding: "6px 9px",
+    fontSize: 12.5,
+    fontFamily: "inherit",
+  };
+
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -579,23 +693,88 @@ function AskActions({ rows }: { rows: Row[] }) {
         <button style={actBtn} disabled={busy === "email"} onClick={emailAll}>
           {busy === "email" ? "Opening…" : "Email all"}
         </button>
-        <button style={actBtn} onClick={openPicker}>
-          Add to journey
+        <button
+          style={actBtn}
+          onClick={() => { setPlan(null); setMsg(null); setPanel(panel === "task" ? null : "task"); setText(""); }}
+        >
+          Create a task
         </button>
-        <button style={actBtn} onClick={() => { setTagOpen((o) => !o); setPickerOpen(false); setMsg(null); }}>
+        <button
+          style={actBtn}
+          onClick={() => { setPlan(null); setMsg(null); setPanel(panel === "tag" ? null : "tag"); setText(""); }}
+        >
           Add tag
+        </button>
+        <button style={actBtn} onClick={openSequences}>
+          Add to sequence
+        </button>
+        <button style={actBtn} onClick={openJourneys}>
+          Run a journey
         </button>
       </div>
 
-      {pickerOpen && (
+      {/* ─── What are we calling it? ─────────────────────────── */}
+      {(panel === "task" || panel === "tag") && (
+        <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && text.trim()) {
+                void propose(panel === "task" ? "create_task" : "add_tag", text);
+              }
+            }}
+            placeholder={panel === "task" ? "Call about next summer" : "winter-sun"}
+            autoFocus
+            style={field}
+          />
+          <button
+            style={{ ...actBtn, color: "var(--tg-accent-dark)", borderColor: "var(--tg-accent)" }}
+            disabled={!text.trim() || Boolean(busy)}
+            onClick={() => void propose(panel === "task" ? "create_task" : "add_tag", text)}
+          >
+            Next
+          </button>
+        </div>
+      )}
+
+      {panel === "sequence" && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
+          {sequences === null ? (
+            <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>Loading sequences…</span>
+          ) : sequences.length === 0 ? (
+            <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+              No active sequences. Set one up on the Sequences page first.
+            </span>
+          ) : (
+            sequences.map((seq) => (
+              <button
+                key={seq.id}
+                style={actBtn}
+                disabled={Boolean(busy)}
+                onClick={() => void propose("enrol_sequence", seq.id)}
+              >
+                {seq.name}
+                {seq.auto_send && (
+                  <span style={{ color: "var(--tg-accent-dark)", marginLeft: 5 }}>· auto-sends</span>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {panel === "journey" && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
           {journeys === null ? (
             <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>Loading journeys…</span>
           ) : journeys.length === 0 ? (
-            <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>No active journeys. Install them on the Journeys page first.</span>
+            <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+              No active journeys. Install them on the Journeys page first.
+            </span>
           ) : (
             journeys.map((j) => (
-              <button key={j.id} style={actBtn} disabled={busy === "journey"} onClick={() => enroll(j.id, j.name)}>
+              <button key={j.id} style={actBtn} onClick={() => proposeJourney(j.id, j.name)}>
                 {j.name}
               </button>
             ))
@@ -603,29 +782,42 @@ function AskActions({ rows }: { rows: Row[] }) {
         </div>
       )}
 
-      {tagOpen && (
-        <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
-          <input
-            value={tag}
-            onChange={(e) => setTag(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addTag()}
-            placeholder="e.g. Winter sun campaign"
-            autoFocus
-            style={{
-              flex: 1,
-              maxWidth: 240,
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              background: "var(--surface)",
-              color: "var(--text)",
-              padding: "6px 9px",
-              fontSize: 12.5,
-              fontFamily: "inherit",
-            }}
-          />
-          <button style={{ ...actBtn, color: "var(--tg-accent-dark)", borderColor: "var(--tg-accent)" }} disabled={busy === "tag" || !tag.trim()} onClick={addTag}>
-            {busy === "tag" ? "Tagging…" : "Tag"}
-          </button>
+      {/* ─── The plan, before anything happens ───────────────── */}
+      {plan && (
+        <div
+          style={{
+            marginTop: 10,
+            border: "1px solid var(--border)",
+            borderRadius: 10,
+            padding: "10px 12px",
+            background: "var(--bg-subtle)",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{plan.plan.summary}</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>{plan.plan.who}</div>
+          {plan.plan.notes.map((note) => (
+            <div key={note} style={{ fontSize: 11.5, color: "var(--text-subtle)", marginTop: 4, lineHeight: 1.5 }}>
+              {note}
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+            <button
+              style={{
+                ...actBtn,
+                background: "var(--tg-primary)",
+                borderColor: "var(--tg-primary)",
+                color: "white",
+                fontWeight: 600,
+              }}
+              disabled={busy === "confirm"}
+              onClick={() => void confirm()}
+            >
+              {busy === "confirm" ? "Doing it…" : "Do it"}
+            </button>
+            <button style={{ ...actBtn, border: "none" }} onClick={reset}>
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
