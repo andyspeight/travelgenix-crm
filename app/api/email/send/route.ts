@@ -18,7 +18,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { apiAgencyId } from "@/lib/auth/session";
-import { sendCrmEmail } from "@/lib/email/send";
+import { sendCrmEmail, type AttachmentRef } from "@/lib/email/send";
+import {
+  validateRichDoc,
+  renderEmailHtml,
+  richDocToText,
+} from "@/lib/email/rich-text";
+import { MAX_FILES } from "@/lib/email/attachments";
 import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -51,13 +57,48 @@ export async function POST(request: Request) {
   }
 
   const subject = typeof parsed.subject === "string" ? parsed.subject.trim() : "";
-  const body = typeof parsed.body === "string" ? parsed.body.trim() : "";
+
+  // ─── The body ──────────────────────────────────────────────────────────
+  // The composer sends a DOCUMENT, not HTML. We render both halves from it
+  // here, so what the customer reads is built by the server from a shape it
+  // validated, and the plain text can never say something different from the
+  // formatted version. A caller with no document (an older client, a script)
+  // still sends plain text and gets a plain-text email.
+  let bodyHtml: string | null = null;
+  let body = typeof parsed.body === "string" ? parsed.body.trim() : "";
+
+  if (parsed.doc !== undefined) {
+    const validated = validateRichDoc(parsed.doc);
+    if (!validated.ok) {
+      return NextResponse.json({ ok: false, error: validated.error }, { status: 400 });
+    }
+    body = richDocToText(validated.doc);
+    bodyHtml = renderEmailHtml(validated.doc);
+  }
   if (!subject || subject.length > MAX_SUBJECT) {
     return NextResponse.json({ ok: false, error: "Subject is required (max 200 chars)." }, { status: 400 });
   }
   if (!body || body.length > MAX_BODY) {
     return NextResponse.json({ ok: false, error: "Body is required (max 10,000 chars)." }, { status: 400 });
   }
+
+  // ─── Attachments ───────────────────────────────────────────────────────
+  // Only references arrive here. The bytes are read from storage inside the
+  // send pipeline, which also checks the path belongs to this agency.
+  const attachments: AttachmentRef[] = Array.isArray(parsed.attachments)
+    ? (parsed.attachments as unknown[])
+        .slice(0, MAX_FILES)
+        .map((raw) => {
+          const a = (raw ?? {}) as Record<string, unknown>;
+          return {
+            path: typeof a.path === "string" ? a.path : "",
+            filename: typeof a.filename === "string" ? a.filename.slice(0, 120) : "attachment",
+            contentType: typeof a.contentType === "string" ? a.contentType.slice(0, 100) : "application/octet-stream",
+            bytes: Number(a.bytes) || 0,
+          };
+        })
+        .filter((a) => a.path.length > 0)
+    : [];
 
   const supabase = createClient();
   const agencyId = await apiAgencyId();
@@ -77,6 +118,8 @@ export async function POST(request: Request) {
     enquiryId: uuidOrNull(parsed.enquiry_id),
     subject,
     body,
+    bodyHtml,
+    attachments,
     purpose: parsed.purpose === "marketing" ? "marketing" : "operational",
     context: typeof parsed.context === "string" ? parsed.context.slice(0, 80) : null,
   });

@@ -16,6 +16,7 @@ import type { Enquiry, EnquiryScore } from "@/lib/supabase/types";
 import { clockState, type Clock } from "@/lib/enquiries/clock";
 import type { EnrichmentFact } from "@/lib/enrich/enquiry";
 import { MessageIcon, SendIcon, PlaneIcon, XIcon, SparklesIcon } from "@/components/ui/icons";
+import { EmailComposer } from "@/components/email/composer";
 
 export type EnquiriesViewProps = {
   enquiries: Enquiry[];
@@ -177,20 +178,15 @@ export function EnquiriesView({ enquiries, nameById, emailLive, enrichment }: En
     }
   }
 
-  // Inline reply composer (real sending). Opened per enquiry, like closingId.
+  // Inline composer (real sending). Opened per enquiry, like closingId.
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const [replySubject, setReplySubject] = useState("");
-  const [replyBody, setReplyBody] = useState("");
-  const [replySending, setReplySending] = useState(false);
-  const [replyError, setReplyError] = useState<string | null>(null);
 
   function respond(e: Enquiry) {
     if (emailLive && e.contact_email) {
       // Real sending: open the inline composer; the clock stops when it sends.
       setReplyingId(e.id);
       setReplySubject(`Your ${e.destination ?? "holiday"} enquiry`);
-      setReplyBody("");
-      setReplyError(null);
       return;
     }
     // No provider (or no address): the old flow — mailto when we can, then
@@ -202,50 +198,6 @@ export function EnquiriesView({ enquiries, nameById, emailLive, enrichment }: En
       window.open(`mailto:${e.contact_email}?subject=${subject}`, "_self");
     }
     void act(e.id, "respond");
-  }
-
-  async function sendEnquiryReply(e: Enquiry) {
-    if (!e.contact_email || !replyBody.trim()) return;
-    setReplySending(true);
-    setReplyError(null);
-    try {
-      const res = await fetch("/api/email/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to_email: e.contact_email,
-          household_id: e.household_id ?? undefined,
-          enquiry_id: e.id,
-          subject: replySubject.trim() || `Your ${e.destination ?? "holiday"} enquiry`,
-          body: replyBody,
-          purpose: "operational",
-          context: "enquiry_response",
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        error?: string;
-        not_configured?: boolean;
-      };
-      if (data.ok) {
-        setReplyingId(null);
-        await act(e.id, "respond"); // stop the clock only after a real send
-      } else if (data.not_configured) {
-        // Provider vanished mid-session: degrade to the mailto flow.
-        setReplyingId(null);
-        const params = new URLSearchParams();
-        params.set("subject", replySubject);
-        params.set("body", replyBody);
-        window.open(`mailto:${e.contact_email}?${params.toString()}`, "_self");
-        void act(e.id, "respond");
-      } else {
-        setReplyError(data.error || "The send failed. Nothing was delivered.");
-      }
-    } catch {
-      setReplyError("Network error — the send did not go through.");
-    } finally {
-      setReplySending(false);
-    }
   }
 
   const btn: React.CSSProperties = {
@@ -601,81 +553,25 @@ export function EnquiriesView({ enquiries, nameById, emailLive, enrichment }: En
                 </div>
               )}
 
-              {/* Inline reply composer — real sending, human on the button */}
+              {/* The composer — one component, everywhere the CRM sends */}
               {replyingId === e.id && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    paddingTop: 12,
-                    borderTop: "1px solid var(--border)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                  }}
-                >
-                  <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-                    Replying to <strong style={{ color: "var(--text)" }}>{e.contact_email}</strong> — sends
-                    for real and stops the response clock.
-                  </div>
-                  <input
-                    value={replySubject}
-                    onChange={(ev) => setReplySubject(ev.target.value)}
-                    placeholder="Subject"
-                    style={{
-                      border: "1px solid var(--border)",
-                      borderRadius: 7,
-                      background: "var(--surface)",
-                      color: "var(--text)",
-                      padding: "7px 10px",
-                      fontSize: 12.5,
-                      fontFamily: "inherit",
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                  <EmailComposer
+                    toLabel={e.contact_name ?? e.contact_email ?? "this customer"}
+                    toEmail={e.contact_email}
+                    householdId={e.household_id ?? undefined}
+                    enquiryId={e.id}
+                    defaultSubject={replySubject}
+                    context="enquiry_response"
+                    emailLive={emailLive}
+                    note="sends for real and stops the response clock"
+                    onSent={() => {
+                      setReplyingId(null);
+                      // The clock only stops after a real send.
+                      void act(e.id, "respond");
                     }}
+                    onCancel={() => setReplyingId(null)}
                   />
-                  <textarea
-                    autoFocus
-                    value={replyBody}
-                    onChange={(ev) => setReplyBody(ev.target.value)}
-                    placeholder={`Hi ${e.contact_name?.split(" ")[0] ?? "there"},…`}
-                    rows={6}
-                    style={{
-                      border: "1px solid var(--border)",
-                      borderRadius: 7,
-                      background: "var(--surface)",
-                      color: "var(--text)",
-                      padding: "8px 10px",
-                      fontSize: 12.5,
-                      fontFamily: "inherit",
-                      lineHeight: 1.55,
-                      resize: "vertical",
-                    }}
-                  />
-                  {replyError && (
-                    <div style={{ fontSize: 11.5, color: "#dc2626" }}>{replyError}</div>
-                  )}
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      onClick={() => void sendEnquiryReply(e)}
-                      disabled={replySending || !replyBody.trim()}
-                      style={{
-                        ...btn,
-                        background: "var(--tg-primary)",
-                        border: "1px solid var(--tg-primary)",
-                        color: "white",
-                        fontWeight: 600,
-                        opacity: replySending || !replyBody.trim() ? 0.6 : 1,
-                      }}
-                    >
-                      <SendIcon width={12} height={12} />
-                      {replySending ? "Sending…" : "Send reply"}
-                    </button>
-                    <button
-                      onClick={() => setReplyingId(null)}
-                      disabled={replySending}
-                      style={{ ...btn, border: "none" }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
