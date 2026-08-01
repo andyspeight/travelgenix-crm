@@ -29,6 +29,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAgencyId } from "@/lib/auth/session";
 import { PlusIcon, SparklesIcon } from "@/components/ui/icons";
 import { clockState } from "@/lib/enquiries/clock";
+import { chaseList, type CommissionSupplier } from "@/lib/commission/calc";
 import {
   buildToday,
   summariseToday,
@@ -46,6 +47,16 @@ import type {
 } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
+
+/** The commission columns this page selects alongside the trip. */
+type CommissionColumns = {
+  supplier_id: string | null;
+  commission_rate: number | null;
+  commission_amount: number | null;
+  commission_status: "expected" | "invoiced" | "received" | "written_off" | null;
+  commission_due_at: string | null;
+  commission_received_at: string | null;
+};
 
 /**
  * How many rows before "N more". Eight is about where a list stops being
@@ -65,6 +76,7 @@ export default async function DashboardPage() {
 
   const [
     { data: households },
+    { data: supplierRows },
     { data: trips },
     { data: interactions },
     { count: openTasksCount },
@@ -78,10 +90,15 @@ export default async function DashboardPage() {
       .from("households")
       .select("id, display_name, household_type, city, lifetime_value, tags, last_booking_at, trips_count")
       .eq("agency_id", agencyId),
+    // Supplier terms, so late commission can be worked out and chased.
+    supabase
+      .from("suppliers")
+      .select("id, name, default_commission_rate, payment_terms_days")
+      .eq("agency_id", agencyId),
     supabase
       .from("trips")
       .select(
-        "id, household_id, stage, destination, destination_country, depart_date, return_date, total_value, occasion, reference"
+        "id, household_id, stage, destination, destination_country, depart_date, return_date, total_value, occasion, reference, supplier_id, commission_rate, commission_amount, commission_status, commission_due_at, commission_received_at"
       )
       .eq("agency_id", agencyId),
     supabase
@@ -149,7 +166,9 @@ export default async function DashboardPage() {
     | "last_booking_at"
     | "trips_count"
   >[];
-  const tr = (trips ?? []) as Trip[];
+  // The select is a subset of Trip plus the commission columns, so it is cast
+  // through unknown rather than pretending it is a whole row.
+  const tr = (trips ?? []) as unknown as (Trip & CommissionColumns)[];
   const ix = (interactions ?? []) as Interaction[];
 
   // ─── Empty state ──────────────────────────────────────────────────────
@@ -272,6 +291,46 @@ export default async function DashboardPage() {
   // ─── The one list ─────────────────────────────────────────────────────
   // Four sources in, one ranked list out. The rule lives in the lib, tested,
   // so the order is a decision rather than an accident of layout.
+  // Commission a supplier is late paying. Money, not admin — and the only
+  // row on the list that is worth cash the moment it is actioned.
+  const supplierMap = new Map<string, CommissionSupplier>(
+    ((supplierRows ?? []) as {
+      id: string;
+      name: string;
+      default_commission_rate: number | null;
+      payment_terms_days: number | null;
+    }[]).map((s) => [
+      s.id,
+      {
+        id: s.id,
+        name: s.name,
+        defaultCommissionRate: s.default_commission_rate,
+        paymentTermsDays: s.payment_terms_days,
+      },
+    ])
+  );
+
+  const commissionChases = chaseList(
+    tr
+      .filter((t) => t.stage !== "cancelled" && t.stage !== "enquiry" && t.stage !== "quoted")
+      .map((row) => {
+        return {
+          id: row.id,
+          totalValue: row.total_value,
+          supplierId: row.supplier_id ?? null,
+          commissionRate: row.commission_rate ?? null,
+          commissionAmount: row.commission_amount ?? null,
+          status: row.commission_status ?? "expected",
+          dueAt: row.commission_due_at ?? null,
+          receivedAt: row.commission_received_at ?? null,
+          departDate: row.depart_date,
+          returnDate: row.return_date,
+        };
+      }),
+    supplierMap,
+    new Date(nowIso)
+  );
+
   const today = buildToday({
     now: new Date(nowIso),
     enquiries: enquiryClocks.map(({ e, clock }) => ({
@@ -339,6 +398,13 @@ export default async function DashboardPage() {
       priority: c.priority,
       reason: c.priority_reason,
       slaDueAt: c.sla_due_at,
+    })),
+    commission: commissionChases.map((c) => ({
+      tripId: c.tripId,
+      supplierName: c.supplierName,
+      amount: c.amount,
+      daysOverdue: c.daysOverdue,
+      reason: c.reason,
     })),
     nameById,
   });
