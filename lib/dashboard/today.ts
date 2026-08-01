@@ -29,7 +29,14 @@
  * Pure functions, no I/O.
  */
 
-export type TodayKind = "enquiry" | "quote" | "message" | "case" | "suggestion" | "task";
+export type TodayKind =
+  | "enquiry"
+  | "quote"
+  | "message"
+  | "case"
+  | "suggestion"
+  | "task"
+  | "commission";
 
 export type TodayItem = {
   /** Stable across renders: "enquiry:<id>". */
@@ -106,6 +113,14 @@ export type TodayInputs = {
     priority: number;
     reason: string | null;
     slaDueAt: string | null;
+  }[];
+  /** Commission a supplier owes and is late paying — money, not admin. */
+  commission: {
+    tripId: string;
+    supplierName: string;
+    amount: number;
+    daysOverdue: number;
+    reason: string;
   }[];
   /** household id → display name. */
   nameById: Map<string, string>;
@@ -227,6 +242,24 @@ export function buildToday(i: TodayInputs): TodayItem[] {
         (late ? TIER.breached : TIER.deadline) +
         (c.priority === 1 ? 200 : 100) +
         (c.slaDueAt ? Math.min(799, Math.max(0, nowMs - new Date(c.slaDueAt).getTime()) / HOUR) : 0),
+    });
+  }
+
+  // ─── Commission the agency is owed ──────────────────────────────────────
+  // Late money is a promise broken TO the agency rather than by it, and it is
+  // the only row here that is worth cash the moment it is actioned.
+  for (const c of i.commission) {
+    items.push({
+      id: `commission:${c.tripId}`,
+      kind: "commission",
+      who: c.supplierName,
+      headline: `£${Math.round(c.amount).toLocaleString("en-GB")} unpaid commission`,
+      reason: c.reason,
+      timing: null,
+      href: "/commission",
+      action: "Chase",
+      breached: true,
+      rank: TIER.breached + Math.min(999, c.daysOverdue * 3),
     });
   }
 

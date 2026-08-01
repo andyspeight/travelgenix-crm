@@ -160,7 +160,7 @@ function Headlines({ trips }: { trips: ReportTrip[] }) {
   const avgBooking = booked.length ? wonValue / booked.length : 0;
 
   const tiles = [
-    { label: "Booked revenue", value: money(wonValue) },
+    { label: "Booked turnover", value: money(wonValue) },
     { label: "Open pipeline", value: money(pipelineValue) },
     { label: "Bookings", value: String(booked.length) },
     { label: "Avg booking", value: money(avgBooking) },
@@ -348,7 +348,7 @@ function RevenueByDestination({ trips }: { trips: ReportTrip[] }) {
   const max = Math.max(...ranked.map((r) => r.value), 1);
 
   return (
-    <Card title="Revenue by destination" subtitle="Booked value, top destinations">
+    <Card title="Turnover by destination" subtitle="What customers paid, top destinations">
       {ranked.length === 0 ? (
         <EmptyNote />
       ) : (
@@ -390,7 +390,7 @@ function SourceAttribution({ trips }: { trips: ReportTrip[] }) {
   const totalValue = ranked.reduce((s, r) => s + r.value, 0) || 1;
 
   return (
-    <Card title="Source attribution" subtitle="Where booked revenue comes from">
+    <Card title="Source attribution" subtitle="Where booked turnover comes from">
       {ranked.length === 0 ? (
         <EmptyNote />
       ) : (
@@ -442,7 +442,7 @@ function RevenueTrend({ trips }: { trips: ReportTrip[] }) {
   };
 
   return (
-    <Card title="Revenue trend" subtitle="Booked value by month">
+    <Card title="Turnover trend" subtitle="What customers paid, by month">
       {months.length === 0 ? (
         <EmptyNote />
       ) : (

@@ -24,6 +24,7 @@ import {
   NoteIcon,
   LifeBuoyIcon,
   SendIcon,
+  CoinIcon,
 } from "@/components/ui/icons";
 
 const navItems = [
@@ -37,6 +38,7 @@ const navItems = [
   { href: "/sequences", label: "Sequences", icon: SendIcon, match: (p: string) => p.startsWith("/sequences") },
   { href: "/journeys", label: "Journeys", icon: ZapIcon, match: (p: string) => p.startsWith("/journeys") },
   { href: "/tasks", label: "Tasks", icon: CheckSquareIcon, match: (p: string) => p.startsWith("/tasks") },
+  { href: "/commission", label: "Commission", icon: CoinIcon, match: (p: string) => p.startsWith("/commission") },
   { href: "/reports", label: "Reports", icon: ChartIcon, match: (p: string) => p.startsWith("/reports") },
 ];
 

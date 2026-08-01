@@ -12,6 +12,7 @@ const inputs = (over: Partial<TodayInputs> = {}): TodayInputs => ({
   suggestions: [],
   tasks: [],
   cases: [],
+  commission: [],
   nameById: new Map([["hh-1", "Rachel Whitfield"]]),
   ...over,
 });
@@ -136,6 +137,20 @@ describe("a customer with a problem", () => {
       })
     );
     expect(list[0].kind).toBe("case");
+  });
+});
+
+describe("money the agency is owed", () => {
+  it("puts late commission with the broken promises", () => {
+    const list = buildToday(
+      inputs({
+        commission: [{ tripId: "t1", supplierName: "Jet2 Holidays", amount: 412, daysOverdue: 21, reason: "21 days past their terms." }],
+        suggestions: [{ id: "s1", householdId: "hh-1", severity: 3, title: "Gone quiet", reason: "8 months", href: "/x", actionLabel: "Call", deadline: false }],
+      })
+    );
+    expect(list[0].kind).toBe("commission");
+    expect(list[0].headline).toBe("£412 unpaid commission");
+    expect(list[0].who).toBe("Jet2 Holidays");
   });
 });
 

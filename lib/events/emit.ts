@@ -37,6 +37,7 @@ export type CrmEventType =
   | "case.resolved"
   | "email.sent"
   | "email.bounced"
+  | "commission.received"
   | "email.replied"
   // An out-of-office. Recorded separately so nothing downstream can mistake
   // a machine's acknowledgement for a customer's answer.
