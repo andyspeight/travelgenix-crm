@@ -7,11 +7,14 @@
  *   2. the structured output (list / number)
  *   3. clickable rows through to records
  *
- * v1 invocation: floating button + Cmd/Ctrl+K to open. We can swap the style
- * after seeing it live.
+ * Invocation: the floating button, Cmd/Ctrl+K, and anywhere in the app that
+ * calls ask() from luna-ask-context — which is how the dashboard's prompt
+ * line opens THIS panel rather than growing a second assistant with its own
+ * history and its own quirks.
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import type { AskRequest } from "@/components/luna-ask-context";
 
 type Signal = { kind: string; detail: string; severity?: string };
 type Row = { id: string; href?: string; title: string; subtitle?: string; badges?: string[] };
@@ -41,7 +44,7 @@ const EXAMPLES = [
 
 type AskTurn = { q: string; a: string };
 
-export function LunaAsk() {
+export function LunaAsk({ request }: { request?: AskRequest | null } = {}) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
@@ -141,6 +144,21 @@ export function LunaAsk() {
       setLoading(false);
     }
   }, [history]);
+
+  // Opened from somewhere else in the app — the dashboard prompt line, say.
+  // An empty question just opens the panel; a real one is asked straight away,
+  // because the agent already typed it and retyping is the whole friction we
+  // were removing.
+  useEffect(() => {
+    if (!request) return;
+    setOpen(true);
+    if (request.question.trim()) {
+      setQ(request.question);
+      void ask(request.question);
+    }
+    // Keyed on the nonce so asking the same thing twice works.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request?.nonce]);
 
   const resetThread = useCallback(() => {
     setHistory([]);

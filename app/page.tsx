@@ -25,6 +25,7 @@
 
 import Link from "next/link";
 import { Topbar } from "@/components/layout/topbar";
+import { AskBar } from "./ask-bar";
 import { createClient } from "@/lib/supabase/server";
 import { requireAgencyId } from "@/lib/auth/session";
 import { PlusIcon, SparklesIcon } from "@/components/ui/icons";
@@ -443,6 +444,8 @@ export default async function DashboardPage() {
 
       <Shell>
         <Greeting subtitle={brief} />
+        {/* The list says what needs you; this says what you want to know. */}
+        <AskBar />
         <TodayList items={today} />
         <QuietNumbers
           customers={totalCustomers}
