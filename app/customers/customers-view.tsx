@@ -8,6 +8,12 @@ import {
   type Token,
 } from "@/lib/segmentation/parse";
 import {
+  ATTRIBUTES,
+  findAttribute,
+  type DerivedAttribute,
+  type AttributeId,
+} from "@/lib/attributes/derive";
+import {
   SparklesIcon,
   ClockIcon,
   PlaneIcon,
@@ -27,6 +33,10 @@ type Props = {
   initialTokens: Token[];
   initialActiveSegment: string | null;
   households: Household[];
+  /** Facts nobody typed, computed on read. Keyed by household id. */
+  attributes?: Record<string, DerivedAttribute[]>;
+  attributeCounts?: Record<string, number>;
+  activeAttribute?: AttributeId | null;
   totalCount: number;
   segmentCounts: Record<string, number>;
   savedSegments: SavedSegmentRow[];
@@ -65,6 +75,9 @@ export function CustomersView({
   initialTokens,
   initialActiveSegment,
   households,
+  attributes,
+  attributeCounts,
+  activeAttribute,
   totalCount,
   segmentCounts,
   savedSegments,
@@ -264,6 +277,16 @@ export function CustomersView({
     startTransition(() => {
       router.push(`/customers?${params.toString()}`);
     });
+  }
+
+  /** Narrow by a derived attribute. One at a time: two would need a language
+   *  for combining them, and a chip row is not that language. */
+  function applyAttribute(id: AttributeId) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (activeAttribute === id) params.delete("attr");
+    else params.set("attr", id);
+    setSelected(new Set());
+    startTransition(() => router.push(`/customers?${params.toString()}`));
   }
 
   function clearAll() {
@@ -656,6 +679,64 @@ export function CustomersView({
         })}
       </div>
 
+      {/* ─── What Luna worked out ──────────────────────────── */}
+      {/* Not saved segments and not tags: facts computed from the rows as
+          they are right now. A chip with nobody in it is hidden rather than
+          shown as a zero — an empty filter is noise, not information. */}
+      {attributeCounts && Object.keys(attributeCounts).length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div
+            style={{
+              fontSize: 10.5,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "var(--text-subtle)",
+              fontWeight: 600,
+              marginBottom: 6,
+            }}
+          >
+            What Luna worked out
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {ATTRIBUTES.filter((a) => (attributeCounts[a.id] ?? 0) > 0).map((a) => {
+              const active = activeAttribute === a.id;
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => applyAttribute(a.id)}
+                  title={a.description}
+                  style={{
+                    background: active ? "var(--tg-primary)" : "var(--surface)",
+                    border: `1px solid ${active ? "var(--tg-primary)" : a.tone === "warn" ? "rgba(220,38,38,0.35)" : "var(--border)"}`,
+                    color: active ? "white" : a.tone === "warn" ? "#b91c1c" : "var(--text-muted)",
+                    borderRadius: 999,
+                    padding: "5px 12px",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  {a.label}
+                  <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, opacity: 0.7 }}>
+                    {attributeCounts[a.id]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {activeAttribute && (
+            <div style={{ fontSize: 11.5, color: "var(--text-subtle)", marginTop: 6, lineHeight: 1.5 }}>
+              {findAttribute(activeAttribute)?.description} Worked out from the records as they are
+              now, not stored, so it can&apos;t go stale.
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ─── Toolbar: text search ───────────────────────────── */}
       <div
         style={{
@@ -934,16 +1015,32 @@ export function CustomersView({
                           <div style={{ fontWeight: 600, color: "var(--text)" }}>
                             {h.display_name}
                           </div>
-                          {h.next_departure && (
+                          {/* When a derived filter is on, each row says WHY
+                              it is in the list. A list of names with no reason
+                              is a list you have to take on trust. */}
+                          {activeAttribute ? (
                             <div
                               style={{
                                 fontSize: 11,
                                 color: "var(--text-subtle)",
                                 marginTop: 1,
+                                lineHeight: 1.45,
                               }}
                             >
-                              Next departure {formatDate(h.next_departure)}
+                              {(attributes?.[h.id] ?? []).find((a) => a.id === activeAttribute)?.reason}
                             </div>
+                          ) : (
+                            h.next_departure && (
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--text-subtle)",
+                                  marginTop: 1,
+                                }}
+                              >
+                                Next departure {formatDate(h.next_departure)}
+                              </div>
+                            )
                           )}
                         </div>
                       </div>

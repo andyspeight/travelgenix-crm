@@ -14,6 +14,12 @@
 
 import Link from "next/link";
 import { Topbar } from "@/components/layout/topbar";
+import {
+  deriveAttributes,
+  findAttribute,
+  type DerivedAttribute,
+  type AttributeId,
+} from "@/lib/attributes/derive";
 import { createClient } from "@/lib/supabase/server";
 import { requireAgencyId } from "@/lib/auth/session";
 import { CustomersView } from "./customers-view";
@@ -32,6 +38,24 @@ type SearchParams = {
   q?: string;
   seg?: string;
   density?: string;
+  /** A derived attribute to narrow by, e.g. ?attr=passport_risk. */
+  attr?: string;
+};
+
+/** The shapes the attribute deriver needs, joined by household. */
+type AttrContact = {
+  household_id: string | null;
+  first_name: string;
+  email: string | null;
+  phone: string | null;
+  passport_expiry: string | null;
+};
+type AttrTrip = {
+  household_id: string | null;
+  stage: string;
+  depart_date: string | null;
+  return_date: string | null;
+  destination: string | null;
 };
 
 export default async function CustomersPage({
@@ -134,6 +158,98 @@ export default async function CustomersPage({
         .order("name");
   const journeys = (journeyRows ?? []) as { id: string; name: string }[];
 
+  // ─── Derived attributes ─────────────────────────────────────────────
+  // Facts nobody typed: who is departing, whose passport will not make it,
+  // who has gone quiet. Computed on read from the rows as they are right now
+  // (lib/attributes/derive), never stored, so they cannot go stale.
+  const attributesByHousehold: Record<string, DerivedAttribute[]> = {};
+  const attrFilter = findAttribute(searchParams.attr ?? "")?.id ?? null;
+
+  if (!isEmpty) {
+    const householdIds = households.map((h) => h.id);
+    const [{ data: contactRows }, { data: tripRows }, { data: ixRows }, { data: quoteRows }, { data: suppressedRows }] =
+      await Promise.all([
+        supabase
+          .from("contacts")
+          .select("household_id, first_name, email, phone, passport_expiry")
+          .eq("agency_id", agencyId),
+        supabase
+          .from("trips")
+          .select("household_id, stage, depart_date, return_date, destination")
+          .eq("agency_id", agencyId),
+        supabase
+          .from("interactions")
+          .select("household_id, occurred_at")
+          .eq("agency_id", agencyId)
+          .order("occurred_at", { ascending: false })
+          .limit(2000),
+        supabase
+          .from("quotes")
+          .select("household_id, status")
+          .eq("agency_id", agencyId)
+          .in("status", ["sent", "viewed"]),
+        supabase.from("email_suppressions").select("email").eq("agency_id", agencyId),
+      ]);
+
+    const byHousehold = <T extends { household_id: string | null }>(rows: T[] | null) => {
+      const map = new Map<string, T[]>();
+      for (const row of rows ?? []) {
+        if (!row.household_id) continue;
+        const list = map.get(row.household_id) ?? [];
+        list.push(row);
+        map.set(row.household_id, list);
+      }
+      return map;
+    };
+
+    const contactsBy = byHousehold((contactRows ?? []) as AttrContact[]);
+    const tripsBy = byHousehold((tripRows ?? []) as AttrTrip[]);
+    const quotesBy = byHousehold((quoteRows ?? []) as { household_id: string | null; status: string }[]);
+
+    const lastContact = new Map<string, string>();
+    for (const ix of (ixRows ?? []) as { household_id: string | null; occurred_at: string }[]) {
+      if (!ix.household_id || lastContact.has(ix.household_id)) continue;
+      lastContact.set(ix.household_id, ix.occurred_at);
+    }
+
+    const suppressed = new Set(
+      ((suppressedRows ?? []) as { email: string }[]).map((r) => r.email.toLowerCase())
+    );
+
+    const now = new Date();
+    for (const id of householdIds) {
+      const household = households.find((h) => h.id === id)!;
+      const contacts = contactsBy.get(id) ?? [];
+      attributesByHousehold[id] = deriveAttributes({
+        now,
+        household: {
+          lifetime_value: household.lifetime_value,
+          last_booking_at: household.last_booking_at,
+          trips_count: household.trips_count,
+        },
+        contacts,
+        trips: tripsBy.get(id) ?? [],
+        lastContactAt: lastContact.get(id) ?? null,
+        hasLiveQuote: (quotesBy.get(id) ?? []).length > 0,
+        emailSuppressed: contacts.some((c) => c.email && suppressed.has(c.email.toLowerCase())),
+        // The consent ledger is per contact; marketing_opt_in on the contact
+        // is the roll-up the customers list already carries.
+        marketingConsent: "granted",
+      });
+    }
+  }
+
+  const filteredHouseholds = attrFilter
+    ? households.filter((h) => (attributesByHousehold[h.id] ?? []).some((a) => a.id === attrFilter))
+    : households;
+
+  // Live counts per attribute, so a filter chip can say how many before it is
+  // pressed — and say nothing rather than a zero that looks like an error.
+  const attributeCounts: Record<string, number> = {};
+  for (const attrs of Object.values(attributesByHousehold)) {
+    for (const a of attrs) attributeCounts[a.id] = (attributeCounts[a.id] ?? 0) + 1;
+  }
+
   const density = searchParams.density === "compact" ? "compact" : "comfortable";
 
   return (
@@ -177,7 +293,10 @@ export default async function CustomersPage({
             initialQuery={rawQuery}
             initialTokens={tokens}
             initialActiveSegment={activeSegmentId}
-            households={households}
+            households={filteredHouseholds}
+            attributes={attributesByHousehold}
+            attributeCounts={attributeCounts}
+            activeAttribute={attrFilter}
             totalCount={totalCount ?? 0}
             segmentCounts={segmentCounts}
             savedSegments={savedSegments}
