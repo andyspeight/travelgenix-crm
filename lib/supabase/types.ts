@@ -45,6 +45,8 @@ export type Household = {
   last_booking_at: string | null;
   next_departure: string | null;
   owner_user_id: string | null;
+  /** The agency's own fields, keyed by field key. See lib/custom-fields. */
+  custom?: Record<string, unknown> | null;
   ai_brief: string | null;
   ai_brief_at: string | null;
   ai_match: {
