@@ -36,7 +36,11 @@ export type CrmEventType =
   | "case.opened"
   | "case.resolved"
   | "email.sent"
-  | "email.bounced";
+  | "email.bounced"
+  | "email.replied"
+  // An out-of-office. Recorded separately so nothing downstream can mistake
+  // a machine's acknowledgement for a customer's answer.
+  | "email.auto_replied";
 
 export type EmitArgs = {
   type: CrmEventType;

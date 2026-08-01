@@ -14,6 +14,7 @@
  * chase and records why.
  */
 
+import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emailConfigured, sendEmail } from "@/lib/email/providers";
 import { resolveSender } from "@/lib/email/sender";
@@ -140,13 +141,29 @@ export async function sendCrmEmail(req: SendRequest): Promise<SendOutcome> {
     }
   );
 
+  // ─── Making the reply findable ────────────────────────────────────────
+  // A reply is only useful if we can tell WHICH message it answers. Thread
+  // headers are unreliable across providers, so when an inbound domain is
+  // configured we carry the id in the reply address itself:
+  //   Reply-To: reply+<sendId>@<inbound domain>
+  // That means generating the id here rather than letting the database do it.
+  //
+  // An agency that has set its own reply-to has said where it wants replies,
+  // and we respect that — their mail goes to their inbox and the CRM will not
+  // see it. Settings says so rather than leaving anyone to discover it.
+  const sendId = randomUUID();
+  const inboundDomain = process.env.EMAIL_INBOUND_DOMAIN?.trim();
+  const agencyChoseReplyTo = Boolean((agencyRow?.email_reply_to as string | null)?.trim());
+  const replyTo =
+    inboundDomain && !agencyChoseReplyTo ? `reply+${sendId}@${inboundDomain}` : sender.replyTo;
+
   const result = await sendEmail({
     purpose: req.purpose,
     toEmail: toEmail!,
     toName,
     subject: req.subject,
     text: req.body,
-    sender,
+    sender: { ...sender, replyTo },
   });
 
   // ─── Record: timeline first, so the audit row can point at it ─────────
@@ -175,6 +192,8 @@ export async function sendCrmEmail(req: SendRequest): Promise<SendOutcome> {
   const { data: sendRow } = await supabase
     .from("email_sends")
     .insert({
+      // Fixed above, because the reply address quotes it.
+      id: sendId,
       agency_id: agencyId,
       household_id: householdId,
       contact_id: req.contactId ?? null,

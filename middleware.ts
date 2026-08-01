@@ -18,10 +18,11 @@
  *
  * Neither set = open, so a fresh deploy or local dev never locks anyone out.
  *
- * /api/email/webhook and /api/cron/* are always let through: an email
- * provider and a scheduler cannot hold a login cookie. They authenticate with
- * a shared secret inside the route instead, and refuse everything when that
- * secret is unset.
+ * /api/email/webhook, /api/email/inbound and /api/cron/* are always let
+ * through: an email provider, a mail server delivering a reply, and a
+ * scheduler cannot hold a login cookie. They authenticate with a shared
+ * secret inside the route instead, and refuse everything when that secret is
+ * unset.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -39,6 +40,8 @@ function isAlwaysOpen(pathname: string): boolean {
     pathname === "/login" ||
     pathname === "/api/auth/access" ||
     pathname === "/api/email/webhook" ||
+    // Inbound Parse: a mail server delivering a customer's reply.
+    pathname === "/api/email/inbound" ||
     // An uptime monitor cannot sign in. The route answers liveness only —
     // no counts, no config, nothing that maps the estate.
     pathname === "/api/health" ||

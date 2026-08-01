@@ -33,6 +33,11 @@ import {
   type ChannelState,
 } from "@/lib/consent/state";
 import { computeTravelMemory } from "@/lib/memory/travel-memory";
+import {
+  describeEngagement,
+  type EngagementRow,
+  type EngagementState,
+} from "@/lib/email/engagement";
 import type {
   Household,
   Contact,
@@ -71,47 +76,65 @@ export default async function CustomerDetailPage({
   }
 
   // Then fetch related data in parallel
-  const [contactsRes, tripsRes, interactionsRes, prefsRes, consentsRes, quotesRes] = await Promise.all([
-    supabase
-      .from("contacts")
-      .select("*")
-      .eq("household_id", params.id)
-      .order("role"),
-    supabase
-      .from("trips")
-      .select("*")
-      .eq("household_id", params.id)
-      .order("depart_date", { ascending: false, nullsFirst: false }),
-    supabase
-      .from("interactions")
-      .select("*")
-      .eq("household_id", params.id)
-      .order("occurred_at", { ascending: false })
-      .limit(20),
-    supabase
-      .from("preferences")
-      .select("*")
-      .eq("household_id", params.id),
-    // Consent ledger — a missing table (migration not run) degrades to an
-    // honest "not set up yet" note in the panel.
-    supabase
-      .from("consents")
-      .select("contact_id, channel, granted, occurred_at, source")
-      .eq("household_id", params.id)
-      .eq("agency_id", agencyId),
-    // Quotes feed the Travel Memory watch-outs (decline reasons).
-    supabase
-      .from("quotes")
-      .select("*")
-      .eq("household_id", params.id)
-      .eq("agency_id", agencyId),
-  ]);
+  const [contactsRes, tripsRes, interactionsRes, prefsRes, consentsRes, quotesRes, sendsRes] =
+    await Promise.all([
+      supabase
+        .from("contacts")
+        .select("*")
+        .eq("household_id", params.id)
+        .order("role"),
+      supabase
+        .from("trips")
+        .select("*")
+        .eq("household_id", params.id)
+        .order("depart_date", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("interactions")
+        .select("*")
+        .eq("household_id", params.id)
+        .order("occurred_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("preferences")
+        .select("*")
+        .eq("household_id", params.id),
+      // Consent ledger — a missing table (migration not run) degrades to an
+      // honest "not set up yet" note in the panel.
+      supabase
+        .from("consents")
+        .select("contact_id, channel, granted, occurred_at, source")
+        .eq("household_id", params.id)
+        .eq("agency_id", agencyId),
+      // Quotes feed the Travel Memory watch-outs (decline reasons).
+      supabase
+        .from("quotes")
+        .select("*")
+        .eq("household_id", params.id)
+        .eq("agency_id", agencyId),
+      // What happened to each email after we sent it, so the timeline can say
+      // more than "sent". A missing column set (migration not run) simply
+      // leaves the timeline as it was.
+      supabase
+        .from("email_sends")
+        .select(
+          "id, provider_message_id, interaction_id, status, delivered_at, first_opened_at, open_count, first_clicked_at, click_count, last_event_at, replied_at"
+        )
+        .eq("household_id", params.id)
+        .eq("agency_id", agencyId),
+    ]);
 
   const householdRow = household as Household;
   const contactRows = (contactsRes.data ?? []) as Contact[];
   const tripRows = (tripsRes.data ?? []) as Trip[];
   const prefRows = (prefsRes.data ?? []) as Preference[];
   const interactionRows = (interactionsRes.data ?? []) as Interaction[];
+
+  // ─── What happened after each email, keyed by its timeline entry ─────
+  const engagement: Record<string, EngagementState> = {};
+  for (const s of (sendsRes.data ?? []) as (EngagementRow & { interaction_id: string | null })[]) {
+    if (!s.interaction_id) continue;
+    engagement[s.interaction_id] = describeEngagement(s);
+  }
 
   // ─── Consent state (per adult contact, per channel) ─────────────────
   const consentLedgerMissing = Boolean(
@@ -259,6 +282,7 @@ export default async function CustomerDetailPage({
         contacts={contactRows}
         trips={tripRows}
         interactions={interactionRows}
+        engagement={engagement}
         preferences={prefRows}
         predictionCards={predictionCards}
         nextSteps={nextSteps}

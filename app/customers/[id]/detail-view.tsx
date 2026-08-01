@@ -30,6 +30,7 @@ import { ConsentPanel, type ConsentPanelContact } from "./consent-panel";
 import type { ConsentChannel, ChannelState } from "@/lib/consent/state";
 import type { MemoryFact, MemoryCategory } from "@/lib/memory/travel-memory";
 import type { NextStep } from "@/lib/customer/next-steps";
+import type { EngagementState } from "@/lib/email/engagement";
 import type {
   Household,
   Contact,
@@ -49,6 +50,8 @@ type Props = {
   contacts: Contact[];
   trips: Trip[];
   interactions: Interaction[];
+  /** What happened after each email we sent, keyed by its timeline entry. */
+  engagement?: Record<string, EngagementState>;
   preferences: Preference[];
   predictionCards?: PredictionCard[];
   nextSteps: NextStep[];
@@ -130,6 +133,7 @@ export function CustomerDetailView({
   contacts,
   trips,
   interactions,
+  engagement,
   preferences,
   predictionCards,
   nextSteps,
@@ -171,7 +175,7 @@ export function CustomerDetailView({
           <AIBrief household={household} exemplar={exemplar} latestInboundId={latestInboundId} />
           <PredictionsRow exemplar={exemplar} cards={predictionCards} />
           <TravelMemoryPanel facts={memoryFacts} />
-          <Timeline interactions={interactions} />
+          <Timeline interactions={interactions} engagement={engagement} />
           <ListeningFooter exemplar={exemplar} />
         </div>
 
@@ -685,7 +689,13 @@ function PredictionsRow({
 }
 
 // ─── Timeline ───────────────────────────────────────────────────────────
-function Timeline({ interactions }: { interactions: Interaction[] }) {
+function Timeline({
+  interactions,
+  engagement,
+}: {
+  interactions: Interaction[];
+  engagement?: Record<string, EngagementState>;
+}) {
   // Internal audit entries (kind: 'system') record things like brief
   // regeneration for our own diagnostics. They must never appear in the
   // customer-facing activity feed, both because the detail (model names etc.)
@@ -713,6 +723,17 @@ function Timeline({ interactions }: { interactions: Interaction[] }) {
     <Panel title="Timeline" extra="All activity →">
       <div style={{ padding: 16 }}>
         {visible.map((ix) => {
+          // What became of this email after it left. Honest by construction:
+          // an open is labelled a hint, a click is labelled evidence, and a
+          // reply outranks both (lib/email/engagement.ts).
+          const eng = engagement?.[ix.id];
+          const engColour: Record<string, string> = {
+            acted: "var(--success)",
+            weak: "var(--text-muted)",
+            delivered: "var(--text-subtle)",
+            quiet: "var(--text-subtle)",
+            failed: "var(--danger)",
+          };
           const occurred = new Date(ix.occurred_at);
           const dateLabel = occurred.toLocaleDateString("en-GB", {
             day: "numeric",
@@ -812,6 +833,19 @@ function Timeline({ interactions }: { interactions: Interaction[] }) {
                         : ix.body)}
                   </div>
                 ) : null}
+                {eng && (
+                  <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5 }}>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color: engColour[eng.strength] ?? "var(--text-muted)",
+                      }}
+                    >
+                      {eng.label}
+                    </span>
+                    <span style={{ color: "var(--text-subtle)" }}> — {eng.detail}</span>
+                  </div>
+                )}
                 {ix.ai_priority && (
                   <div
                     style={{

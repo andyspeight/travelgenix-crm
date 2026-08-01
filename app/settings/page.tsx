@@ -93,15 +93,28 @@ export default async function SettingsPage() {
   // schedule is estate-wide and has no agency of its own.
   const sys = createSystemClient();
   const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const [{ data: cronRow }, { data: recentSends }, { data: suppressedRows }] = await Promise.all([
-    sys.from("cron_runs").select("started_at, status, actions")
-      .eq("job", "journeys").order("started_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("email_sends").select("status")
-      .eq("agency_id", agencyId).gte("created_at", sevenDaysAgo),
-    supabase.from("email_suppressions").select("email").eq("agency_id", agencyId),
-  ]);
+  const [{ data: cronRow }, { data: recentSends }, { data: suppressedRows }, inboundRes] =
+    await Promise.all([
+      sys.from("cron_runs").select("started_at, status, actions")
+        .eq("job", "journeys").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("email_sends").select("status")
+        .eq("agency_id", agencyId).gte("created_at", sevenDaysAgo),
+      supabase.from("email_suppressions").select("email").eq("agency_id", agencyId),
+      // Replies this week. Unmatched ones have no agency at all, so they are
+      // counted estate-wide on the system client — an unfiled reply belongs
+      // to nobody yet, and hiding it from everyone would defeat the point.
+      supabase.from("email_inbound").select("matched_by")
+        .eq("agency_id", agencyId).gte("received_at", sevenDaysAgo),
+    ]);
 
   const sends = (recentSends ?? []) as { status: string }[];
+  const { data: unmatchedRows } = await sys
+    .from("email_inbound")
+    .select("id")
+    .is("agency_id", null)
+    .gte("received_at", sevenDaysAgo);
+  const matchedReplies = ((inboundRes.data ?? []) as { matched_by: string }[]).length;
+  const unmatchedReplies = (unmatchedRows ?? []).length;
   const health = computeHealth({
     now: new Date(),
     lastCronRun: cronRow
@@ -119,6 +132,9 @@ export default async function SettingsPage() {
     suppressed: (suppressedRows ?? []).length,
     aiConfigured: anthropicConfigured,
     controlConfigured: controlOn,
+    inboundConfigured: Boolean(process.env.EMAIL_INBOUND_DOMAIN),
+    repliesReceived7d: matchedReplies + unmatchedReplies,
+    repliesUnmatched7d: unmatchedReplies,
   });
   const healthOverall = overallState(health);
 

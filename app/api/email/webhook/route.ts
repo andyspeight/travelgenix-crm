@@ -23,7 +23,12 @@
  *   2. the email_sends row flips to bounced/complained,
  *   3. email.bounced lands on the event spine.
  *
- * Soft bounces, deferrals, opens and deliveries are acknowledged and ignored.
+ * Deliveries, opens and clicks are folded onto the send row as counts, which
+ * is all they are worth: an open is a tracking pixel being fetched, and
+ * machines fetch it. Nothing here stops a chase or claims anyone read
+ * anything — only a real reply does that (/api/email/inbound).
+ *
+ * Soft bounces and deferrals are acknowledged and ignored.
  */
 
 import { NextResponse } from "next/server";
@@ -35,6 +40,11 @@ import {
   ourEvents,
   type OwnedSend,
 } from "@/lib/email/webhook-events";
+import {
+  normaliseEngagement,
+  foldEngagement,
+  type EngagementRow,
+} from "@/lib/email/engagement";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -56,13 +66,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
 
+  const receivedAt = new Date().toISOString();
   const events = normaliseEvents(payload);
-  if (events.length === 0) {
-    // Deliveries, opens, deferrals — or another tool's non-bounce traffic.
+  const engagement = normaliseEngagement(payload, receivedAt);
+
+  if (events.length === 0 && engagement.length === 0) {
+    // Deferrals, processed, or another tool's traffic we take no view on.
     return NextResponse.json({ ok: true, handled: 0 });
   }
 
-  const ids = messageIdsToCheck(events);
+  const ids = Array.from(
+    new Set([...messageIdsToCheck(events), ...engagement.map((e) => e.messageId)])
+  );
   if (ids.length === 0) {
     return NextResponse.json({ ok: true, handled: 0 });
   }
@@ -74,7 +89,10 @@ export async function POST(request: Request) {
   // The one lookup. Everything not returned here belongs to another tool.
   const { data: sendRows, error } = await supabase
     .from("email_sends")
-    .select("id, agency_id, household_id, provider_message_id, interaction_id, enquiry_id, to_email")
+    .select(
+      "id, agency_id, household_id, provider_message_id, interaction_id, enquiry_id, to_email, " +
+        "delivered_at, first_opened_at, open_count, first_clicked_at, click_count, last_event_at"
+    )
     .in("provider_message_id", ids);
 
   if (error) {
@@ -84,9 +102,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, handled: 0 });
   }
 
-  const mine = ourEvents(events, (sendRows ?? []) as OwnedSend[]);
+  const owned = (sendRows ?? []) as unknown as (OwnedSend & EngagementRow)[];
+
+  // ─── Engagement: delivered, opened, clicked ───────────────────────────
+  // Cheap and silent. It never stops a chase and never claims anyone read
+  // anything — see lib/email/engagement.ts for why an open is only a hint.
+  const updates = foldEngagement(engagement, owned);
+  for (const u of updates) {
+    await supabase.from("email_sends").update(u.patch).eq("id", u.id);
+  }
+
+  const mine = ourEvents(events, owned);
   if (mine.length === 0) {
-    return NextResponse.json({ ok: true, handled: 0 });
+    return NextResponse.json({ ok: true, handled: 0, engagement: updates.length });
   }
 
   for (const { event, send } of mine) {
@@ -152,5 +180,5 @@ export async function POST(request: Request) {
     `[email/webhook] ${mine.length} of ${events.length} suppressible events were ours`
   );
 
-  return NextResponse.json({ ok: true, handled: mine.length });
+  return NextResponse.json({ ok: true, handled: mine.length, engagement: updates.length });
 }
