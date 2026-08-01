@@ -10,6 +10,7 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
+import { CustomFieldsSettings } from "./custom-fields";
 import { createClient, dbAccessMode } from "@/lib/supabase/server";
 import { requireAgencyId } from "@/lib/auth/session";
 import { daysUntil } from "@/lib/trips/presentation";
@@ -225,6 +226,14 @@ export default async function SettingsPage() {
           />
           <Row label="Region & timezone" value={ag?.timezone ?? "Europe/London"} />
           <Row label="Plan" value="MVP · single agency" last />
+        </Section>
+
+        {/* ─── Custom fields ─────────────────────────────────────────── */}
+        <Section
+          title="Your fields"
+          description="Everything else is the same for every agency. This is the part that isn't."
+        >
+          <CustomFieldsSettings />
         </Section>
 
         {/* ─── Team ──────────────────────────────────────────────────── */}

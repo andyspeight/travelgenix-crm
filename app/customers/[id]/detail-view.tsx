@@ -26,12 +26,14 @@ import {
 import { BriefActions } from "./brief-actions";
 import { NextSteps } from "./next-steps";
 import { PreferencesPanelEditable } from "./preferences-panel";
+import { CustomFieldsPanel } from "./custom-fields-panel";
 import { HouseholdEditButton } from "./household-edit";
 import { ConsentPanel, type ConsentPanelContact } from "./consent-panel";
 import type { ConsentChannel, ChannelState } from "@/lib/consent/state";
 import type { MemoryFact, MemoryCategory } from "@/lib/memory/travel-memory";
 import type { NextStep } from "@/lib/customer/next-steps";
 import type { EngagementState } from "@/lib/email/engagement";
+import type { FieldDef, CustomValues } from "@/lib/custom-fields/schema";
 import type {
   Household,
   Contact,
@@ -53,6 +55,9 @@ type Props = {
   interactions: Interaction[];
   /** What happened after each email we sent, keyed by its timeline entry. */
   engagement?: Record<string, EngagementState>;
+  /** The agency's own fields, and this customer's answers. */
+  customFields?: FieldDef[];
+  customValues?: CustomValues;
   preferences: Preference[];
   predictionCards?: PredictionCard[];
   nextSteps: NextStep[];
@@ -135,6 +140,8 @@ export function CustomerDetailView({
   trips,
   interactions,
   engagement,
+  customFields,
+  customValues,
   preferences,
   predictionCards,
   nextSteps,
@@ -197,6 +204,11 @@ export function CustomerDetailView({
               dependants={dependants}
             />
           ) : null}
+          <CustomFieldsPanel
+            householdId={household.id}
+            fields={customFields ?? []}
+            initial={customValues ?? {}}
+          />
           <PreferencesPanelEditable
             householdId={household.id}
             initial={preferences.map((p) => ({

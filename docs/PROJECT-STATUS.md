@@ -296,5 +296,13 @@ A fresh look at what Attio shipped through 2026: Ask Attio taking actions, AI At
   - **Nothing sends.** Tasks, tags and enrolments land in a queue a human works; sequences stop on a reply and default to review mode, and the plan says so in words when auto-send is on.
   - Already-there is not a failure: re-tagging and re-enrolling are skipped and counted, and the outcome line reports what actually happened rather than what was asked for.
 - [ ] **2. Derived attributes you can filter on** — Travel Memory and enquiry enrichment already compute the facts; they are display-only. Making them filterable and usable as sequence triggers turns "Luna noticed" into something actionable in bulk.
-- [ ] **3. Custom fields per agency** — their flexible data model, needed properly once several agencies want different fields.
+- [x] **3. Custom fields per agency** (1 Aug) — Attio's actual differentiator is a data model you shape yourself. Every agency has three or four things it records that no other agency does: a loyalty number, the wedding date, a corporate account code, which of the two offices looks after them. Without somewhere to put them the answer is a spreadsheet beside the CRM.
+  - **`lib/custom-fields/schema.ts` (25 tests)** — six types (text, number, date, choose one, choose several, yes/no), validation, coercion and display.
+  - **Definitions in a table, values in jsonb on the record.** Every screen that already loads a customer gets their fields for free: no join, no second query, no page rendering half a record while it waits.
+  - **Unknown keys are dropped, never stored.** The moment a browser can put arbitrary json in that column, "what fields exist" stops being a question anyone can answer.
+  - **A field's type never changes.** Turning text into a number would quietly reinterpret every value already recorded — "approx 3" becomes nothing and nobody is told. The API refuses it in those words rather than silently ignoring the attempt.
+  - **Fields are retired, not deleted**, because deleting the definition orphans every value under it. A retired field comes off the form and its values stay on the record, labelled "no longer in use".
+  - **A value whose option was removed still shows, marked.** Blanking data an agency typed because someone edited a dropdown is a loss nobody notices until they need it.
+  - **Merged, not replaced**, on save: a form that only rendered the fields on screen cannot wipe a value it never showed.
+  - Entity is `household` only, on purpose — it is the one record with a detail screen to put fields on. Adding trips or contacts is a one-line constraint change plus a column, and should happen when there is a screen for them.
 - [ ] **4. An MCP server for Luna Work** — low product value (agents live in email, not Slack), high value for querying the CRM from Claude.

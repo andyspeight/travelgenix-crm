@@ -33,6 +33,7 @@ import {
   type ChannelState,
 } from "@/lib/consent/state";
 import { computeTravelMemory } from "@/lib/memory/travel-memory";
+import type { FieldDef, CustomValues } from "@/lib/custom-fields/schema";
 import {
   describeEngagement,
   type EngagementRow,
@@ -76,7 +77,7 @@ export default async function CustomerDetailPage({
   }
 
   // Then fetch related data in parallel
-  const [contactsRes, tripsRes, interactionsRes, prefsRes, consentsRes, quotesRes, sendsRes] =
+  const [contactsRes, tripsRes, interactionsRes, prefsRes, consentsRes, quotesRes, fieldsRes, sendsRes] =
     await Promise.all([
       supabase
         .from("contacts")
@@ -111,6 +112,13 @@ export default async function CustomerDetailPage({
         .select("*")
         .eq("household_id", params.id)
         .eq("agency_id", agencyId),
+      // The agency's own fields. A missing table (migration not run) just
+      // means the panel says there are none yet.
+      supabase
+        .from("custom_fields")
+        .select("id, entity, key, label, type, options, help, position, archived")
+        .eq("agency_id", agencyId)
+        .eq("entity", "household"),
       // What happened to each email after we sent it, so the timeline can say
       // more than "sent". A missing column set (migration not run) simply
       // leaves the timeline as it was.
@@ -283,6 +291,8 @@ export default async function CustomerDetailPage({
         trips={tripRows}
         interactions={interactionRows}
         engagement={engagement}
+        customFields={(fieldsRes.data ?? []) as FieldDef[]}
+        customValues={(householdRow.custom ?? {}) as CustomValues}
         preferences={prefRows}
         predictionCards={predictionCards}
         nextSteps={nextSteps}
