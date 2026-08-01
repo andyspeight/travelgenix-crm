@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Enquiry, EnquiryScore } from "@/lib/supabase/types";
 import { clockState, type Clock } from "@/lib/enquiries/clock";
+import type { EnrichmentFact } from "@/lib/enrich/enquiry";
 import { MessageIcon, SendIcon, PlaneIcon, XIcon, SparklesIcon } from "@/components/ui/icons";
 
 export type EnquiriesViewProps = {
@@ -21,6 +22,8 @@ export type EnquiriesViewProps = {
   nameById: Record<string, string>;
   /** True when the server has a configured email provider — replies send for real. */
   emailLive: boolean;
+  /** What Luna worked out about each enquiry, keyed by enquiry id. */
+  enrichment: Record<string, EnrichmentFact[]>;
 };
 
 type Tab = "needs_response" | "responded" | "converted" | "closed" | "all";
@@ -98,7 +101,7 @@ function ScorePill({ letter, title, s }: { letter: string; title: string; s: Enq
   );
 }
 
-export function EnquiriesView({ enquiries, nameById, emailLive }: EnquiriesViewProps) {
+export function EnquiriesView({ enquiries, nameById, emailLive, enrichment }: EnquiriesViewProps) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("needs_response");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -464,6 +467,57 @@ export function EnquiriesView({ enquiries, nameById, emailLive }: EnquiriesViewP
                   )}
                 </div>
               </div>
+
+              {/* What Luna noticed about this enquiry */}
+              {(enrichment[e.id]?.length ?? 0) > 0 && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    paddingTop: 10,
+                    borderTop: "1px solid var(--border)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 7,
+                  }}
+                >
+                  {enrichment[e.id].map((f, idx) => (
+                    <div key={idx} style={{ display: "flex", gap: 8 }}>
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          marginTop: 6,
+                          flexShrink: 0,
+                          background:
+                            f.tone === "warn" ? "var(--warning)" : "var(--tg-accent-dark)",
+                        }}
+                      />
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            color: f.tone === "warn" ? "var(--text)" : "var(--text-muted)",
+                          }}
+                        >
+                          {f.headline}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                          {f.detail}
+                        </div>
+                        <div
+                          style={{ fontSize: 10.5, color: "var(--text-subtle)", marginTop: 1 }}
+                          title="Where this came from — check it, don't take our word for it"
+                        >
+                          {f.source}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Actions */}
               {(e.status === "new" || e.status === "responded") && (
