@@ -1,23 +1,23 @@
 /**
  * POST /api/customers/[id]/note
  *
- * Adds an internal note to a household. Notes are stored as an `interactions`
- * row (kind = note, direction = internal) so they appear inline in the customer
- * timeline alongside emails and calls — one chronological record, not a second
- * silo. Agency-scoped; the body is the only client-supplied field.
+ * Logs a note or a phone call onto a household. Both are stored as an
+ * `interactions` row (direction = internal) so they appear inline in the
+ * customer timeline alongside emails — one chronological record, not a second
+ * silo. A call carries kind = call so the timeline labels it as one; a note is
+ * kind = note. Agency-scoped; the body and kind are the only client fields.
  */
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { apiAgencyId } from "@/lib/auth/session";
+import { validateLogEntry, logEntryRow } from "@/lib/customer/log-entry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const MAX_NOTE = 4000;
 
 export async function POST(
   request: Request,
@@ -28,19 +28,16 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Invalid customer id" }, { status: 400 });
   }
 
-  let parsed: { body?: unknown };
+  let parsed: { body?: unknown; kind?: unknown };
   try {
-    parsed = (await request.json()) as { body?: unknown };
+    parsed = (await request.json()) as { body?: unknown; kind?: unknown };
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const text = typeof parsed.body === "string" ? parsed.body.trim() : "";
-  if (!text) {
-    return NextResponse.json({ ok: false, error: "Note is empty" }, { status: 400 });
-  }
-  if (text.length > MAX_NOTE) {
-    return NextResponse.json({ ok: false, error: "Note is too long" }, { status: 400 });
+  const entry = validateLogEntry({ body: parsed.body, kind: parsed.kind });
+  if (!entry.ok) {
+    return NextResponse.json({ ok: false, error: entry.error }, { status: 400 });
   }
 
   const supabase = createClient();
@@ -67,16 +64,17 @@ export async function POST(
   }
 
   const nowIso = new Date().toISOString();
+  const row = logEntryRow(entry.kind);
   const { data, error } = await supabase
     .from("interactions")
     .insert({
       agency_id: agencyId,
       household_id: householdId,
-      kind: "note",
-      channel: "note",
+      kind: row.kind,
+      channel: row.channel,
       direction: "internal",
-      subject: "Note",
-      body: text,
+      subject: row.subject,
+      body: entry.body,
       is_read: true,
       is_triaged: true,
       occurred_at: nowIso,
@@ -88,5 +86,5 @@ export async function POST(
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, note: data });
+  return NextResponse.json({ ok: true, entry: data });
 }

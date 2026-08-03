@@ -6,6 +6,10 @@
  *                       the inbox itself if there's nothing to reply to).
  *   - Add note       -> reveals an inline composer; POSTs to /note, which writes
  *                       an interaction that shows in the timeline on refresh.
+ *   - Log a call     -> the same composer, tagged as a call: records a call that
+ *                       has already happened as a `call` interaction on the
+ *                       timeline. (Distinct from Schedule call, which is a future
+ *                       task, not a record of a call that took place.)
  *   - Schedule call  -> POSTs a follow-up task (due tomorrow) to /task; if a
  *                       Calendly URL is configured it also opens the booking page.
  *   - Refresh brief  -> regenerates the AI brief + scores.
@@ -28,9 +32,10 @@ export function BriefActions({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [noteText, setNoteText] = useState("");
-  const [savingNote, setSavingNote] = useState(false);
+  // One inline composer, shared by note and call — same write, different label.
+  const [entryKind, setEntryKind] = useState<"note" | "call" | null>(null);
+  const [entryText, setEntryText] = useState("");
+  const [savingEntry, setSavingEntry] = useState(false);
   const [scheduling, setScheduling] = useState(false);
 
   const busy = loading || isPending;
@@ -60,31 +65,37 @@ export function BriefActions({
     }
   }
 
-  async function saveNote() {
-    const body = noteText.trim();
+  async function saveEntry() {
+    const kind = entryKind ?? "note";
+    const body = entryText.trim();
     if (!body) {
-      setNoteOpen(false);
+      setEntryKind(null);
       return;
     }
     setError(null);
-    setSavingNote(true);
+    setSavingEntry(true);
     try {
       const res = await fetch(`/api/customers/${householdId}/note`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({ body, kind }),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) throw new Error(data.error || `Failed (${res.status})`);
-      setNoteText("");
-      setNoteOpen(false);
-      setFlash("Note added");
+      setEntryText("");
+      setEntryKind(null);
+      setFlash(kind === "call" ? "Call logged" : "Note added");
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save the note");
+      setError(err instanceof Error ? err.message : "Couldn't save that");
     } finally {
-      setSavingNote(false);
+      setSavingEntry(false);
     }
+  }
+
+  function toggleEntry(kind: "note" | "call") {
+    setError(null);
+    setEntryKind((cur) => (cur === kind ? null : kind));
   }
 
   async function scheduleCall() {
@@ -126,8 +137,11 @@ export function BriefActions({
         <button onClick={draftReply} style={baseBtn}>
           Draft a reply
         </button>
-        <button onClick={() => { setNoteOpen((o) => !o); setError(null); }} style={baseBtn}>
+        <button onClick={() => toggleEntry("note")} style={entryKind === "note" ? { ...baseBtn, borderColor: "var(--tg-accent)", color: "var(--tg-accent-dark)" } : baseBtn}>
           Add note
+        </button>
+        <button onClick={() => toggleEntry("call")} style={entryKind === "call" ? { ...baseBtn, borderColor: "var(--tg-accent)", color: "var(--tg-accent-dark)" } : baseBtn}>
+          Log a call
         </button>
         <button onClick={scheduleCall} disabled={scheduling} aria-busy={scheduling} style={{ ...baseBtn, cursor: scheduling ? "wait" : "pointer", opacity: scheduling ? 0.7 : 1 }}>
           {scheduling ? "Scheduling…" : "Schedule call"}
@@ -150,12 +164,16 @@ export function BriefActions({
         {error && <span style={{ fontSize: 11.5, color: "var(--error)" }}>{error}</span>}
       </div>
 
-      {noteOpen && (
+      {entryKind && (
         <div style={{ marginTop: 10 }}>
           <textarea
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Add an internal note. It appears in the timeline."
+            value={entryText}
+            onChange={(e) => setEntryText(e.target.value)}
+            placeholder={
+              entryKind === "call"
+                ? "What was discussed on the call? It appears in the timeline as a call."
+                : "Add an internal note. It appears in the timeline."
+            }
             rows={3}
             autoFocus
             style={{
@@ -172,20 +190,20 @@ export function BriefActions({
           />
           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
             <button
-              onClick={saveNote}
-              disabled={savingNote || !noteText.trim()}
+              onClick={saveEntry}
+              disabled={savingEntry || !entryText.trim()}
               style={{
                 ...baseBtn,
                 color: "white",
                 background: "var(--tg-primary)",
                 borderColor: "var(--tg-primary)",
-                cursor: savingNote || !noteText.trim() ? "default" : "pointer",
-                opacity: savingNote || !noteText.trim() ? 0.6 : 1,
+                cursor: savingEntry || !entryText.trim() ? "default" : "pointer",
+                opacity: savingEntry || !entryText.trim() ? 0.6 : 1,
               }}
             >
-              {savingNote ? "Saving…" : "Save note"}
+              {savingEntry ? "Saving…" : entryKind === "call" ? "Log the call" : "Save note"}
             </button>
-            <button onClick={() => { setNoteOpen(false); setNoteText(""); }} style={baseBtn}>
+            <button onClick={() => { setEntryKind(null); setEntryText(""); }} style={baseBtn}>
               Cancel
             </button>
           </div>
