@@ -51,6 +51,7 @@ export function makeContact(over: Partial<Contact> = {}): Contact {
     phone: null,
     date_of_birth: null,
     passport_expiry: null,
+    passport_country: null,
     dietary: null,
     flags: [],
     marketing_opt_in: true,

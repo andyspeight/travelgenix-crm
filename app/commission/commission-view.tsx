@@ -160,6 +160,32 @@ export function CommissionView({
     }
   }
 
+  const [addingSupplier, setAddingSupplier] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  async function addSupplier() {
+    const name = newName.trim();
+    if (name.length < 2) return;
+    setError(null);
+    try {
+      const res = await fetch("/api/suppliers", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = (await res.json()) as { ok: boolean; supplier?: SupplierRow; error?: string };
+      if (!data.ok || !data.supplier) {
+        setError(data.error ?? "That supplier couldn't be added.");
+        return;
+      }
+      setSupplierList((list) => [...list, data.supplier!].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewName("");
+      setAddingSupplier(false);
+    } catch {
+      setError("That didn't save. Check your connection.");
+    }
+  }
+
   const unpaid = items.filter((r) => r.status === "expected" || r.status === "invoiced");
   const visible = showAll ? items : unpaid;
 
@@ -451,6 +477,45 @@ export function CommissionView({
             </table>
           </div>
         )}
+
+        {supplierList.length > 0 && !addingSupplier && (
+          <button onClick={() => setAddingSupplier(true)} style={{ ...smallBtn, marginTop: 8 }}>
+            + Add a supplier
+          </button>
+        )}
+        {addingSupplier && (
+          <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+            <input
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void addSupplier(); }}
+              placeholder="Supplier name, e.g. Jet2 Holidays"
+              style={{
+                flex: 1,
+                maxWidth: 280,
+                border: "1px solid var(--border)",
+                borderRadius: 7,
+                background: "var(--surface)",
+                color: "var(--text)",
+                padding: "6px 9px",
+                fontSize: 12.5,
+                fontFamily: "inherit",
+              }}
+            />
+            <button
+              onClick={() => void addSupplier()}
+              disabled={newName.trim().length < 2}
+              style={{ ...smallBtn, color: "var(--tg-accent-dark)", borderColor: "var(--tg-accent)", opacity: newName.trim().length < 2 ? 0.6 : 1 }}
+            >
+              Add
+            </button>
+            <button onClick={() => { setAddingSupplier(false); setNewName(""); }} style={{ ...smallBtn, border: "none" }}>
+              Cancel
+            </button>
+            <span style={{ fontSize: 11, color: "var(--text-subtle)" }}>Set its rate and terms once it&apos;s in the list.</span>
+          </div>
+        )}
       </section>
 
       {/* ─── Suppliers ────────────────────────────────────────── */}
@@ -461,7 +526,7 @@ export function CommissionView({
           falls back to these, labelled as the supplier&apos;s usual rate rather than a confirmed
           one. Leave either blank and nothing will be assumed.
         </p>
-        {supplierList.length === 0 ? (
+        {supplierList.length === 0 && !addingSupplier ? (
           <div
             style={{
               border: "1px solid var(--border)",
@@ -473,7 +538,13 @@ export function CommissionView({
               textAlign: "center",
             }}
           >
-            No suppliers on file yet.
+            No suppliers yet.{" "}
+            <button
+              onClick={() => setAddingSupplier(true)}
+              style={{ ...smallBtn, display: "inline-flex", marginLeft: 4 }}
+            >
+              Add your first supplier
+            </button>
           </div>
         ) : (
           <div style={{ border: "1px solid var(--border)", borderRadius: 10, background: "var(--surface)", overflowX: "auto" }}>

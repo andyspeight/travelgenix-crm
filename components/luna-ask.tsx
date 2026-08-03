@@ -57,11 +57,13 @@ export function LunaAsk({ request }: { request?: AskRequest | null } = {}) {
   // Draggable button position. null = default (bottom-right). Once dragged,
   // we store an explicit {x, y} in viewport pixels.
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const dragState = useRef<{ dragging: boolean; moved: boolean; offX: number; offY: number }>({
+  const dragState = useRef<{ dragging: boolean; moved: boolean; offX: number; offY: number; startX: number; startY: number }>({
     dragging: false,
     moved: false,
     offX: 0,
     offY: 0,
+    startX: 0,
+    startY: 0,
   });
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
@@ -71,13 +73,20 @@ export function LunaAsk({ request }: { request?: AskRequest | null } = {}) {
       moved: false,
       offX: e.clientX - rect.left,
       offY: e.clientY - rect.top,
+      startX: e.clientX,
+      startY: e.clientY,
     };
     e.currentTarget.setPointerCapture(e.pointerId);
   }, []);
 
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     if (!dragState.current.dragging) return;
-    // Treat as a drag once it moves a few px (so a click still opens it).
+    // Treat as a drag only once it has moved past a few pixels — otherwise the
+    // tiny jitter every touchscreen tap carries would count as a drag and the
+    // button would never open. Below the threshold we do not move it either.
+    const dx = e.clientX - dragState.current.startX;
+    const dy = e.clientY - dragState.current.startY;
+    if (!dragState.current.moved && Math.hypot(dx, dy) < 6) return;
     dragState.current.moved = true;
     const x = e.clientX - dragState.current.offX;
     const y = e.clientY - dragState.current.offY;
