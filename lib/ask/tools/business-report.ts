@@ -3,11 +3,14 @@
  *
  * Answers "build me a report", "how's business", "give me an overview of this
  * quarter". One period, the headline numbers an owner actually wants: booked
- * revenue, bookings, average value, open pipeline, new customers, plus the top
+ * turnover, bookings, average value, open pipeline, new customers, plus the top
  * destination — with deterministic signals for the insight layer.
  *
- * Rendered as a list of metric rows (the Ask panel renders list/number/empty),
- * with the booked-revenue figure carried in `value` for the headline.
+ * "Turnover", not "revenue": these figures are gross booking value, the
+ * customer's money passing through, not the agency's income. Commission is on
+ * its own screen. Rendered as a list of metric rows (the Ask panel renders
+ * list/number/empty), with the booked-turnover figure carried in `value` for
+ * the headline.
  */
 
 import {
@@ -33,7 +36,7 @@ function fmtMoneyFull(n: number): string {
 export const businessReport: QueryTool = {
   name: "business_report",
   description:
-    "Build a business overview report for a date period: booked revenue, number of bookings, average booking value, open pipeline, new customers and top destinations. Use for 'build me a report', 'how is business', 'summary of this month/quarter/year', 'performance overview'.",
+    "Build a business overview report for a date period: booked turnover, number of bookings, average booking value, open pipeline, new customers and top destinations. Use for 'build me a report', 'how is business', 'summary of this month/quarter/year', 'performance overview'. Turnover is the holiday price, not commission.",
   examples: [
     "Build me a report for this year",
     "How's business this quarter?",
@@ -95,7 +98,7 @@ export const businessReport: QueryTool = {
     const topDests = Array.from(byDest.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
     const rows: ResultRow[] = [
-      { id: "booked", title: "Booked revenue", subtitle: `${fmtMoneyFull(bookedValue)} from ${booked.length} ${booked.length === 1 ? "booking" : "bookings"} departing in the period` },
+      { id: "booked", title: "Booked turnover", subtitle: `${fmtMoneyFull(bookedValue)} from ${booked.length} ${booked.length === 1 ? "booking" : "bookings"} departing in the period` },
       { id: "avg", title: "Average booking", subtitle: booked.length ? fmtMoneyFull(avg) : "No bookings in the period" },
       { id: "pipeline", title: "Open pipeline (now)", subtitle: `${fmtMoneyFull(pipelineValue)} across ${open.length} live ${open.length === 1 ? "enquiry/quote" : "enquiries/quotes"}` },
       { id: "new", title: "New customers", subtitle: `${newCount} joined in the period` },

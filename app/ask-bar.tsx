@@ -55,18 +55,18 @@ export function AskBar() {
         }}
         style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           gap: 9,
           border: "1px solid var(--border)",
           borderRadius: 10,
           background: "var(--surface)",
-          padding: "9px 12px",
+          padding: "12px 12px",
         }}
       >
         <SparklesIcon
           width={14}
           height={14}
-          style={{ color: "var(--tg-accent-dark)", flexShrink: 0 }}
+          style={{ color: "var(--tg-accent-dark)", flexShrink: 0, marginTop: 3 }}
           aria-hidden
         />
         <input
@@ -77,6 +77,8 @@ export function AskBar() {
           style={{
             flex: 1,
             minWidth: 0,
+            minHeight: 78,
+            paddingTop: 1,
             border: "none",
             outline: "none",
             background: "transparent",
@@ -94,6 +96,7 @@ export function AskBar() {
             padding: "2px 5px",
             fontFamily: '"JetBrains Mono", monospace',
             flexShrink: 0,
+            marginTop: 2,
           }}
           title="Cmd or Ctrl + K opens Luna from anywhere"
         >

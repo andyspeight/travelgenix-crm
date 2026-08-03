@@ -82,11 +82,18 @@ export function ReportsView({
       range === "ytd"
         ? new Date(now.getFullYear(), 0, 1)
         : new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    // Cap at today. These figures are turnover by DEPARTURE, so a holiday that
+    // has not left yet is upcoming business, not money earned — counting a
+    // 2027 departure in "last 12 months" is the kind of number an owner would
+    // plan against and be wrong.
     return trips.filter((t) => {
       if (!t.date) return false;
-      return new Date(t.date) >= cutoff;
+      const d = new Date(t.date);
+      return d >= cutoff && d <= now;
     });
   }, [trips, range]);
+
+  const asAt = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   return (
     <div style={{ padding: "20px 28px 40px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
@@ -111,9 +118,15 @@ export function ReportsView({
           </button>
         ))}
         <span style={{ marginLeft: "auto", alignSelf: "center", fontSize: 12.5, color: "var(--text-subtle)" }}>
-          {filtered.length} {filtered.length === 1 ? "trip" : "trips"} in range
+          {filtered.length} {filtered.length === 1 ? "trip" : "trips"}
+          {range !== "all" ? " departed" : ""}
         </span>
       </div>
+      {range !== "all" && (
+        <div style={{ fontSize: 11.5, color: "var(--text-subtle)", marginTop: -12, marginBottom: 16, lineHeight: 1.5 }}>
+          Turnover by departure date, for travel departed up to {asAt}. Upcoming departures aren&apos;t counted here — they&apos;re on the Trips board.
+        </div>
+      )}
 
       {/* Headline tiles */}
       <Headlines trips={filtered} />
