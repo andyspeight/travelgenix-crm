@@ -13,7 +13,6 @@
 
 import {
   SparklesIcon,
-  PlusIcon,
   ClockIcon,
   PlaneIcon,
   PaperclipIcon,
@@ -739,7 +738,7 @@ function Timeline({
   }
 
   return (
-    <Panel title="Timeline" extra="All activity →">
+    <Panel title="Timeline">
       <div style={{ padding: 16 }}>
         {visible.map((ix) => {
           // What became of this email after it left. Honest by construction:
@@ -997,7 +996,7 @@ function TripsPanel({
   pastTrips: Trip[];
 }) {
   return (
-    <Panel title="Trips" extra={<PlusIcon width={14} height={14} />} noPadding>
+    <Panel title="Trips" noPadding>
       <div style={{ padding: 14 }}>
         {activeTrip && <TripCard trip={activeTrip} variant="active" />}
         {upcomingTrips.map((t) => (
@@ -1138,7 +1137,7 @@ function HouseholdGraph({
   const bottomRow = [...children, ...dependants];
 
   return (
-    <Panel title="Household" extra="Edit →">
+    <Panel title="Household">
       <div
         style={{
           padding: "14px 14px 16px",
@@ -1269,64 +1268,10 @@ function age(dob: string): number {
   return age;
 }
 
-// ─── Right column: Preferences ──────────────────────────────────────────
-function PreferencesPanel({ preferences }: { preferences: Preference[] }) {
-  if (preferences.length === 0) {
-    return (
-      <Panel title="Preferences" extra="Edit →">
-        <div
-          style={{
-            padding: "16px",
-          }}
-        >
-          {[
-            { label: "Style", placeholder: "Add when known" },
-            { label: "Airline", placeholder: "Add when known" },
-            { label: "Budget band", placeholder: "Add when known" },
-          ].map((p) => (
-            <div key={p.label} style={prefRowStyle()}>
-              <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500 }}>
-                {p.label}
-              </span>
-              <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>
-                {p.placeholder}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Panel>
-    );
-  }
-
-  const labels: Record<string, string> = {
-    style: "Style",
-    airline: "Airline",
-    seat: "Seat",
-    room: "Room",
-    dietary: "Dietary",
-    budget: "Budget",
-    avoid: "Avoid",
-    other: "Other",
-  };
-
-  return (
-    <Panel title="Preferences" extra="Edit →">
-      <div style={{ padding: "14px 16px" }}>
-        {preferences.map((p) => (
-          <div key={p.id} style={prefRowStyle()}>
-            <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500 }}>
-              {labels[p.category] ?? p.category}
-            </span>
-            <span style={{ fontSize: 12, color: "var(--text)", textAlign: "right" }}>
-              {p.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
+// The live Preferences panel is PreferencesPanelEditable (./preferences-panel);
+// an earlier read-only PreferencesPanel with a decorative "Edit →" that led
+// nowhere used to live here and has been removed. prefRowStyle stays — the
+// Compliance panel below uses it.
 function prefRowStyle(): React.CSSProperties {
   return {
     display: "flex",
