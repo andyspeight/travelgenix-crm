@@ -70,6 +70,7 @@ export type Contact = {
   phone: string | null;
   date_of_birth: string | null;
   passport_expiry: string | null;
+  passport_country: string | null;
   dietary: string | null;
   flags: string[];
   marketing_opt_in: boolean;

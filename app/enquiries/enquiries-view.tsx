@@ -9,7 +9,7 @@
  * first), then least time left.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Enquiry, EnquiryScore } from "@/lib/supabase/types";
@@ -110,9 +110,14 @@ export function EnquiriesView({ enquiries, nameById, emailLive, enrichment }: En
   const [closingId, setClosingId] = useState<string | null>(null);
   const [closeReason, setCloseReason] = useState("");
 
-  // A single "now" per render keeps every clock consistent; router.refresh()
-  // after actions re-renders with fresh data anyway.
-  const nowIso = new Date().toISOString();
+  // The clocks and their ordering re-evaluate on a 30-second tick, so a tab
+  // left open does not freeze "38m left" at whatever it said on load. `nowIso`
+  // feeds the memoised sort, so bumping it re-sorts too.
+  const [nowIso, setNowIso] = useState(() => new Date().toISOString());
+  useEffect(() => {
+    const t = setInterval(() => setNowIso(new Date().toISOString()), 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   const counts = useMemo(() => {
     const c: Record<Tab, number> = { needs_response: 0, responded: 0, converted: 0, closed: 0, all: enquiries.length };

@@ -70,7 +70,7 @@ export function SeedPrompt() {
           letterSpacing: "-0.01em",
         }}
       >
-        Seed the database
+        Bring your customers in
       </h2>
       <p
         style={{
@@ -81,18 +81,17 @@ export function SeedPrompt() {
           lineHeight: 1.55,
         }}
       >
-        Click below to insert 30 realistic households, ~60 contacts, ~50 trips,
-        ~20 interactions, and a handful of suppliers and preferences. Takes
-        about 5 seconds. Idempotent — safe to click again, won't duplicate.
+        Export your customers from your current system as a CSV and drop it in.
+        Luna maps the columns for you and shows you exactly what it read before
+        anything is saved.
       </p>
 
       {status === "idle" && (
-        <button
-          onClick={seed}
+        <a
+          href="/customers/import"
           style={{
             background: "var(--tg-primary)",
             color: "white",
-            border: "none",
             borderRadius: 8,
             padding: "10px 18px",
             fontSize: 14,
@@ -101,12 +100,11 @@ export function SeedPrompt() {
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
-            transition: "all 0.15s ease",
+            textDecoration: "none",
           }}
         >
-          <SparklesIcon width={15} height={15} />
-          Seed database
-        </button>
+          Import your customers from a CSV
+        </a>
       )}
 
       {status === "seeding" && (
@@ -216,34 +214,27 @@ export function SeedPrompt() {
         </div>
       )}
 
-      <div style={{ marginTop: 18, fontSize: 12.5, color: "var(--text-muted)" }}>
-        Bringing real customers from another CRM?{" "}
-        <a href="/customers/import" style={{ color: "var(--tg-accent-dark)", fontWeight: 600, textDecoration: "none" }}>
-          Import a CSV
-        </a>{" "}
-        — Luna maps the columns for you.
-      </div>
-
-      <div
-        style={{
-          marginTop: 14,
-          fontSize: 11.5,
-          color: "var(--text-subtle)",
-        }}
-      >
-        Or paste{" "}
-        <code
-          style={{
-            fontFamily: '"JetBrains Mono", monospace',
-            background: "var(--bg-subtle)",
-            padding: "1px 6px",
-            borderRadius: 4,
-          }}
-        >
-          supabase/seed.sql
-        </code>{" "}
-        into the Supabase SQL Editor as a fallback.
-      </div>
+      {status === "idle" && (
+        <div style={{ marginTop: 20, fontSize: 12.5, color: "var(--text-subtle)" }}>
+          Just having a look first?{" "}
+          <button
+            onClick={seed}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--tg-accent-dark)",
+              fontWeight: 600,
+              fontSize: 12.5,
+              cursor: "pointer",
+              padding: 0,
+              fontFamily: "inherit",
+            }}
+          >
+            Load 30 demo customers
+          </button>{" "}
+          to explore the product. You can clear them later.
+        </div>
+      )}
     </div>
   );
 }

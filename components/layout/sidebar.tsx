@@ -67,6 +67,27 @@ export function Sidebar() {
     };
   }, [pathname]);
 
+  // Who is actually signed in — fetched once, so the footer greets the real
+  // person rather than a name baked into the build.
+  const [me, setMe] = useState<{ name: string; initials: string; role: string | null; agencyName: string | null } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { ok?: boolean; name?: string; initials?: string; role?: string | null; agencyName?: string | null } | null) => {
+        if (!cancelled && d?.ok) {
+          setMe({
+            name: d.name ?? "Your workspace",
+            initials: d.initials ?? "·",
+            role: d.role ?? null,
+            agencyName: d.agencyName ?? null,
+          });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <aside
       className={`app-sidebar${open ? " open" : ""}`}
@@ -301,7 +322,7 @@ export function Sidebar() {
             justifyContent: "center",
           }}
         >
-          AS
+          {me?.initials ?? "·"}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
@@ -314,10 +335,12 @@ export function Sidebar() {
               textOverflow: "ellipsis",
             }}
           >
-            Andy Speight
+            {me?.name ?? "Your workspace"}
           </div>
           <div style={{ fontSize: 11, color: "var(--text-subtle)" }}>
-            Travelgenix · Admin
+            {[me?.agencyName, me?.role ? me.role.charAt(0).toUpperCase() + me.role.slice(1) : null]
+              .filter(Boolean)
+              .join(" · ") || "Signed in"}
           </div>
         </div>
         <button

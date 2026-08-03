@@ -27,6 +27,7 @@ import { BriefActions } from "./brief-actions";
 import { NextSteps } from "./next-steps";
 import { PreferencesPanelEditable } from "./preferences-panel";
 import { CustomFieldsPanel } from "./custom-fields-panel";
+import { TravellersPanel, type TravellerRow } from "./travellers-panel";
 import { HouseholdEditButton } from "./household-edit";
 import { ConsentPanel, type ConsentPanelContact } from "./consent-panel";
 import type { ConsentChannel, ChannelState } from "@/lib/consent/state";
@@ -204,6 +205,11 @@ export function CustomerDetailView({
               dependants={dependants}
             />
           ) : null}
+          <TravellersPanel
+            householdId={household.id}
+            initial={contacts as unknown as TravellerRow[]}
+            tripPending={Boolean(activeTrip) || upcomingTrips.length > 0}
+          />
           <CustomFieldsPanel
             householdId={household.id}
             fields={customFields ?? []}
@@ -225,7 +231,7 @@ export function CustomerDetailView({
           <CompliancePanel
             household={household}
             contacts={contacts}
-            exemplar={exemplar}
+            trips={trips}
           />
         </div>
       </div>
@@ -1333,60 +1339,89 @@ function prefRowStyle(): React.CSSProperties {
 }
 
 // ─── Right column: Compliance ───────────────────────────────────────────
+// Whole months between two dates, floored — the way a border officer counts.
+function monthsUntil(fromIso: string, expiryIso: string): number {
+  const from = new Date(`${fromIso.slice(0, 10)}T00:00:00Z`);
+  const to = new Date(`${expiryIso.slice(0, 10)}T00:00:00Z`);
+  let m = (to.getUTCFullYear() - from.getUTCFullYear()) * 12 + (to.getUTCMonth() - from.getUTCMonth());
+  if (to.getUTCDate() < from.getUTCDate()) m -= 1;
+  return m;
+}
+
 function CompliancePanel({
-  household,
   contacts,
-  exemplar,
+  trips,
 }: {
   household: Household;
   contacts: Contact[];
-  exemplar: boolean;
+  trips: Trip[];
 }) {
-  const allValidPassports = contacts.every(
-    (c) => c.passport_expiry && new Date(c.passport_expiry) > new Date()
-  );
   const gdprActive = contacts.some((c) => c.gdpr_consent);
+
+  // Measure passports against the trip they are actually taking. The six-month
+  // margin is what most destinations ask for, counted from the return date —
+  // NOT "expires after today", which passes a passport that will be refused at
+  // check-in. With no upcoming trip we fall back to six months from today,
+  // which is a conservative floor and never claims safe when it isn't.
+  const soonest = trips
+    .filter((t) => ["booked", "pre_departure", "travelling"].includes(t.stage))
+    .filter((t) => t.depart_date)
+    .sort((a, b) => (a.depart_date! < b.depart_date! ? -1 : 1))[0];
+  const reference = soonest?.return_date ?? soonest?.depart_date ?? new Date().toISOString();
+
+  const withExpiry = contacts.filter((c) => c.passport_expiry);
+  const missing = contacts.length - withExpiry.length;
+  const tight = withExpiry.filter((c) => monthsUntil(reference, c.passport_expiry!) < 6).length;
+
+  const passportState: "ok" | "warn" | "none" =
+    contacts.length === 0 || missing === contacts.length ? "none" : tight > 0 || missing > 0 ? "warn" : "ok";
+
+  const passportLabel =
+    contacts.length === 0
+      ? "No travellers on file"
+      : missing === contacts.length
+        ? "None on file"
+        : tight > 0
+          ? `${tight} too close to expiry${missing > 0 ? `, ${missing} not on file` : ""}`
+          : missing > 0
+            ? `${withExpiry.length} on file, ${missing} not`
+            : `All ${contacts.length} on file, good margin`;
 
   return (
     <Panel title="Compliance">
       <div style={{ padding: "14px 16px" }}>
         <div style={prefRowStyle()}>
           <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500 }}>
-            ATOL number
-          </span>
-          <span style={{ fontSize: 12, color: "var(--text)" }}>11471</span>
-        </div>
-        <div style={prefRowStyle()}>
-          <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500 }}>
             GDPR consent
           </span>
-          <span
-            style={{
-              fontSize: 12,
-              color: gdprActive ? "var(--success)" : "var(--text-subtle)",
-            }}
-          >
+          <span style={{ fontSize: 12, color: gdprActive ? "var(--success)" : "var(--text-subtle)" }}>
             {gdprActive ? "Active" : "Not on file"}
           </span>
         </div>
         {/* Marketing opt-in moved to the per-channel Consent panel above. */}
         <div style={prefRowStyle()}>
           <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500 }}>
-            Passports verified
+            Passports
           </span>
           <span
             style={{
               fontSize: 12,
-              color: allValidPassports ? "var(--success)" : "var(--warning)",
+              color:
+                passportState === "ok"
+                  ? "var(--success)"
+                  : passportState === "warn"
+                    ? "var(--warning)"
+                    : "var(--text-subtle)",
             }}
           >
-            {exemplar
-              ? "All 4 · valid through 2029"
-              : allValidPassports
-              ? `${contacts.length} on file`
-              : "Some missing"}
+            {passportLabel}
           </span>
         </div>
+        {(tight > 0 || missing > 0) && contacts.length > 0 && (
+          <div style={{ fontSize: 10.5, color: "var(--text-subtle)", marginTop: 4, lineHeight: 1.5 }}>
+            Measured against {soonest ? "the upcoming trip's return date" : "today"}, six months being the margin most destinations ask for. Fix it in Travellers &amp; passports above.
+          </div>
+        )}
       </div>
     </Panel>
   );

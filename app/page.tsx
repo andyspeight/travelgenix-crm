@@ -27,7 +27,7 @@ import Link from "next/link";
 import { Topbar } from "@/components/layout/topbar";
 import { AskBar } from "./ask-bar";
 import { createClient } from "@/lib/supabase/server";
-import { requireAgencyId } from "@/lib/auth/session";
+import { requireAgencyId, controlIdentity } from "@/lib/auth/session";
 import { PlusIcon, SparklesIcon } from "@/components/ui/icons";
 import { clockState } from "@/lib/enquiries/clock";
 import { chaseList, type CommissionSupplier } from "@/lib/commission/calc";
@@ -74,6 +74,10 @@ const FORWARD_STAGES: TripStage[] = ["booked", "pre_departure", "travelling"];
 export default async function DashboardPage() {
   const supabase = createClient();
   const agencyId = await requireAgencyId();
+  // The real signed-in first name — "there" when Control isn't configured, so
+  // it's never a stranger's name baked into the build.
+  const identity = await controlIdentity();
+  const firstName = (identity?.fullName ?? "").trim().split(/\s+/)[0] || "there";
 
   const [
     { data: households },
@@ -178,7 +182,7 @@ export default async function DashboardPage() {
       <>
         <Topbar title="Dashboard" />
         <Shell>
-          <Greeting subtitle="Your workspace is ready. Add demo data to bring it to life." />
+          <Greeting name={firstName} subtitle="Your workspace is ready. Add demo data to bring it to life." />
           <EmptyState />
         </Shell>
       </>
@@ -443,7 +447,7 @@ export default async function DashboardPage() {
       />
 
       <Shell>
-        <Greeting subtitle={brief} />
+        <Greeting name={firstName} subtitle={brief} />
         {/* The list says what needs you; this says what you want to know. */}
         <AskBar />
         <TodayList items={today} />
@@ -644,7 +648,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Greeting({ subtitle }: { subtitle?: string }) {
+function Greeting({ subtitle, name = "there" }: { subtitle?: string; name?: string }) {
   const hour = new Date().getHours();
   const part =
     hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
@@ -659,7 +663,7 @@ function Greeting({ subtitle }: { subtitle?: string }) {
           color: "var(--text)",
         }}
       >
-        Good {part}, Andy
+        Good {part}, {name}
       </h1>
       <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0 }}>
         {subtitle ??
