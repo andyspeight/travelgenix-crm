@@ -380,8 +380,23 @@ export function InboxView({
     });
   }
 
+  // Phone master-detail: an explicit selection shows the message, otherwise the
+  // list. Back clears it. (On desktop these classes do nothing — all panes show.)
+  const hasSelection = Boolean(initialSelectedId);
+  function backToList() {
+    if (composerDirty && !window.confirm("You have an unsent reply open. Go back and discard it?")) {
+      return;
+    }
+    setComposerDirty(false);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("id");
+    startTransition(() => {
+      router.push(`/inbox?${params.toString()}`);
+    });
+  }
+
   return (
-    <div className="inbox-grid">
+    <div className={`inbox-grid ${hasSelection ? "show-detail" : "show-list"}`}>
       {/* ─── LEFT — Triage banner + lane tabs + message list ─── */}
       <div
         className="inbox-list"
@@ -424,7 +439,26 @@ export function InboxView({
       </div>
 
       {/* ─── MIDDLE — Focused message + drafts ─── */}
-      <div style={{ overflow: "auto", padding: 24 }}>
+      <div className="inbox-detail" style={{ overflow: "auto", padding: 24 }}>
+        <button
+          className="inbox-mobile-back"
+          onClick={backToList}
+          style={{
+            alignItems: "center",
+            gap: 6,
+            background: "transparent",
+            border: "1px solid var(--border)",
+            borderRadius: 7,
+            padding: "7px 12px",
+            fontSize: 13,
+            fontWeight: 500,
+            color: "var(--text-muted)",
+            cursor: "pointer",
+            marginBottom: 14,
+          }}
+        >
+          ← Inbox
+        </button>
         {selectedIx ? (
           <FocusedMessage
             ix={selectedIx}
