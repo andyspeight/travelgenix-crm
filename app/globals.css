@@ -194,13 +194,40 @@ input, textarea { font-family: inherit; }
   .inbox-grid { grid-template-columns: 320px 1fr; }
   .inbox-aside { display: none; }
 }
+/* On a phone the three panes can't sit side by side, and stacking them means
+   scrolling past a tall message list to reach the reply every time. Instead it
+   becomes master-detail: the list OR the open message, with a Back control.
+   The React view adds .show-list / .show-detail from whether a message is
+   open; on desktop those classes do nothing. */
+.inbox-mobile-back { display: none; }
 @media (max-width: 720px) {
   .inbox-grid {
     grid-template-columns: 1fr;
     height: auto;
     overflow: visible;
   }
-  .inbox-aside { display: block; }
-  .inbox-list { max-height: 60vh; }
+  .inbox-grid.show-list .inbox-detail,
+  .inbox-grid.show-list .inbox-aside { display: none; }
+  .inbox-grid.show-list .inbox-list { max-height: none; display: flex; }
+  .inbox-grid.show-detail .inbox-list { display: none; }
+  .inbox-grid.show-detail .inbox-detail { display: block; }
+  .inbox-grid.show-detail .inbox-aside { display: block; }
+  .inbox-mobile-back { display: inline-flex; }
+}
+
+/* ── iOS zoom-on-focus guard ──
+   Mobile Safari zooms the whole page in when a focused field's text is under
+   16px, then leaves it zoomed — every tap on a field lurches the layout. On
+   phones we floor native form controls (and the composer's editable area) at
+   16px. !important because the app styles fields with inline font-size, which
+   a normal rule can't beat; scoped to phones so desktop density is untouched. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea,
+  [contenteditable="true"],
+  [contenteditable=""] {
+    font-size: 16px !important;
+  }
 }
 
