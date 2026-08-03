@@ -86,11 +86,14 @@ export function CommissionView({
   suppliers,
   summary,
   chases,
+  truncated,
 }: {
   rows: CommissionRow[];
   suppliers: SupplierRow[];
   summary: CommissionSummary;
   chases: ChaseItem[];
+  /** True only if the runaway guard was hit — then the totals understate. */
+  truncated?: boolean;
 }) {
   const [items, setItems] = useState(rows);
   const [supplierList, setSupplierList] = useState(suppliers);
@@ -210,6 +213,22 @@ export function CommissionView({
         />
       </div>
 
+      {truncated && (
+        <div
+          style={{
+            fontSize: 12,
+            color: "#b45309",
+            background: "rgba(180, 83, 9, 0.06)",
+            border: "1px solid rgba(180, 83, 9, 0.18)",
+            borderRadius: 8,
+            padding: "8px 12px",
+            margin: "10px 0",
+            lineHeight: 1.5,
+          }}
+        >
+          You have more booked trips than this screen totals in one go, so these figures are lower than the real ones. Tell us — this limit is meant to sit above any agency.
+        </div>
+      )}
       {summary.caveat && (
         <div
           style={{

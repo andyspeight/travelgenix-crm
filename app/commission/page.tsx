@@ -35,6 +35,9 @@ export const dynamic = "force-dynamic";
 /** Stages that can earn commission. A cancelled trip earns nothing. */
 const EARNING_STAGES = ["booked", "pre_departure", "travelling", "returned"];
 
+/** A safety bound on the aggregate, far above any real agency's booked book. */
+const COMMISSION_ROW_GUARD = 20000;
+
 export default async function CommissionPage() {
   const supabase = createClient();
   const agencyId = await requireAgencyId();
@@ -48,8 +51,13 @@ export default async function CommissionPage() {
         )
         .eq("agency_id", agencyId)
         .in("stage", EARNING_STAGES)
+        // The whole earning-stage set, not a recent slice: unpaid commission
+        // sits on OLD bookings, which a "newest 500" cut would silently drop,
+        // understating the very Overdue figure the chase list exists to show.
+        // The bound is a runaway guard, not a business limit; if a book of
+        // customers ever exceeds it the view says so rather than quietly lying.
         .order("depart_date", { ascending: false, nullsFirst: false })
-        .limit(500),
+        .limit(COMMISSION_ROW_GUARD),
       supabase
         .from("suppliers")
         .select("id, name, category, default_commission_rate, payment_terms_days")
@@ -181,7 +189,7 @@ export default async function CommissionPage() {
           </div>
         </div>
       ) : (
-        <CommissionView rows={rows} suppliers={suppliers} summary={summary} chases={chases} />
+        <CommissionView rows={rows} suppliers={suppliers} summary={summary} chases={chases} truncated={trips.length >= COMMISSION_ROW_GUARD} />
       )}
     </>
   );

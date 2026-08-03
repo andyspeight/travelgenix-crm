@@ -1,12 +1,19 @@
 /**
  * Query tool: revenue_for_period
  *
- * Answers "how much revenue did we get last month", "what did we book this
- * quarter". Returns booked value (booked-ish stages) for the window, plus a
- * signal comparing to the previous equivalent period — the insight layer.
+ * Answers "how much did we book last month", "what's departing this quarter".
+ * Returns booked value (booked-ish stages) for trips DEPARTING in the window,
+ * plus a signal comparing to the previous equivalent period.
  *
- * "Revenue" here = gross booking value (total_value). Commission is not
- * captured yet, so this is value booked, not margin.
+ * The word is "turnover", not "revenue": this is gross booking value
+ * (total_value), the customer's money passing through, not the agency's
+ * income. Commission — the actual revenue — lives on the Commission screen.
+ * Calling turnover "revenue" is the exact overstatement the number review
+ * exists to catch, so the caption and signals say turnover throughout.
+ *
+ * The window is measured on departure date, so the caption says "departing
+ * between", not "booked between" — a trip booked in January for an August
+ * holiday counts in August, and the words must not imply otherwise.
  */
 
 import {
@@ -40,12 +47,12 @@ async function sumBooked(ctx: { agencyId: string; db: { from: (t: string) => any
 export const revenueForPeriod: QueryTool = {
   name: "revenue_for_period",
   description:
-    "Calculate total booked revenue (gross booking value) within a date range. Use for questions about how much revenue/value was booked in a period, e.g. last month, this quarter, this year, between two dates.",
+    "Calculate total booked turnover (gross booking value) for trips departing within a date range. Use for questions about how much turnover/value departs in a period, e.g. last month, this quarter, this year, between two dates. Note: this is turnover (the holiday price), not commission — for the agency's income use the Commission screen.",
   examples: [
-    "How much revenue did we get last month?",
-    "What did we book this quarter?",
-    "Total value booked this year",
-    "Revenue between 1 Jan and 31 Mar",
+    "How much did we book for last month?",
+    "What's departing this quarter?",
+    "Total value departing this year",
+    "Turnover between 1 Jan and 31 Mar",
   ],
   params: [
     { name: "from", type: "date", required: true, description: "Start of the period (inclusive), ISO date." },
@@ -79,14 +86,14 @@ export const revenueForPeriod: QueryTool = {
     } else if (total > 0) {
       signals.push({
         kind: "period_comparison",
-        detail: "No booked revenue in the previous equivalent period to compare against",
+        detail: "No booked turnover in the previous equivalent period to compare against",
         severity: "info",
       });
     }
 
     return numberResult(
       fmtMoney(total),
-      `${fmtMoney(total)} booked between ${fmtDate(from)} and ${fmtDate(to)}.`,
+      `${fmtMoney(total)} of turnover departing between ${fmtDate(from)} and ${fmtDate(to)}.`,
       signals
     );
   },
