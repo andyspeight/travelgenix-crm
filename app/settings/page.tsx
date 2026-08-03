@@ -11,6 +11,7 @@
 
 import { Topbar } from "@/components/layout/topbar";
 import { CustomFieldsSettings } from "./custom-fields";
+import { TeamInvite } from "./team-invite";
 import { createClient, dbAccessMode } from "@/lib/supabase/server";
 import { requireAgencyId } from "@/lib/auth/session";
 import { daysUntil } from "@/lib/trips/presentation";
@@ -239,7 +240,7 @@ export default async function SettingsPage() {
         {/* ─── Team ──────────────────────────────────────────────────── */}
         <Section
           title="Team"
-          description="People with access to this workspace. Roles and invitations are managed centrally while the product is in MVP."
+          description="People with access to this workspace. Invite a teammate by email — access itself is granted through Control, the Luna suite's shared sign-in."
           icon={<UsersIcon width={15} height={15} />}
         >
           {team.length === 0 ? (
@@ -272,7 +273,11 @@ export default async function SettingsPage() {
               ))}
             </div>
           )}
-          <ManagedNote text="Inviting teammates and changing roles arrives with auth in phase 2." />
+          <TeamInvite
+            memberEmails={team.map((m) => m.email)}
+            canInvite={Boolean(session && (session.role === "owner" || session.role === "admin"))}
+            emailLive={sendgridReady() || brevoReady()}
+          />
         </Section>
 
         {/* ─── Luna AI ───────────────────────────────────────────────── */}
