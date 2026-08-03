@@ -112,6 +112,21 @@ export function NewEnquiry() {
     setError(null);
   }
 
+  // Anything typed, pasted or extracted that a close would throw away. The
+  // backdrop is one click from the form, so an accidental miss shouldn't wipe
+  // a filled-in enquiry.
+  function isDirty(): boolean {
+    if (pasted.trim().length > 0) return true;
+    return (Object.keys(EMPTY) as (keyof FormState)[]).some((k) => form[k] !== EMPTY[k]);
+  }
+
+  function close() {
+    if (isDirty() && !window.confirm("Discard this enquiry? Nothing you've entered has been saved.")) {
+      return;
+    }
+    setOpen(false);
+  }
+
   async function extract() {
     setError(null);
     setExtracting(true);
@@ -235,7 +250,7 @@ export function NewEnquiry() {
           role="dialog"
           aria-modal="true"
           aria-label="New enquiry"
-          onClick={() => setOpen(false)}
+          onClick={close}
           style={{
             position: "fixed",
             inset: 0,
@@ -265,7 +280,7 @@ export function NewEnquiry() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>New enquiry</h2>
               <button
-                onClick={() => setOpen(false)}
+                onClick={close}
                 aria-label="Close"
                 style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: 6, width: 26, height: 26, color: "var(--text-muted)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
               >
@@ -441,7 +456,7 @@ export function NewEnquiry() {
 
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
                 <button
-                  onClick={() => setOpen(false)}
+                  onClick={close}
                   style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: 7, padding: "7px 13px", fontSize: 13, color: "var(--text-muted)", cursor: "pointer" }}
                 >
                   Cancel

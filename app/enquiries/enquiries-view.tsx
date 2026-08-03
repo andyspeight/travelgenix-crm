@@ -186,11 +186,24 @@ export function EnquiriesView({ enquiries, nameById, emailLive, enrichment }: En
   // Inline composer (real sending). Opened per enquiry, like closingId.
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const [replySubject, setReplySubject] = useState("");
+  // Whether the open composer holds unsent work. Only one composer is mounted
+  // at a time, so this always reflects the reply currently on screen.
+  const [replyDirty, setReplyDirty] = useState(false);
 
   function respond(e: Enquiry) {
     if (emailLive && e.contact_email) {
       // Real sending: open the inline composer; the clock stops when it sends.
+      // Opening a reply to someone else throws away an unsent one — a half-
+      // written reply with an attached quote is real work, so ask first.
+      if (replyingId && replyingId !== e.id && replyDirty) {
+        const who = enquiries.find((x) => x.id === replyingId);
+        const name = who?.contact_name ?? "another customer";
+        if (!window.confirm(`You have an unsent reply to ${name}. Open this one and discard that draft?`)) {
+          return;
+        }
+      }
       setReplyingId(e.id);
+      setReplyDirty(false);
       setReplySubject(`Your ${e.destination ?? "holiday"} enquiry`);
       return;
     }
@@ -570,12 +583,18 @@ export function EnquiriesView({ enquiries, nameById, emailLive, enrichment }: En
                     context="enquiry_response"
                     emailLive={emailLive}
                     note="sends for real and stops the response clock"
+                    onDirtyChange={setReplyDirty}
                     onSent={() => {
                       setReplyingId(null);
+                      setReplyDirty(false);
                       // The clock only stops after a real send.
                       void act(e.id, "respond");
                     }}
-                    onCancel={() => setReplyingId(null)}
+                    onCancel={() => {
+                      if (replyDirty && !window.confirm("Discard this unsent reply?")) return;
+                      setReplyingId(null);
+                      setReplyDirty(false);
+                    }}
                   />
                 </div>
               )}

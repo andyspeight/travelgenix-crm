@@ -35,6 +35,7 @@ import {
   textToRichDoc,
   isEmptyDoc,
   isSpanBlock,
+  docHasFormatting,
   type RichDoc,
   type Span,
 } from "@/lib/email/rich-text";
@@ -68,6 +69,12 @@ type Props = {
   note?: string;
   onSent?: () => void;
   onCancel?: () => void;
+  /**
+   * Fires as the agent starts (and stops) having unsent work in here — a typed
+   * body, an edited subject, an attachment. The parent uses it to warn before
+   * an action that would throw the draft away, e.g. opening a different reply.
+   */
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 const btn: React.CSSProperties = {
@@ -156,6 +163,7 @@ export function EmailComposer({
   note,
   onSent,
   onCancel,
+  onDirtyChange,
 }: Props) {
   const editorRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -166,6 +174,15 @@ export function EmailComposer({
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Unsent work lives in the DOM (the body) and in state (subject, files), so
+  // a plain state value can't tell whether there's anything to lose. This flag
+  // flips true on the first real edit and only clears on a successful send.
+  const [dirty, setDirty] = useState(false);
+  const markDirty = useCallback(() => setDirty(true), []);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   const [showEmoji, setShowEmoji] = useState(false);
   const [emojiQuery, setEmojiQuery] = useState("");
@@ -278,6 +295,7 @@ export function EmailComposer({
         }
         running = [...running, data.attachment];
         setAttachments(running);
+        markDirty();
       } catch {
         setError("That file could not be attached. Check your connection and try again.");
         break;
@@ -331,6 +349,7 @@ export function EmailComposer({
     const el = editorRef.current;
     if (!el || !suggestion) return;
     renderDocInto(el, textToRichDoc(suggestion.text));
+    markDirty();
     setSuggestion(null);
     setImproveOpen(false);
   };
@@ -349,6 +368,7 @@ export function EmailComposer({
       // than pretend. Attachments cannot come along, so say so.
       const params = new URLSearchParams({ subject, body: plain });
       window.open(`mailto:${toEmail ?? ""}?${params.toString()}`, "_self");
+      setDirty(false);
       onSent?.();
       return;
     }
@@ -377,6 +397,9 @@ export function EmailComposer({
         setError(data.error ?? "That didn't send.");
         return;
       }
+      // It's on its way — there is nothing left to lose, so a parent switching
+      // away should not warn about a draft that has already been sent.
+      setDirty(false);
       onSent?.();
     } catch {
       setError("That didn't send. Check your connection and try again.");
@@ -418,7 +441,7 @@ export function EmailComposer({
 
       <input
         value={subject}
-        onChange={(e) => setSubject(e.target.value)}
+        onChange={(e) => { setSubject(e.target.value); markDirty(); }}
         placeholder="Subject"
         style={{
           width: "100%",
@@ -564,8 +587,10 @@ export function EmailComposer({
         onBlur={rememberSelection}
         onKeyUp={rememberSelection}
         onMouseUp={rememberSelection}
+        onInput={markDirty}
         onPaste={() => {
           // Let the browser paste, then rebuild from what we would send.
+          markDirty();
           setTimeout(normalise, 0);
         }}
         style={{
@@ -649,6 +674,24 @@ export function EmailComposer({
             Luna edits your wording. It will not add a price, a date or a promise you didn&apos;t
             write, and anything it does add is listed before you can use it.
           </div>
+
+          {suggestion && docHasFormatting(currentDoc()) && (
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 11,
+                lineHeight: 1.5,
+                color: "#b45309",
+                background: "rgba(180, 83, 9, 0.06)",
+                border: "1px solid rgba(180, 83, 9, 0.18)",
+                borderRadius: 7,
+                padding: "7px 10px",
+              }}
+            >
+              Luna rewrites the words as plain text. If you use this, the bold, links and lists you
+              added come back as plain paragraphs — keep yours if the formatting matters.
+            </div>
+          )}
 
           {suggestion && (
             <div style={{ marginTop: 10 }}>
