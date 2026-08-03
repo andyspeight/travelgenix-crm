@@ -29,6 +29,7 @@ const TENANT_TABLES = [
   "tasks", "notes", "preferences", "journeys", "segments", "enquiries",
   "events", "quotes", "consents", "cases", "email_sends",
   "email_suppressions", "email_inbound", "custom_fields", "users", "agencies",
+  "agency_invitations",
 ];
 
 /**
