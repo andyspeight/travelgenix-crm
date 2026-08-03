@@ -293,6 +293,9 @@ export function InboxView({
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
   const [activeDraftIdx, setActiveDraftIdx] = useState(0);
+  // True while the open reply composer holds unsent work. Switching message or
+  // lane unmounts it, so we ask before throwing a half-written reply away.
+  const [composerDirty, setComposerDirty] = useState(false);
 
   // Lookup tables
   const householdMap = useMemo(() => {
@@ -351,6 +354,11 @@ export function InboxView({
 
   // Navigation helpers — URL-driven
   function selectInteraction(id: string) {
+    if (id === selectedIx?.id) return;
+    if (composerDirty && !window.confirm("You have an unsent reply open. Switch messages and discard it?")) {
+      return;
+    }
+    setComposerDirty(false);
     const params = new URLSearchParams(searchParams.toString());
     params.set("id", id);
     setActiveDraftIdx(0); // reset draft selection
@@ -360,6 +368,10 @@ export function InboxView({
   }
 
   function selectLane(newLane: Lane) {
+    if (composerDirty && !window.confirm("You have an unsent reply open. Switch lanes and discard it?")) {
+      return;
+    }
+    setComposerDirty(false);
     const params = new URLSearchParams(searchParams.toString());
     params.set("lane", newLane);
     params.delete("id");
@@ -421,6 +433,7 @@ export function InboxView({
             activeDraftIdx={activeDraftIdx}
             onDraftChange={setActiveDraftIdx}
             emailLive={emailLive}
+            onComposerDirtyChange={setComposerDirty}
           />
         ) : (
           <NothingSelected />
@@ -806,6 +819,7 @@ function FocusedMessage({
   activeDraftIdx,
   onDraftChange,
   emailLive,
+  onComposerDirtyChange,
 }: {
   ix: Interaction;
   household: Household | null | undefined;
@@ -813,6 +827,7 @@ function FocusedMessage({
   activeDraftIdx: number;
   onDraftChange: (i: number) => void;
   emailLive: boolean;
+  onComposerDirtyChange: (dirty: boolean) => void;
 }) {
   // Live drafts from Luna (null until the agent presses Regenerate). The
   // hand-crafted library is the instant default underneath.
@@ -825,19 +840,29 @@ function FocusedMessage({
   const [editing, setEditing] = useState(false);
   const [editedBody, setEditedBody] = useState("");
   const [sendNote, setSendNote] = useState<string | null>(null);
+  // Whether the open composer holds unsent work, tracked here so the draft-tab
+  // switch below can ask before discarding it, and reported up so the message
+  // and lane switches in the parent can do the same.
+  const [editDirty, setEditDirty] = useState(false);
+  useEffect(() => {
+    onComposerDirtyChange(editDirty);
+  }, [editDirty, onComposerDirtyChange]);
 
-  // Reset live drafts and editing whenever the selected message changes.
+  // Reset live drafts and editing whenever the selected message changes. The
+  // parent has already confirmed any discard by the time ix.id changes.
   useEffect(() => {
     setLiveDrafts(null);
     setDraftError(null);
     setEditing(false);
+    setEditDirty(false);
     setSendNote(null);
   }, [ix.id]);
 
   // Switching draft tabs discards an in-progress edit (it belonged to the
-  // previous draft's body).
+  // previous draft's body). The tab buttons confirm first when it's dirty.
   useEffect(() => {
     setEditing(false);
+    setEditDirty(false);
     setSendNote(null);
   }, [activeDraftIdx]);
 
@@ -928,7 +953,9 @@ function FocusedMessage({
   function toggleEdit() {
     setSendNote(null);
     if (editing) {
+      if (editDirty && !window.confirm("Discard your edits to this reply?")) return;
       setEditing(false);
+      setEditDirty(false);
     } else {
       setEditedBody(draft.body);
       setEditing(true);
@@ -1161,7 +1188,13 @@ function FocusedMessage({
             {draftSet.drafts.map((d, i) => (
               <button
                 key={i}
-                onClick={() => onDraftChange(i)}
+                onClick={() => {
+                  if (i === activeDraftIdx) return;
+                  if (editDirty && !window.confirm("You've edited this draft. Switch and discard your changes?")) {
+                    return;
+                  }
+                  onDraftChange(i);
+                }}
                 style={{
                   background:
                     activeDraftIdx === i ? "var(--tg-primary)" : "var(--bg-subtle)",
@@ -1227,11 +1260,17 @@ function FocusedMessage({
               context="inbox_reply"
               emailLive={emailLive}
               note="goes on their timeline"
+              onDirtyChange={setEditDirty}
               onSent={() => {
                 setEditing(false);
+                setEditDirty(false);
                 setSendNote("Sent and recorded on the timeline.");
               }}
-              onCancel={() => setEditing(false)}
+              onCancel={() => {
+                if (editDirty && !window.confirm("Discard your edits to this reply?")) return;
+                setEditing(false);
+                setEditDirty(false);
+              }}
             />
           ) : (
             <div

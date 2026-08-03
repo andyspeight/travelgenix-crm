@@ -227,3 +227,21 @@ export function textToRichDoc(text: string): RichDoc {
 
 /** Is there anything to send, or is it all empty paragraphs? */
 export const isEmptyDoc = (doc: RichDoc): boolean => richDocToText(doc).trim().length === 0;
+
+/**
+ * Does this document carry formatting that plain text cannot hold?
+ *
+ * "Improve writing" is a plain-text round trip — Luna rewrites the words, and
+ * the words come back with no bold, no links, no lists. If the agent had
+ * formatted their draft, applying the suggestion silently flattens it. The
+ * composer uses this to warn them first rather than let them discover it in
+ * the sent copy. True when any span is bold/italic/underlined/linked, or any
+ * block is a list, a heading or a quote.
+ */
+export function docHasFormatting(doc: RichDoc): boolean {
+  return doc.some((block) => {
+    if (!isSpanBlock(block)) return true; // ul, ol
+    if (block.type === "h3" || block.type === "quote") return true;
+    return block.spans.some((s) => s.b || s.i || s.u || Boolean(s.href));
+  });
+}

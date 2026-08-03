@@ -5,6 +5,7 @@ import {
   richDocToText,
   textToRichDoc,
   isEmptyDoc,
+  docHasFormatting,
   type RichDoc,
 } from "@/lib/email/rich-text";
 import { domToRichDoc, type MiniNode } from "@/lib/email/rich-text-dom";
@@ -201,5 +202,34 @@ describe("reading the editor", () => {
     const result = validateRichDoc(JSON.parse(JSON.stringify(doc)));
     expect(result.ok).toBe(true);
     if (result.ok) expect(richDocToText(result.doc)).toBe("Hi there\n\n- One");
+  });
+});
+
+describe("spotting formatting a plain-text rewrite would flatten", () => {
+  it("sees plain paragraphs as unformatted", () => {
+    expect(docHasFormatting(textToRichDoc("Hello.\n\nAll plain here."))).toBe(false);
+  });
+
+  it("catches a bold span", () => {
+    expect(docHasFormatting([{ type: "p", spans: [{ text: "Hi " }, { text: "there", b: true }] }])).toBe(true);
+  });
+
+  it("catches a link", () => {
+    expect(
+      docHasFormatting([{ type: "p", spans: [{ text: "See", href: "https://example.com" }] }])
+    ).toBe(true);
+  });
+
+  it("catches a bullet list", () => {
+    expect(docHasFormatting([{ type: "ul", items: [[{ text: "One" }]] }])).toBe(true);
+  });
+
+  it("catches a heading and a quote", () => {
+    expect(docHasFormatting([{ type: "h3", spans: [{ text: "Title" }] }])).toBe(true);
+    expect(docHasFormatting([{ type: "quote", spans: [{ text: "They said" }] }])).toBe(true);
+  });
+
+  it("is false for an empty document", () => {
+    expect(docHasFormatting([])).toBe(false);
   });
 });
