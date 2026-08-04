@@ -131,7 +131,7 @@ export async function runAsk(
       question,
       insight:
         routerText.trim() ||
-        "I can't answer that one yet. Try asking about a customer by name, who's travelling in a date range, trips to a destination, revenue or a business report for a period, top customers, or who's gone quiet.",
+        "I can't answer that one yet. I can help with: a customer by name; who's travelling in a date range or right now; trips to a destination; revenue or a business report for a period; top or quiet customers; quotes at risk; passport issues; open service cases; enquiries awaiting a response; and tasks due.",
     };
   }
 
