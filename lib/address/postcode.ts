@@ -9,7 +9,7 @@
  *
  * Provider A (default, free, no key): postcodes.io — validates the postcode
  * and returns the area (town + county) but no street line. Provider B
- * (optional, keyed): getAddress.io — returns the full house-level list you
+ * (optional, keyed): Ideal Postcodes — returns the full house-level list you
  * pick from. Both arrive here as raw JSON and leave as AddressSuggestion[].
  */
 
@@ -78,35 +78,54 @@ export function parsePostcodesIo(json: unknown, fallbackPostcode: string): Addre
   };
 }
 
-type GetAddressEntry = {
+type IdealPostcodesEntry = {
   line_1?: unknown;
   line_2?: unknown;
   line_3?: unknown;
-  line_4?: unknown;
-  town_or_city?: unknown;
+  post_town?: unknown;
   county?: unknown;
+  administrative_county?: unknown;
+  postal_county?: unknown;
+  traditional_county?: unknown;
+  postcode?: unknown;
 };
 
 /**
- * getAddress.io (find, expand=true) → the full list. line_1..line_4 hold the
- * street parts; the first non-empty is line 1 and the rest fold into line 2,
- * with town and county carried in their own fields.
+ * PAF towns and counties arrive SHOUTING ("LONDON"), which reads badly in a
+ * CRM. Title-case them; the pre-formatted line_1/2/3 are already cased well
+ * and are left alone.
  */
-export function parseGetAddress(json: unknown, fallbackPostcode: string): AddressSuggestion[] {
-  const payload = json as { postcode?: unknown; addresses?: unknown } | null;
-  const arr = payload?.addresses;
+function titleCase(v: unknown): string {
+  return str(v)
+    .toLowerCase()
+    .replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Ideal Postcodes (GET /v1/postcodes/:postcode) → the full list under
+ * `result`. line_1 is the street line; line_2/line_3 fold into line 2.
+ * post_town is the town; county falls through the four county fields PAF
+ * carries, taking the first that's populated.
+ */
+export function parseIdealPostcodes(json: unknown, fallbackPostcode: string): AddressSuggestion[] {
+  const arr = (json as { result?: unknown } | null)?.result;
   if (!Array.isArray(arr)) return [];
-  const postcode = str(payload?.postcode) || normalisePostcode(fallbackPostcode);
+  const normalised = normalisePostcode(fallbackPostcode);
 
   return arr.map((raw) => {
-    const a = raw as GetAddressEntry;
-    const lines = [a.line_1, a.line_2, a.line_3, a.line_4].map(str).filter(Boolean);
+    const a = raw as IdealPostcodesEntry;
+    const line2 = [a.line_2, a.line_3].map(str).filter(Boolean).join(", ");
+    const county =
+      titleCase(a.county) ||
+      titleCase(a.administrative_county) ||
+      titleCase(a.postal_county) ||
+      titleCase(a.traditional_county);
     return {
-      line1: lines[0] ?? "",
-      line2: lines.slice(1).join(", "),
-      city: str(a.town_or_city),
-      county: str(a.county),
-      postcode,
+      line1: str(a.line_1),
+      line2,
+      city: titleCase(a.post_town),
+      county,
+      postcode: str(a.postcode) || normalised,
     };
   });
 }

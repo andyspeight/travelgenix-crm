@@ -5,7 +5,7 @@
  * edit-details forms so the same tool works wherever an address is entered.
  *
  * A person types their postcode and presses Find. If the lookup returns a list
- * of real addresses (the keyed getAddress.io provider), they pick theirs from
+ * of real addresses (the keyed Ideal Postcodes provider), they pick theirs from
  * a dropdown and every field fills in. If only the area is known (the free
  * postcodes.io provider), the town and county fill in and they add the street
  * line themselves. Either way the fields stay fully editable — the lookup is a

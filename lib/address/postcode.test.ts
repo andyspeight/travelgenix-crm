@@ -4,7 +4,7 @@ import {
   isValidUkPostcode,
   formatAddress,
   parsePostcodesIo,
-  parseGetAddress,
+  parseIdealPostcodes,
 } from "@/lib/address/postcode";
 
 describe("normalisePostcode", () => {
@@ -75,27 +75,33 @@ describe("parsePostcodesIo (free provider — area only)", () => {
   });
 });
 
-describe("parseGetAddress (keyed provider — full list)", () => {
-  it("folds line_1..line_4 into line1/line2 and carries town + county", () => {
+describe("parseIdealPostcodes (keyed provider — full list)", () => {
+  it("maps line_1, folds line_2/3 into line2, title-cases the shouting PAF town + county", () => {
     const json = {
-      postcode: "LS1 4DY",
-      addresses: [
-        { line_1: "Flat 1", line_2: "Bond House", line_3: "12 Bond Street", line_4: "", town_or_city: "Leeds", county: "West Yorkshire" },
-        { line_1: "Flat 2", line_2: "Bond House", line_3: "12 Bond Street", line_4: "", town_or_city: "Leeds", county: "West Yorkshire" },
+      result: [
+        { line_1: "Flat 1, Bond House", line_2: "12 Bond Street", line_3: "", post_town: "LEEDS", county: "", administrative_county: "", postal_county: "WEST YORKSHIRE", traditional_county: "", postcode: "LS1 4DY" },
+        { line_1: "Flat 2, Bond House", line_2: "12 Bond Street", line_3: "", post_town: "LEEDS", postal_county: "WEST YORKSHIRE", postcode: "LS1 4DY" },
       ],
+      code: 2000,
+      message: "Success",
     };
-    const out = parseGetAddress(json, "ls14dy");
+    const out = parseIdealPostcodes(json, "ls14dy");
     expect(out).toHaveLength(2);
     expect(out[0]).toEqual({
-      line1: "Flat 1",
-      line2: "Bond House, 12 Bond Street",
+      line1: "Flat 1, Bond House",
+      line2: "12 Bond Street",
       city: "Leeds",
       county: "West Yorkshire",
       postcode: "LS1 4DY",
     });
   });
-  it("returns an empty list when there are no addresses", () => {
-    expect(parseGetAddress({ addresses: [] }, "X")).toEqual([]);
-    expect(parseGetAddress({}, "X")).toEqual([]);
+  it("falls through the county fields, taking the first populated one", () => {
+    const json = { result: [{ line_1: "1 High St", post_town: "GUILDFORD", county: "", administrative_county: "Surrey", postcode: "GU1 3AA" }] };
+    expect(parseIdealPostcodes(json, "GU1 3AA")[0].county).toBe("Surrey");
+  });
+  it("returns an empty list when there are no results", () => {
+    expect(parseIdealPostcodes({ result: [] }, "X")).toEqual([]);
+    expect(parseIdealPostcodes({ code: 4040, message: "Postcode Not Found" }, "X")).toEqual([]);
+    expect(parseIdealPostcodes({}, "X")).toEqual([]);
   });
 });
