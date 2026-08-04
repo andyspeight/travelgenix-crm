@@ -14,9 +14,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/toast/toast";
 
 export function TimelineCompose({ householdId }: { householdId: string }) {
   const router = useRouter();
+  const { push } = useToast();
   const [kind, setKind] = useState<"note" | "call" | null>(null);
   const [text, setText] = useState("");
   const [when, setWhen] = useState("");
@@ -39,9 +41,11 @@ export function TimelineCompose({ householdId }: { householdId: string }) {
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) throw new Error(data.error || "Couldn't save that.");
+      const wasCall = kind === "call";
       setText("");
       setWhen("");
       setKind(null);
+      push(wasCall ? "Call logged" : "Note added");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save that.");

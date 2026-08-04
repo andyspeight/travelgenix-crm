@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, XIcon } from "@/components/ui/icons";
 import { CustomerCombobox } from "@/components/customer-combobox";
+import { useToast } from "@/components/toast/toast";
 
 const field: React.CSSProperties = {
   width: "100%",
@@ -52,6 +53,7 @@ export function AddTask({
   hideTrigger?: boolean;
 }) {
   const router = useRouter();
+  const { push } = useToast();
   const [selfOpen, setSelfOpen] = useState(false);
   const controlled = openProp !== undefined;
   const open = controlled ? openProp : selfOpen;
@@ -137,6 +139,7 @@ export function AddTask({
       if (!res.ok || !data.ok) throw new Error(data.error || `Failed (${res.status})`);
       setOpen(false);
       reset();
+      push("Task added");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create the task");
