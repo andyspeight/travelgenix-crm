@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "//regions": "Pin serverless functions to Dublin (dub1) — the SAME AWS region (eu-west-1) as the Supabase database. Without this, functions ran in the US default region and every query was a ~150ms transatlantic round-trip; co-located, each is ~1ms. This is the biggest single lever on page-render latency.",
   "regions": ["dub1"],
   "crons": [
     {
