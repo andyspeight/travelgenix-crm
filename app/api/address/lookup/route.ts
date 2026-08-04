@@ -92,9 +92,19 @@ async function fromIdealPostcodes(postcode: string, key: string): Promise<Lookup
     if (!res.ok) {
       // 404 is a genuine miss; 401/402/403 mean the key was refused (bad key,
       // exhausted balance, or a security restriction blocking server-side use).
-      // Log the status — never the key — so a misconfigured key is diagnosable
-      // in the server logs rather than silently degrading to the free lookup.
-      if (res.status !== 404) console.warn(`[address] Ideal Postcodes refused the lookup (HTTP ${res.status})`);
+      // Log the status AND Ideal Postcodes' own code+message — never the key —
+      // so a misconfigured key is diagnosable in the server logs rather than
+      // silently degrading to the free lookup.
+      if (res.status !== 404) {
+        let detail = "";
+        try {
+          const body = (await res.json()) as { code?: unknown; message?: unknown };
+          detail = ` code=${String(body?.code)} message=${String(body?.message)}`;
+        } catch {
+          /* non-JSON body */
+        }
+        console.warn(`[address] Ideal Postcodes refused the lookup (HTTP ${res.status})${detail}`);
+      }
       return null;
     }
     const json = (await res.json()) as unknown;
