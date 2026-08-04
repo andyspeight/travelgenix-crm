@@ -31,9 +31,29 @@ const label: React.CSSProperties = {
   marginBottom: 3,
 };
 
-export function AddCustomer() {
+export function AddCustomer({
+  open: openProp,
+  onClose,
+  hideTrigger = false,
+}: {
+  /** When provided, the modal is controlled by the parent (for the global
+   *  quick-add). Left undefined, the component owns its own open state and
+   *  shows its "Add customer" button. */
+  open?: boolean;
+  onClose?: () => void;
+  hideTrigger?: boolean;
+} = {}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [selfOpen, setSelfOpen] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : selfOpen;
+  const setOpen = (next: boolean) => {
+    if (controlled) {
+      if (!next) onClose?.();
+    } else {
+      setSelfOpen(next);
+    }
+  };
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,25 +96,27 @@ export function AddCustomer() {
 
   return (
     <>
-      <button
-        onClick={() => { setOpen(true); setError(null); }}
-        style={{
-          background: "var(--tg-primary)",
-          border: "1px solid var(--tg-primary)",
-          borderRadius: 6,
-          padding: "6px 10px",
-          color: "white",
-          fontSize: 12.5,
-          fontWeight: 500,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          cursor: "pointer",
-        }}
-      >
-        <PlusIcon width={14} height={14} />
-        Add customer
-      </button>
+      {!hideTrigger && (
+        <button
+          onClick={() => { setOpen(true); setError(null); }}
+          style={{
+            background: "var(--tg-primary)",
+            border: "1px solid var(--tg-primary)",
+            borderRadius: 6,
+            padding: "6px 10px",
+            color: "white",
+            fontSize: 12.5,
+            fontWeight: 500,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            cursor: "pointer",
+          }}
+        >
+          <PlusIcon width={14} height={14} />
+          Add customer
+        </button>
+      )}
 
       {open && (
         <div
