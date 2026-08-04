@@ -83,15 +83,27 @@ async function fromIdealPostcodes(postcode: string, key: string): Promise<Lookup
   try {
     // The key goes in the query string per Ideal Postcodes' server-side usage;
     // it never reaches the browser and is never echoed in an error.
-    const url = `https://api.ideal-postcodes.co.uk/v1/postcodes/${encodeURIComponent(postcode)}?api_key=${encodeURIComponent(key)}`;
+    // Both providers match on the space-less postcode in the path — the form
+    // exactly the Ideal Postcodes docs use — so strip it rather than sending
+    // an encoded space.
+    const path = postcode.replace(/\s+/g, "");
+    const url = `https://api.ideal-postcodes.co.uk/v1/postcodes/${encodeURIComponent(path)}?api_key=${encodeURIComponent(key)}`;
     const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(TIMEOUT_MS) });
-    if (!res.ok) return null; // 404 not-found, 402 limit, 401 bad key → fall back
+    if (!res.ok) {
+      // 404 is a genuine miss; 401/402/403 mean the key was refused (bad key,
+      // exhausted balance, or a security restriction blocking server-side use).
+      // Log the status — never the key — so a misconfigured key is diagnosable
+      // in the server logs rather than silently degrading to the free lookup.
+      if (res.status !== 404) console.warn(`[address] Ideal Postcodes refused the lookup (HTTP ${res.status})`);
+      return null;
+    }
     const json = (await res.json()) as unknown;
     const addresses = parseIdealPostcodes(json, postcode).filter((a) => a.line1 || a.city);
     if (addresses.length === 0) return null;
     return { ok: true, postcode, addresses, partial: false, source: "ideal-postcodes" };
-  } catch {
+  } catch (err) {
     // Timeout, network, or malformed JSON — let the caller fall back.
+    console.warn("[address] Ideal Postcodes lookup errored:", err instanceof Error ? err.message : "unknown");
     return null;
   }
 }
