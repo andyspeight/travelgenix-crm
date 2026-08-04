@@ -11,9 +11,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PlusIcon, XIcon } from "@/components/ui/icons";
+import { PlusIcon } from "@/components/ui/icons";
 import { CustomerCombobox } from "@/components/customer-combobox";
 import { useToast } from "@/components/toast/toast";
+import { Modal } from "@/components/ui/modal";
 
 const field: React.CSSProperties = {
   width: "100%",
@@ -172,46 +173,7 @@ export function AddTask({
         </button>
       )}
 
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Add task"
-          onClick={() => setOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 120,
-            background: "rgba(2, 6, 23, 0.5)",
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "center",
-            padding: "12vh 16px 16px",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 520,
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 14,
-              boxShadow: "var(--shadow-lg)",
-              padding: 26,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text)" }}>Add task</h2>
-              <button
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: 6, width: 26, height: 26, color: "var(--text-muted)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-              >
-                <XIcon width={13} height={13} />
-              </button>
-            </div>
-
+      <Modal open={open} onClose={() => setOpen(false)} title="Add task" maxWidth={520}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <span style={label}>Task *</span>
@@ -314,9 +276,7 @@ export function AddTask({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </>
   );
 }
