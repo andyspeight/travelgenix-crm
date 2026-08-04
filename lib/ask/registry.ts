@@ -23,6 +23,10 @@ import { enquiriesAwaitingResponse } from "./tools/enquiries-awaiting-response";
 import { tasksDue } from "./tools/tasks-due";
 import { currentlyTravelling } from "./tools/currently-travelling";
 import { marketingReach } from "./tools/marketing-reach";
+import { rebookingDue } from "./tools/rebooking-due";
+import { upcomingBirthdays } from "./tools/upcoming-birthdays";
+import { dietaryAndFlags } from "./tools/dietary-and-flags";
+import { dataQuality } from "./tools/data-quality";
 
 export const TOOLS: QueryTool[] = [
   tripsDeparting,
@@ -41,6 +45,10 @@ export const TOOLS: QueryTool[] = [
   tasksDue,
   currentlyTravelling,
   marketingReach,
+  rebookingDue,
+  upcomingBirthdays,
+  dietaryAndFlags,
+  dataQuality,
 ];
 
 export function findTool(name: string): QueryTool | undefined {
