@@ -43,6 +43,7 @@ import {
   type CaseType,
 } from "@/lib/cases/priority";
 import { clockState } from "@/lib/enquiries/clock";
+import { formatAddress } from "@/lib/address/postcode";
 import type {
   Household,
   Contact,
@@ -382,10 +383,13 @@ function HeaderCard({
               marginTop: 2,
             }}
           >
-            {[lead?.email, lead?.phone, household.city]
-              .filter(Boolean)
-              .join(" · ")}
+            {[lead?.email, lead?.phone].filter(Boolean).join(" · ")}
           </div>
+          {formatAddress(household) && (
+            <div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 2 }}>
+              {formatAddress(household)}
+            </div>
+          )}
         </div>
         {(household.tags ?? []).length > 0 && (
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -415,7 +419,11 @@ function HeaderCard({
           householdId={household.id}
           displayName={household.display_name}
           householdType={household.household_type}
+          addressLine1={household.address_line1}
+          addressLine2={household.address_line2}
           city={household.city}
+          county={household.county}
+          postcode={household.postcode}
         />
       </div>
 

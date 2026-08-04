@@ -12,6 +12,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AddressFields, type AddressValue } from "@/components/address-fields";
 
 const TYPES = [
   { key: "solo", label: "Solo" },
@@ -25,18 +26,32 @@ export function HouseholdEditButton({
   householdId,
   displayName,
   householdType,
+  addressLine1,
+  addressLine2,
   city,
+  county,
+  postcode,
 }: {
   householdId: string;
   displayName: string;
   householdType: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
   city: string | null;
+  county: string | null;
+  postcode: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(displayName);
   const [type, setType] = useState(householdType ?? "solo");
-  const [cityVal, setCityVal] = useState(city ?? "");
+  const [address, setAddress] = useState<AddressValue>({
+    address_line1: addressLine1 ?? "",
+    address_line2: addressLine2 ?? "",
+    city: city ?? "",
+    county: county ?? "",
+    postcode: postcode ?? "",
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +69,11 @@ export function HouseholdEditButton({
         body: JSON.stringify({
           display_name: name.trim(),
           household_type: type,
-          city: cityVal.trim(),
+          address_line1: address.address_line1.trim(),
+          address_line2: address.address_line2.trim(),
+          city: address.city.trim(),
+          county: address.county.trim(),
+          postcode: address.postcode.trim(),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -166,15 +185,12 @@ export function HouseholdEditButton({
             </select>
           </div>
 
-          <div>
-            <label style={labelStyle}>City</label>
-            <input
-              value={cityVal}
-              onChange={(e) => setCityVal(e.target.value)}
-              style={inputStyle}
-              placeholder="e.g. Bournemouth"
-            />
-          </div>
+          <AddressFields
+            value={address}
+            onChange={setAddress}
+            inputStyle={inputStyle}
+            labelStyle={labelStyle}
+          />
         </div>
 
         {error && (

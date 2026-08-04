@@ -23,7 +23,11 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type Body = {
   display_name?: unknown;
   household_type?: unknown;
+  address_line1?: unknown;
+  address_line2?: unknown;
   city?: unknown;
+  county?: unknown;
+  postcode?: unknown;
   lead?: { first_name?: unknown; last_name?: unknown; email?: unknown; phone?: unknown };
 };
 
@@ -48,6 +52,10 @@ export async function POST(request: Request) {
       ? body.household_type
       : null;
   const city = str(body.city, 80);
+  const addressLine1 = str(body.address_line1, 120);
+  const addressLine2 = str(body.address_line2, 120);
+  const county = str(body.county, 80);
+  const postcode = str(body.postcode, 16);
 
   const firstName = str(body.lead?.first_name, 60);
   if (!firstName) {
@@ -76,7 +84,11 @@ export async function POST(request: Request) {
       agency_id: agencyId,
       display_name: displayName,
       household_type: householdType,
+      address_line1: addressLine1,
+      address_line2: addressLine2,
       city,
+      county,
+      postcode,
       tags: [],
       lifetime_value: 0,
       trips_count: 0,
