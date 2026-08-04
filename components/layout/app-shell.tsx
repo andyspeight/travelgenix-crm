@@ -10,6 +10,7 @@ import { ProductTour } from "@/components/tour/product-tour";
 import { ToastProvider } from "@/components/toast/toast";
 import { HelpContext } from "@/components/help/help-context";
 import { HelpGuide } from "@/components/help/help-guide";
+import { SpotlightTour } from "@/components/help/spotlight-tour";
 
 /**
  * The app frame. Holds the mobile drawer state and the command-palette state,
@@ -23,13 +24,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [helpSection, setHelpSection] = useState<string | null>(null);
+  const [walkthrough, setWalkthrough] = useState<string | null>(null);
 
   return (
     <SidebarContext.Provider value={{ open, setOpen }}>
       <CommandContext.Provider value={{ open: cmdOpen, setOpen: setCmdOpen }}>
         <TourContext.Provider value={{ open: tourOpen, setOpen: setTourOpen }}>
           <HelpContext.Provider
-            value={{ section: helpSection, open: setHelpSection, close: () => setHelpSection(null) }}
+            value={{
+              section: helpSection,
+              open: setHelpSection,
+              close: () => setHelpSection(null),
+              walkthrough,
+              startWalkthrough: setWalkthrough,
+              stopWalkthrough: () => setWalkthrough(null),
+            }}
           >
             <ToastProvider>
               <div className="app-shell">
@@ -44,6 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <CommandPalette />
               <ProductTour />
               <HelpGuide />
+              <SpotlightTour />
             </ToastProvider>
           </HelpContext.Provider>
         </TourContext.Provider>

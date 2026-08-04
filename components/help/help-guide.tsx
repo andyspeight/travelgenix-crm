@@ -13,10 +13,10 @@ import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useHelp } from "./help-context";
 import { getGuide } from "./section-guides";
-import { HelpIcon, SparklesIcon, CheckIcon, XIcon } from "@/components/ui/icons";
+import { HelpIcon, SparklesIcon, CheckIcon, XIcon, ZapIcon } from "@/components/ui/icons";
 
 export function HelpGuide() {
-  const { section, close } = useHelp();
+  const { section, close, startWalkthrough } = useHelp();
   const router = useRouter();
   const guide = section ? getGuide(section) : undefined;
   const isOpen = Boolean(guide);
@@ -37,10 +37,21 @@ export function HelpGuide() {
   if (!guide) return null;
 
   const cta = guide.cta ?? { href: guide.key, label: "Take me there" };
+  const hasWalkthrough = Boolean(guide.walkthrough && guide.walkthrough.length > 0);
+
+  // Start the interactive spotlight tour: leave the drawer, make sure we're on
+  // the section (its elements are what get highlighted), then run it.
+  const startWalk = () => {
+    const key = guide.key;
+    close();
+    router.push(key);
+    startWalkthrough(key);
+  };
 
   return (
     <>
-      {/* Dimmer */}
+      {/* Dimmer — deliberately light and unblurred: the guide refers to the
+          screen behind it, so you must still be able to read that screen. */}
       <div
         onClick={close}
         aria-hidden
@@ -48,8 +59,7 @@ export function HelpGuide() {
           position: "fixed",
           inset: 0,
           zIndex: 210,
-          background: "rgba(2, 6, 23, 0.45)",
-          backdropFilter: "blur(2px)",
+          background: "rgba(2, 6, 23, 0.14)",
           animation: "fadeIn 0.16s ease-out",
         }}
       />
@@ -142,6 +152,33 @@ export function HelpGuide() {
 
         {/* Scrollable body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+          {/* Interactive walkthrough — the star option: highlights each real
+              element on the screen, in place. */}
+          {hasWalkthrough && (
+            <button
+              onClick={startWalk}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                marginBottom: 20,
+                padding: "11px 14px",
+                borderRadius: 10,
+                border: "1px solid var(--tg-accent)",
+                background: "linear-gradient(135deg, rgba(0,180,216,0.10) 0%, rgba(27,43,91,0.05) 100%)",
+                color: "var(--tg-primary)",
+                fontSize: 13.5,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <ZapIcon width={15} height={15} />
+              Show me on the page
+            </button>
+          )}
+
           {/* Step by step */}
           <SectionLabel>Step by step</SectionLabel>
           <ol style={{ listStyle: "none", margin: "10px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -212,8 +249,17 @@ export function HelpGuide() {
           )}
         </div>
 
-        {/* Footer CTA */}
-        <div style={{ flexShrink: 0, padding: 16, borderTop: "1px solid var(--border)", display: "flex", gap: 10 }}>
+        {/* Footer CTA. The extra bottom space keeps these buttons clear of the
+            floating Ask Luna button in the corner. */}
+        <div
+          style={{
+            flexShrink: 0,
+            padding: "16px 16px 84px",
+            borderTop: "1px solid var(--border)",
+            display: "flex",
+            gap: 10,
+          }}
+        >
           <button
             onClick={close}
             style={{
