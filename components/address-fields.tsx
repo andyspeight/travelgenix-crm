@@ -1,22 +1,25 @@
 "use client";
 
 /**
- * Address fields with a postcode lookup — shared by the add-customer and
- * edit-details forms so the same tool works wherever an address is entered.
+ * Address fields with Ideal Postcodes' AddressFinder — shared by the
+ * add-customer and edit-details forms.
  *
- * A person types their postcode and presses Find. If the lookup returns a list
- * of real addresses (the keyed Ideal Postcodes provider), they pick theirs from
- * a dropdown and every field fills in. If only the area is known (the free
- * postcodes.io provider), the town and county fill in and they add the street
- * line themselves. Either way the fields stay fully editable — the lookup is a
- * shortcut, never a cage.
+ * The lookup runs IN THE BROWSER, on purpose. Ideal Postcodes keys are locked
+ * to a set of allowed URLs, and only a real browser request carries the page's
+ * origin for that check to pass — a server-side call has no origin and is
+ * refused (code 4011). So AddressFinder attaches to the search box below,
+ * autocompletes as the person types, and hands us the chosen address through a
+ * callback, which we push into the form's controlled fields. The fields stay
+ * editable, and if no key is configured the search box simply isn't shown and
+ * everything is typed by hand.
  *
- * Controlled: the parent owns the value and gets every change, so it saves the
- * address exactly like any other field on its form.
+ * The key is a PUBLIC, domain-restricted key exposed as
+ * NEXT_PUBLIC_IDEAL_POSTCODES_KEY — safe in the browser precisely because it
+ * only works from the agency's own whitelisted domains.
  */
 
-import { useState } from "react";
-import type { AddressSuggestion } from "@/lib/address/postcode";
+import { useEffect, useRef, useState } from "react";
+import { titleCase } from "@/lib/address/postcode";
 
 export type AddressValue = {
   address_line1: string;
@@ -33,6 +36,8 @@ export const emptyAddress: AddressValue = {
   county: "",
   postcode: "",
 };
+
+const KEY = process.env.NEXT_PUBLIC_IDEAL_POSTCODES_KEY;
 
 const baseInput: React.CSSProperties = {
   width: "100%",
@@ -67,129 +72,90 @@ export function AddressFields({
   const input = { ...baseInput, ...inputStyle };
   const label = { ...baseLabel, ...labelStyle };
 
-  const [looking, setLooking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const [options, setOptions] = useState<AddressSuggestion[] | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // Keep the latest onChange without re-running the (expensive) setup effect.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
+  const [finderState, setFinderState] = useState<"idle" | "ready" | "unavailable">("idle");
+
+  useEffect(() => {
+    if (!KEY || !searchRef.current) return;
+
+    let cancelled = false;
+    let controller: { detach: () => unknown } | undefined;
+
+    // Loaded lazily so the library (which touches `window`) never runs during
+    // server rendering, and its weight lands in its own client chunk.
+    import("@ideal-postcodes/address-finder")
+      .then(({ AddressFinder }) => {
+        if (cancelled || !searchRef.current) return;
+        controller = AddressFinder.setup({
+          apiKey: KEY as string,
+          inputField: searchRef.current,
+          // UK addresses only: hides the country switcher and keeps it simple.
+          restrictCountries: ["GBR"],
+          // We drive our own React fields from the callback, so tell the
+          // library not to hunt for and write into form inputs itself.
+          outputFields: {},
+          onAddressRetrieved(address) {
+            const a = address as Record<string, string | undefined>;
+            const line2 = [a.line_2, a.line_3].map((s) => (s ?? "").trim()).filter(Boolean).join(", ");
+            const county =
+              a.county || a.traditional_county || a.administrative_county || a.postal_county || "";
+            onChangeRef.current({
+              ...valueRef.current,
+              address_line1: (a.line_1 ?? "").trim(),
+              address_line2: line2,
+              city: (a.post_town ?? "").trim(),
+              county: titleCase(county),
+              postcode: (a.postcode ?? "").trim(),
+            });
+          },
+          // Fired when the key can't be used (bad key, limit, wrong domain).
+          onFailedCheck() {
+            if (!cancelled) setFinderState("unavailable");
+          },
+        });
+        if (!cancelled) setFinderState("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setFinderState("unavailable");
+      });
+
+    return () => {
+      cancelled = true;
+      try {
+        controller?.detach();
+      } catch {
+        /* already gone */
+      }
+    };
+    // Set up once; live values are read through the refs above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = (patch: Partial<AddressValue>) => onChange({ ...value, ...patch });
 
-  async function find() {
-    setError(null);
-    setNote(null);
-    setOptions(null);
-    setLooking(true);
-    try {
-      const res = await fetch(`/api/address/lookup?postcode=${encodeURIComponent(value.postcode)}`);
-      const data = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        postcode?: string;
-        addresses?: AddressSuggestion[];
-        partial?: boolean;
-        error?: string;
-      };
-      if (!res.ok || !data.ok || !data.addresses?.length) {
-        throw new Error(data.error || "We couldn't find that postcode. You can still type the address in.");
-      }
-
-      if (data.addresses.length > 1) {
-        // The keyed provider returned the full list — let them pick.
-        setOptions(data.addresses);
-        setNote("Pick your address from the list.");
-        if (data.postcode) set({ postcode: data.postcode });
-        return;
-      }
-
-      // One result: apply it. A partial (area-only) result fills town/county
-      // and leaves the street line for them.
-      apply(data.addresses[0], data.postcode ?? value.postcode);
-      if (data.partial) {
-        setNote(`Found ${data.addresses[0].city || "the area"} — add your street address above.`);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Lookup failed.");
-    } finally {
-      setLooking(false);
-    }
-  }
-
-  function apply(a: AddressSuggestion, postcode: string) {
-    set({
-      address_line1: a.line1 || value.address_line1,
-      address_line2: a.line2 || value.address_line2,
-      city: a.city || value.city,
-      county: a.county || value.county,
-      postcode: postcode || value.postcode,
-    });
-  }
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div>
-        <span style={label}>Postcode</span>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            style={{ ...input, flex: 1 }}
-            value={value.postcode}
-            onChange={(e) => set({ postcode: e.target.value })}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                if (value.postcode.trim() && !looking) void find();
-              }
-            }}
-            placeholder="e.g. LS1 4DY"
-            autoComplete="postal-code"
-          />
-          <button
-            type="button"
-            onClick={() => void find()}
-            disabled={looking || !value.postcode.trim()}
-            style={{
-              flexShrink: 0,
-              background: "var(--bg-subtle)",
-              border: "1px solid var(--border)",
-              borderRadius: 7,
-              padding: "0 12px",
-              fontSize: 12.5,
-              fontWeight: 600,
-              color: "var(--text)",
-              cursor: looking || !value.postcode.trim() ? "default" : "pointer",
-              opacity: looking || !value.postcode.trim() ? 0.6 : 1,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {looking ? "Finding…" : "Find address"}
-          </button>
-        </div>
-        {error && <div style={{ fontSize: 11.5, color: "var(--error)", marginTop: 4 }}>{error}</div>}
-        {note && !error && <div style={{ fontSize: 11.5, color: "var(--text-subtle)", marginTop: 4 }}>{note}</div>}
-      </div>
-
-      {options && (
+      {KEY && (
         <div>
-          <span style={label}>Choose your address</span>
-          <select
+          <span style={label}>Find address</span>
+          <input
+            ref={searchRef}
             style={input}
-            defaultValue=""
-            onChange={(e) => {
-              const i = Number(e.target.value);
-              if (Number.isInteger(i) && options[i]) {
-                apply(options[i], value.postcode);
-                setOptions(null);
-                setNote(null);
-              }
-            }}
-          >
-            <option value="" disabled>
-              {options.length} addresses found…
-            </option>
-            {options.map((a, i) => (
-              <option key={i} value={i}>
-                {[a.line1, a.line2].filter(Boolean).join(", ")}
-              </option>
-            ))}
-          </select>
+            placeholder="Start typing a postcode or address…"
+            autoComplete="off"
+            aria-label="Search for an address"
+          />
+          <div style={{ fontSize: 11.5, color: "var(--text-subtle)", marginTop: 4 }}>
+            {finderState === "unavailable"
+              ? "Address search is unavailable right now — enter the address below."
+              : "Search and pick an address, or type it in below."}
+          </div>
         </div>
       )}
 
@@ -234,6 +200,16 @@ export function AddressFields({
             autoComplete="address-level1"
           />
         </div>
+      </div>
+      <div>
+        <span style={label}>Postcode</span>
+        <input
+          style={{ ...input, maxWidth: 180 }}
+          value={value.postcode}
+          onChange={(e) => set({ postcode: e.target.value })}
+          placeholder="e.g. LS1 4DY"
+          autoComplete="postal-code"
+        />
       </div>
     </div>
   );
