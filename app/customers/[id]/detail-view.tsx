@@ -30,6 +30,7 @@ import { CustomFieldsPanel } from "./custom-fields-panel";
 import { TravellersPanel, type TravellerRow } from "./travellers-panel";
 import { HouseholdEditButton } from "./household-edit";
 import { TimelineCompose } from "./timeline-compose";
+import { AddTask } from "@/app/tasks/add-task";
 import { ConsentPanel, type ConsentPanelContact } from "./consent-panel";
 import type { ConsentChannel, ChannelState } from "@/lib/consent/state";
 import type { MemoryFact, MemoryCategory } from "@/lib/memory/travel-memory";
@@ -416,16 +417,19 @@ function HeaderCard({
             ))}
           </div>
         )}
-        <HouseholdEditButton
-          householdId={household.id}
-          displayName={household.display_name}
-          householdType={household.household_type}
-          addressLine1={household.address_line1}
-          addressLine2={household.address_line2}
-          city={household.city}
-          county={household.county}
-          postcode={household.postcode}
-        />
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          <AddTask defaultCustomerId={household.id} />
+          <HouseholdEditButton
+            householdId={household.id}
+            displayName={household.display_name}
+            householdType={household.household_type}
+            addressLine1={household.address_line1}
+            addressLine2={household.address_line2}
+            city={household.city}
+            county={household.county}
+            postcode={household.postcode}
+          />
+        </div>
       </div>
 
       <div
