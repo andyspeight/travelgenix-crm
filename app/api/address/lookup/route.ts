@@ -4,13 +4,14 @@
  * The address lookup behind the postcode box on the customer forms. It works
  * with NO configuration at all via postcodes.io — the free, government-backed
  * service that validates a postcode and returns its town and county (but no
- * street line). If an agency sets GETADDRESS_API_KEY it upgrades silently to
- * getAddress.io, which returns the full house-level list to pick from.
+ * street line). If an agency sets IDEAL_POSTCODES_API_KEY it upgrades silently
+ * to Ideal Postcodes, which returns the full house-level list to pick from.
  *
  * The route never writes anything and never trusts the caller for more than a
  * postcode: it's agency-authed (so it isn't an open proxy), rate limited, and
- * fails closed with a readable message. Provider errors degrade — a getAddress
- * hiccup falls back to the free area lookup rather than showing nothing.
+ * fails closed with a readable message. Provider errors degrade — an Ideal
+ * Postcodes hiccup falls back to the free area lookup rather than showing
+ * nothing.
  */
 
 import { NextResponse } from "next/server";
@@ -20,7 +21,7 @@ import {
   normalisePostcode,
   isValidUkPostcode,
   parsePostcodesIo,
-  parseGetAddress,
+  parseIdealPostcodes,
   type AddressSuggestion,
 } from "@/lib/address/postcode";
 
@@ -53,11 +54,11 @@ export async function GET(request: Request) {
   }
 
   // Preferred path: the keyed provider gives the full house-level list.
-  const key = process.env.GETADDRESS_API_KEY;
+  const key = process.env.IDEAL_POSTCODES_API_KEY;
   if (key) {
-    const viaKeyed = await fromGetAddress(postcode, key);
+    const viaKeyed = await fromIdealPostcodes(postcode, key);
     if (viaKeyed) return NextResponse.json(viaKeyed);
-    // fall through to the free area lookup on any getAddress failure
+    // fall through to the free area lookup on any Ideal Postcodes failure
   }
 
   const viaFree = await fromPostcodesIo(postcode);
@@ -75,18 +76,20 @@ type LookupResult = {
   addresses: AddressSuggestion[];
   /** True when only the area is known (no street line) — the form asks for it. */
   partial: boolean;
-  source: "getaddress" | "postcodes.io";
+  source: "ideal-postcodes" | "postcodes.io";
 };
 
-async function fromGetAddress(postcode: string, key: string): Promise<LookupResult | null> {
+async function fromIdealPostcodes(postcode: string, key: string): Promise<LookupResult | null> {
   try {
-    const url = `https://api.getAddress.io/find/${encodeURIComponent(postcode)}?api-key=${encodeURIComponent(key)}&expand=true`;
+    // The key goes in the query string per Ideal Postcodes' server-side usage;
+    // it never reaches the browser and is never echoed in an error.
+    const url = `https://api.ideal-postcodes.co.uk/v1/postcodes/${encodeURIComponent(postcode)}?api_key=${encodeURIComponent(key)}`;
     const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(TIMEOUT_MS) });
-    if (!res.ok) return null;
+    if (!res.ok) return null; // 404 not-found, 402 limit, 401 bad key → fall back
     const json = (await res.json()) as unknown;
-    const addresses = parseGetAddress(json, postcode).filter((a) => a.line1 || a.city);
+    const addresses = parseIdealPostcodes(json, postcode).filter((a) => a.line1 || a.city);
     if (addresses.length === 0) return null;
-    return { ok: true, postcode, addresses, partial: false, source: "getaddress" };
+    return { ok: true, postcode, addresses, partial: false, source: "ideal-postcodes" };
   } catch {
     // Timeout, network, or malformed JSON — let the caller fall back.
     return null;
