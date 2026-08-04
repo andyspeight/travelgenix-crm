@@ -45,6 +45,7 @@ import type {
   Trip,
   Interaction,
   Quote,
+  CaseRow,
 } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +78,7 @@ export default async function CustomerDetailPage({
   }
 
   // Then fetch related data in parallel
-  const [contactsRes, tripsRes, interactionsRes, prefsRes, consentsRes, quotesRes, fieldsRes, sendsRes] =
+  const [contactsRes, tripsRes, interactionsRes, prefsRes, consentsRes, quotesRes, fieldsRes, sendsRes, casesRes] =
     await Promise.all([
       supabase
         .from("contacts")
@@ -129,6 +130,16 @@ export default async function CustomerDetailPage({
         )
         .eq("household_id", params.id)
         .eq("agency_id", agencyId),
+      // Service cases for this household — so the 360 shows what's gone wrong
+      // (and been put right), not just what's been sold. A missing table
+      // (migration not run) degrades to the panel simply not appearing.
+      supabase
+        .from("cases")
+        .select("id, case_type, subject, status, priority, opened_at, sla_due_at, resolved_at")
+        .eq("household_id", params.id)
+        .eq("agency_id", agencyId)
+        .order("priority", { ascending: true })
+        .order("opened_at", { ascending: false }),
     ]);
 
   const householdRow = household as Household;
@@ -143,6 +154,12 @@ export default async function CustomerDetailPage({
     if (!s.interaction_id) continue;
     engagement[s.interaction_id] = describeEngagement(s);
   }
+
+  // ─── Service cases for this household ────────────────────────────────
+  const casesMissing = Boolean(
+    casesRes.error && /cases/.test(casesRes.error.message ?? "")
+  );
+  const caseRows = (casesRes.data ?? []) as CaseRow[];
 
   // ─── Consent state (per adult contact, per channel) ─────────────────
   const consentLedgerMissing = Boolean(
@@ -301,6 +318,8 @@ export default async function CustomerDetailPage({
         consentState={consentStateByContact}
         consentLedgerMissing={consentLedgerMissing}
         memoryFacts={memoryFacts}
+        cases={caseRows}
+        casesMissing={casesMissing}
       />
     </>
   );

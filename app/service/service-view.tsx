@@ -15,7 +15,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CaseRow } from "@/lib/supabase/types";
 import { clockState } from "@/lib/enquiries/clock";
-import { CASE_TYPE_LABELS, type CaseType } from "@/lib/cases/priority";
+import {
+  CASE_TYPE_LABELS,
+  PRIORITY_META,
+  CASE_STATUS_LABELS as STATUS_LABEL,
+  type CaseType,
+} from "@/lib/cases/priority";
 import { CheckIcon, ClockIcon } from "@/components/ui/icons";
 
 export type ServiceViewProps = {
@@ -31,21 +36,6 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "resolved", label: "Resolved" },
   { key: "all", label: "All" },
 ];
-
-const PRIORITY_META: Record<number, { label: string; bg: string; fg: string }> = {
-  1: { label: "P1 · act now", bg: "rgba(220, 38, 38, 0.12)", fg: "#dc2626" },
-  2: { label: "P2 · today", bg: "rgba(217, 119, 6, 0.12)", fg: "#d97706" },
-  3: { label: "P3 · this week", bg: "rgba(0, 180, 216, 0.12)", fg: "var(--tg-accent-dark)" },
-  4: { label: "P4 · routine", bg: "var(--bg-subtle)", fg: "var(--text-muted)" },
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  open: "Open",
-  in_progress: "In progress",
-  waiting: "Waiting",
-  resolved: "Resolved",
-  closed: "Closed",
-};
 
 export function ServiceView({ cases, nameById, tripMeta }: ServiceViewProps) {
   const router = useRouter();
