@@ -28,7 +28,7 @@ import { headers } from "next/headers";
 import { SAVED_SEGMENTS, parseQueryToTokens, type Token } from "@/lib/segmentation/parse";
 import { resolveTokens } from "@/lib/segmentation/resolve";
 import { enforceRateLimit, clientKeyFromHeaders } from "@/lib/ai/rate-limit";
-import { fetchHouseholdsForTokens } from "@/lib/segmentation/query";
+import { fetchHouseholdsForTokens, countHouseholdsForTokens } from "@/lib/segmentation/query";
 import { listSavedSegments, getSavedSegment } from "@/lib/segmentation/segments";
 import { AddCustomer } from "./add-customer";
 
@@ -98,65 +98,47 @@ export default async function CustomersPage({
     tokens = limit.ok ? await resolveTokens(rawQuery) : parseQueryToTokens(rawQuery);
   }
 
-  // ─── Total count for the banner / empty-state check ─────────────────
-  const { count: totalCount, error: countError } = await supabase
-    .from("households")
-    .select("*", { count: "exact", head: true })
-    .eq("agency_id", agencyId);
+  // ─── Independent fetches, together ──────────────────────────────────
+  // The total count (for the empty-state), the filtered rows, the saved
+  // segments and the active journeys don't depend on each other, so they run
+  // as one parallel batch rather than a four-step waterfall. When the agency
+  // has no customers at all the filtered fetch simply returns [], so it needs
+  // no empty-guard of its own.
+  const [totalRes, households, savedSegments, journeyRes] = await Promise.all([
+    supabase.from("households").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
+    fetchHouseholdsForTokens(supabase, agencyId, tokens),
+    listSavedSegments(supabase, agencyId),
+    supabase.from("journeys").select("id, name").eq("agency_id", agencyId).eq("is_active", true).order("name"),
+  ]);
 
-  if (countError) {
+  if (totalRes.error) {
     return (
       <>
         <Topbar title="Customers" />
         <div style={{ padding: 28 }}>
-          <ErrorBanner message={countError.message} />
+          <ErrorBanner message={totalRes.error.message} />
         </div>
       </>
     );
   }
 
-  const isEmpty = (totalCount ?? 0) === 0;
+  const isEmpty = (totalRes.count ?? 0) === 0;
+  const journeys = (journeyRes.data ?? []) as { id: string; name: string }[];
 
-  // ─── Fetch the actual rows (only if not empty) ──────────────────────
-  const households = isEmpty
-    ? []
-    : await fetchHouseholdsForTokens(supabase, agencyId, tokens);
-
-  // ─── Live counts for each saved segment chip ────────────────────────
+  // ─── Live counts for each segment chip ──────────────────────────────
+  // Count only — no row payload. Previously each chip fetched every matching
+  // household's full row just to read .length; now Postgres returns the number
+  // and nothing else. Kicked off here but awaited AFTER the derived-attributes
+  // batch below, so the chip counts and that batch run concurrently rather than
+  // as two separate round-trips.
   const segmentCounts: Record<string, number> = {};
-  if (!isEmpty) {
-    await Promise.all(
-      SAVED_SEGMENTS.map(async (s) => {
-        const rows = await fetchHouseholdsForTokens(
-          supabase,
-          agencyId,
-          s.tokens
-        );
-        segmentCounts[s.id] = rows.length;
-      })
-    );
-  }
-
-  // ─── Saved segments + active journeys for the segment action bar ────
-  const savedSegments = isEmpty ? [] : await listSavedSegments(supabase, agencyId);
-  if (!isEmpty && savedSegments.length > 0) {
-    await Promise.all(
-      savedSegments.map(async (s) => {
-        const rows = await fetchHouseholdsForTokens(supabase, agencyId, s.tokens);
-        segmentCounts[s.id] = rows.length;
-      })
-    );
-  }
-
-  const { data: journeyRows } = isEmpty
-    ? { data: [] }
-    : await supabase
-        .from("journeys")
-        .select("id, name")
-        .eq("agency_id", agencyId)
-        .eq("is_active", true)
-        .order("name");
-  const journeys = (journeyRows ?? []) as { id: string; name: string }[];
+  const segmentCountsPromise = isEmpty
+    ? Promise.resolve()
+    : Promise.all(
+        [...SAVED_SEGMENTS, ...savedSegments].map(async (s) => {
+          segmentCounts[s.id] = await countHouseholdsForTokens(supabase, agencyId, s.tokens);
+        })
+      );
 
   // ─── Derived attributes ─────────────────────────────────────────────
   // Facts nobody typed: who is departing, whose passport will not make it,
@@ -239,6 +221,10 @@ export default async function CustomersPage({
     }
   }
 
+  // The chip counts were kicked off before the derived-attributes batch so the
+  // two overlap; make sure they've landed before we render.
+  await segmentCountsPromise;
+
   const filteredHouseholds = attrFilter
     ? households.filter((h) => (attributesByHousehold[h.id] ?? []).some((a) => a.id === attrFilter))
     : households;
@@ -297,7 +283,7 @@ export default async function CustomersPage({
             attributes={attributesByHousehold}
             attributeCounts={attributeCounts}
             activeAttribute={attrFilter}
-            totalCount={totalCount ?? 0}
+            totalCount={totalRes.count ?? 0}
             segmentCounts={segmentCounts}
             savedSegments={savedSegments}
             journeys={journeys}
