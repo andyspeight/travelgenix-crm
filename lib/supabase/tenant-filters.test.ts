@@ -69,6 +69,12 @@ const ALLOWED: Record<string, string> = {
   // A liveness probe: head-only existence check, returns no rows at all.
   "app/api/health/route.ts::agencies":
     "head-only reachability check; returns a count, never rows",
+  // A website widget posts with no session; the lead_ingest_key IS how the
+  // agency is identified. Like the email webhook, the agency is derived FROM
+  // the matched row, so the lookup cannot be scoped by the answer it produces.
+  // Narrow (one unique key), and every write that follows uses that agency id.
+  "app/api/widget/lead/route.ts::agencies":
+    "resolves the agency from its lead_ingest_key; system client, no session",
 };
 
 function sourceFiles(dir: string, out: string[] = []): string[] {

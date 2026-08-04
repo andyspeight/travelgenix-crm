@@ -25,33 +25,9 @@ export default async function TripsPage() {
   const supabase = createClient();
   const agencyId = await requireAgencyId();
 
-  // ─── Count for the empty-state check ────────────────────────────────
-  const { count, error: countError } = await supabase
-    .from("trips")
-    .select("*", { count: "exact", head: true })
-    .eq("agency_id", agencyId);
-
-  if (countError) {
-    return (
-      <>
-        <Topbar title="Trips" />
-        <div style={{ padding: 28, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
-          <ErrorBanner message={countError.message} />
-        </div>
-      </>
-    );
-  }
-
-  if ((count ?? 0) === 0) {
-    return (
-      <>
-        <Topbar title="Trips" />
-        <EmptyBoard />
-      </>
-    );
-  }
-
   // ─── Fetch trips ────────────────────────────────────────────────────
+  // No separate count round-trip for the empty check: we're fetching every
+  // trip anyway, so an empty result IS the empty state. One hop, not two.
   const { data: trips, error: tripsError } = await supabase
     .from("trips")
     .select("*")
@@ -70,6 +46,15 @@ export default async function TripsPage() {
   }
 
   const rows = (trips ?? []) as Trip[];
+
+  if (rows.length === 0) {
+    return (
+      <>
+        <Topbar title="Trips" />
+        <EmptyBoard />
+      </>
+    );
+  }
 
   // ─── Resolve household names in one query ───────────────────────────
   const householdIds = Array.from(new Set(rows.map((t) => t.household_id)));

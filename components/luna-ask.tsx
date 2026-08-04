@@ -449,8 +449,10 @@ function AnswerView({ answer, onNavigate }: { answer: AskResponse; onNavigate: (
 // the confirmation names them so it cannot be.
 //
 // Nothing here sends a message. Tasks, tags and sequence enrolments all land
-// in a queue a human works; "Email all" opens a draft in the agent's own mail
-// app and sends nothing by itself.
+// in a queue a human works; "Service email" opens a draft in the agent's own
+// mail app and sends nothing by itself. That draft is for an operational
+// service announcement (a flight change and the like), never marketing —
+// marketing goes through the campaign sender, with a proper unsubscribe.
 
 const UUID_HREF = /^\/customers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
@@ -494,23 +496,23 @@ function AskActions({ rows }: { rows: Row[] }) {
       const res = await fetch("/api/customers/emails", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: householdIds }),
+        body: JSON.stringify({ ids: householdIds, purpose: "operational" }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         emails?: string[];
-        excluded_no_consent?: number;
+        excluded_suppressed?: number;
         error?: string;
       };
       if (!res.ok || !data.ok) throw new Error(data.error || "Couldn't load emails");
       const emails = data.emails ?? [];
-      const excluded = data.excluded_no_consent ?? 0;
+      const excluded = data.excluded_suppressed ?? 0;
       if (emails.length === 0) {
         setMsg({
           ok: false,
           text:
             excluded > 0
-              ? `No email marketing consent on file for these customers (${excluded} excluded).`
+              ? `Every address for these customers has bounced or complained (${excluded} skipped).`
               : "No email addresses on file for these customers.",
         });
         return;
@@ -520,8 +522,8 @@ function AskActions({ rows }: { rows: Row[] }) {
       window.location.href = `mailto:?${params.toString()}`;
       setMsg({
         ok: true,
-        text: `Opened a draft to ${emails.length} customer${emails.length > 1 ? "s" : ""}.${
-          excluded > 0 ? ` ${excluded} excluded, no marketing consent.` : ""
+        text: `Opened a service-announcement draft to ${emails.length} customer${emails.length > 1 ? "s" : ""}.${
+          excluded > 0 ? ` ${excluded} skipped (bounced or complained).` : ""
         }`,
       });
     } catch (err) {
@@ -699,8 +701,13 @@ function AskActions({ rows }: { rows: Row[] }) {
         <span style={{ fontSize: 11, color: "var(--text-subtle)", marginRight: 2 }}>
           Act on {householdIds.length === 1 ? "this customer" : `these ${householdIds.length}`}:
         </span>
-        <button style={actBtn} disabled={busy === "email"} onClick={emailAll}>
-          {busy === "email" ? "Opening…" : "Email all"}
+        <button
+          style={actBtn}
+          disabled={busy === "email"}
+          title="Opens a service-announcement draft (e.g. a flight change) to these customers. Not for marketing."
+          onClick={emailAll}
+        >
+          {busy === "email" ? "Opening…" : "Service email"}
         </button>
         <button
           style={actBtn}

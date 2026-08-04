@@ -38,6 +38,16 @@ export type LunaSession = {
   role: ControlRole;
 };
 
+// The Control-client → agency mapping almost never changes, but the lookup
+// used to run on EVERY navigation (a Supabase round-trip per page render),
+// adding latency to every click. Cache the resolved mapping for a few minutes:
+// a newly linked agency appears within the TTL, and nothing here is a security
+// boundary — the tenant is still enforced by RLS on every query. Only positive
+// hits are cached; an unmapped client stays uncached so a fresh link is picked
+// up at once.
+const AGENCY_MAP_TTL_MS = 5 * 60 * 1000;
+const agencyMapCache = new Map<string, { agencyId: string; at: number }>();
+
 /**
  * Resolve the agency a Control client maps to, or null when unmapped.
  * Exported so the settings screen can say "this workspace is linked to X"
@@ -46,6 +56,9 @@ export type LunaSession = {
 export async function agencyForControlClient(
   clientRecordId: string
 ): Promise<string | null> {
+  const cached = agencyMapCache.get(clientRecordId);
+  if (cached && Date.now() - cached.at < AGENCY_MAP_TTL_MS) return cached.agencyId;
+
   // The SYSTEM client deliberately: this lookup is what answers "which
   // agency is this request?", so it cannot itself be scoped to an agency
   // without asking the question it is here to answer.
@@ -55,7 +68,13 @@ export async function agencyForControlClient(
     .select("id")
     .eq("control_client_id", clientRecordId)
     .maybeSingle();
-  return (data?.id as string | undefined) ?? null;
+  const agencyId = (data?.id as string | undefined) ?? null;
+
+  if (agencyId) {
+    if (agencyMapCache.size > 500) agencyMapCache.clear();
+    agencyMapCache.set(clientRecordId, { agencyId, at: Date.now() });
+  }
+  return agencyId;
 }
 
 /**

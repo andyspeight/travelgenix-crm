@@ -1,175 +1,158 @@
-# Handover: connecting the Travelgenix widgets to the Luna Work CRM
+# Widget → Luna Work CRM lead integration (as built)
 
-**For:** the widget-builder Claude session (the `tg-widgets` repo).
-**From:** the Luna Work CRM session (`travelgenix-crm`, the app at `crm.travelify.io`).
-**Status:** integration spec + division of labour. Nothing is built yet on either side; this is the contract to build to.
+**Between:** the widget platform (`tg-widgets`, `widgets.travelify.io`) and the Luna Work CRM (`travelgenix-crm`, `crm.travelify.io`).
+**Status:** SHIPPED, both sides, 04 Aug 2026. Gated off in the widget editor until the per-form config UI lands (see §8). This documents what exists.
 
 ---
 
-## 1. What we're doing, in one paragraph
+## 1. What it does, in one paragraph
 
-The lead-capture widgets (enquiry forms, "request a quote", callback requests, etc.) currently send customer details somewhere other than the CRM (Airtable). We want every widget that collects customer details to drop that lead **straight into the Luna Work CRM**, where it becomes an **enquiry** — scored, put on a first-response clock, deduped against existing customers, and surfaced on the dashboard and `/enquiries` screen. This handover defines the API the widget calls and who builds what.
+Every lead-capture widget (enquiry forms, "request a quote", callbacks) can drop its lead **straight into the Luna Work CRM** as an **enquiry** — scored, put on a first-response clock, deduped against existing customers, and surfaced on the dashboard and `/enquiries`. It rides the widget suite's existing routing fan-out (the same mechanism that emails the agent, appends to Google Sheets, or fires a webhook): "Luna Work" is one more routing destination. When a form has it switched on, each submission is mapped to the CRM's enquiry contract, signed per agency, and POSTed to the CRM.
 
-## 2. Who does what
+## 2. Architecture — server-to-server, not a browser key
 
-| Side | Work |
-|---|---|
-| **CRM (me, on request)** | Build a public, keyed, CORS-enabled ingest endpoint `POST /api/widget/lead`; add a per-agency **publishable widget key**; write the lead as an enquiry (+ consent). **This does not exist yet.** |
-| **Widget (your session)** | On submit, POST the form to that endpoint with the agency's widget key; capture marketing consent; handle success/error; stop writing leads to Airtable (or dual-write during transition). |
+This is the key decision, and it differs from a Stripe-style publishable key. **The browser never talks to the CRM.** The widget's own Vercel backend (`api/enquiry/submit.js`) receives the submission, then its `luna-work` routing module makes a **server-to-server** POST to the CRM. So:
 
-The two sides only need to agree on **section 4 (the contract)**. Build to that and they meet in the middle.
+- The credential is a **secret**, held in the widget's config (Airtable), never shipped to the page. No CORS, no origin-restriction, no publishable key.
+- Authentication is a **per-agency key + HMAC signature** (§4), the same scheme the widget suite already uses for outbound webhooks (`routing/webhook.js`).
+- The CRM endpoint is server-only: it is **not** CORS-enabled and expects no browser callers.
 
-## 3. How a lead lands in the CRM (context)
+```
+visitor → widget (browser) → tg-widgets backend → [luna-work routing module] → CRM POST /api/widget/lead → enquiries table
+```
 
-A lead becomes a row in the **`enquiries`** table. On create, the CRM automatically:
+## 3. How a lead lands in the CRM
+
+A lead becomes a row in the **`enquiries`** table via the shared create core (`lib/enquiries/create.ts`) — the *same* code path as an enquiry an agent types by hand. On create the CRM automatically:
 - validates and clamps every field (never trusts the caller),
-- computes four qualification scores (deterministically),
-- starts the **first-response SLA clock** (this is what makes "you have N enquiries waiting / overdue" work on the dashboard and in Luna Ask),
-- **dedupes**: if the lead's email matches an existing customer, the enquiry is auto-linked to that household ("repeat customer"),
-- emits an `enquiry.created` event and, when linked, drops an entry on the customer's timeline.
+- computes the qualification scores (deterministically),
+- starts the **first-response SLA clock** (this powers "N enquiries waiting / overdue"),
+- **dedupes**: if the lead's email matches an existing contact, the enquiry auto-links to that household,
+- emits `enquiry.created` and, when linked, drops a timeline entry,
+- records any marketing **consent** as a note on the enquiry (v1 — a structured consent ledger is a later milestone).
 
-So the widget's only job is to hand over clean fields. Everything above is the CRM's job — the widget must **not** try to score, dedupe, or create customers itself.
+The widget's only job is to hand over clean fields. It must **not** score, dedupe, or create customers itself.
 
-## 4. THE CONTRACT (build to this)
+## 4. THE CONTRACT
 
 ### Endpoint
 ```
 POST https://crm.travelify.io/api/widget/lead
 Content-Type: application/json
-X-Widget-Key: <the agency's publishable widget key>
+X-Travelgenix-Key:       <the agency's lead_ingest_key, e.g. wlk_1a2b3c…>
+X-Travelgenix-Signature: t=<unix-seconds>,v1=<hex hmac>
 ```
 
-### Auth model — read this carefully
-- The widget key is a **publishable, write-only, origin-restricted** key (same idea as the Ideal Postcodes browser key or a Stripe publishable key). It is safe to embed in the page because:
-  - it can **only create an enquiry** — it can never read or list anything;
-  - the CRM restricts it to the agency's **allowed website domains** (the request `Origin` must match);
-  - it is **rate-limited** per key + IP.
-- Each **agency has its own key**, so the CRM knows which workspace the lead belongs to from the key alone. The widget config stores one key per embed.
+### Auth — per-agency key + HMAC
+- **`X-Travelgenix-Key`** is the agency's public `lead_ingest_key` (prefix `wlk_`). It only *names* which agency the lead belongs to; it is not a bearer token and grants nothing on its own.
+- **`X-Travelgenix-Signature`** proves the body. It is `t={unix},v1={hex}` where `v1 = HMAC-SHA256(agency.lead_ingest_secret, ` `${t}.${rawBody}` `)`. The CRM recomputes it over the exact received bytes, compares in constant time, and rejects anything whose timestamp is **older than 5 minutes** (replay protection).
+- Both credentials come from the CRM: **Luna Work → Settings** issues an agency its `lead_ingest_key` (public) and `lead_ingest_secret` (secret). The secret is stored in the widget's server-side config and used only to sign.
+- An agency with no key, or a key whose secret doesn't verify the signature, is refused with `401`. Responses are deliberately opaque — a public endpoint reveals nothing about which keys exist.
 
-### CORS
-- The endpoint answers a `OPTIONS` preflight and returns `Access-Control-Allow-Origin` for the agency's allowed domains, `Access-Control-Allow-Headers: content-type, x-widget-key`. The widget just does a normal `fetch` with `mode: "cors"`.
+The signing scheme is identical to the CRM's verifier (`lib/widget/signature.ts`) and the widget's existing webhook signer, so the two ends agree byte-for-byte.
 
 ### Request body (JSON)
-All fields optional **except `contact_name`**. Unknown fields are ignored. Lengths are capped server-side; send natural values.
+All fields optional **except `contact_name`**. Unknown fields are ignored; lengths are capped server-side; `source` is always forced to `"website"` regardless of what is sent.
 
 ```jsonc
 {
-  // Who (contact_name required; email strongly recommended — it powers dedup + follow-up)
-  "contact_name":  "Sarah Thompson",
-  "contact_email": "sarah@example.com",
+  "contact_name":  "Sarah Thompson",       // required
+  "contact_email": "sarah@example.com",     // powers dedup + follow-up
   "contact_phone": "+44 7700 900123",
 
-  // What they want (all optional)
-  "destination":   "Maldives",
-  "depart_date":   "2026-09-14",           // YYYY-MM-DD
-  "date_flexibility": "flexible",          // "fixed" | "flexible" | "very_flexible"
+  "destination":   "Maldives, Sri Lanka",   // one string (widget joins its list)
+  "depart_date":   "2026-09-14",            // YYYY-MM-DD
+  "date_flexibility": "flexible",           // "fixed" | "flexible" | "very_flexible"
   "duration_nights": 10,
-  "departure_airport": "Manchester",
+  "departure_airport": "London Heathrow (LHR), Gatwick (LGW)",
   "adults":   2,
   "children": 2,
-  "child_ages": "9, 12",
-  "budget": 8000,                           // number, in GBP
-  "budget_basis": "total",                  // "total" | "per_person"
-  "holiday_type": "beach",
-  "board_basis": "all inclusive",
-  "accommodation": "5* resort",
-  "occasion": "anniversary",
-  "must_haves":    ["direct flights", "kids club"],   // string[]
-  "deal_breakers": ["long transfer"],                 // string[]
+  "child_ages": "6, 9",
+  "budget": 4000,                           // number, GBP
+  "budget_basis": "per_person",             // widget collects budget per person
+  "board_basis": "All inclusive",
+  "must_haves":    ["direct flights", "kids club"],
 
-  // Free text
-  "notes": "Whatever they typed in the message box.",
+  "original_wording": "Honeymoon-ish, would love an overwater villa.",
+  "notes": "Return date: 2026-09-24\nInfants: 1\nPreferred rating: 5 star",
 
-  // Provenance — always set these from the widget
-  "source": "website",                      // keep as "website"
-  "page_url": "https://client-site.co.uk/holidays/maldives",  // where the form was
-  "widget_id": "enquiry-form-v2",           // which widget/instance
-
-  // Marketing consent — send exactly what the customer agreed to (see 4.1)
-  "consent": {
+  "consent": {                              // only when the visitor opted in (§4.1)
     "marketing_email": true,
-    "marketing_sms": false,
-    "wording": "Yes, email me holiday offers and inspiration.",
-    "given_at": "2026-08-04T10:12:00.000Z"  // ISO, when they ticked it
+    "wording": "Agreed to receive marketing via the website enquiry form.",
+    "given_at": "2026-08-04T10:12:00.000Z"
   },
 
-  // Anti-spam (see 4.2)
-  "hp": ""                                   // honeypot: must be empty
+  "hp": ""                                   // honeypot: must be empty (§4.2)
 }
 ```
 
-### 4.1 Consent (important — GDPR)
-The CRM keeps a proper consent ledger. If your form has a marketing opt-in checkbox, send the `consent` object above with:
-- which channels they agreed to (`marketing_email`, `marketing_sms`, …),
-- the **exact wording** shown next to the checkbox,
-- the **timestamp** they ticked it.
-
-If there is no opt-in on the form, **omit `consent` entirely** — do not send `true`. An unticked box is not consent. The CRM records the positive consents against the customer when the lead is worked.
+### 4.1 Consent (GDPR)
+The widget's **contact consent** (permission to reply) is required to submit and is not a marketing permission. Only the separate **marketing** opt-in becomes a `consent` block. If the visitor ticked marketing, send `consent` with the channel(s), the wording, and the timestamp. If they didn't, **omit `consent` entirely** — an unticked box is not consent. The CRM records the positive consent as a note on the enquiry (v1).
 
 ### 4.2 Anti-spam
-Public form endpoints get bots. Implement at least a **honeypot**: a hidden field (`hp`) that real users never fill; if it's non-empty, still return 200 but the CRM drops it. Recommended additionally: Cloudflare **Turnstile** (invisible) — if we add it, the widget passes a `turnstile_token` and the CRM verifies it. Flag if you want this in v1.
+The endpoint honours a **honeypot**: a hidden `hp` field. If it's non-empty the CRM returns `200` but writes nothing. The widget also runs its own honeypot, rate limiting and optional Turnstile *before* routing, so most bots never reach here. The CRM additionally **rate-limits by IP** (30/min) and caps the body at 100 KB.
 
 ### Response
-- **Success:** `200 { "ok": true }` (deliberately minimal — no data leaks back to a public caller).
-- **Validation error:** `400 { "ok": false, "error": "A contact name is required" }` — show the message near the form.
-- **Bad/blocked key or origin:** `403 { "ok": false, "error": "..." }` — treat as a config problem, not a user error.
-- **Too many requests:** `429` with `Retry-After` — back off.
+- **Success:** `200 { "ok": true, "id": "<enquiry id>" }`.
+- **Validation error:** `400 { "ok": false, "error": "A contact name is required" }`.
+- **Bad key / signature:** `401 { "ok": false, "error": "..." }` — a config problem, not a user error.
+- **Too many requests:** `429` with `Retry-After`.
+- **CRM couldn't record it:** `502` (opaque) — the widget logs it via its routing log and the submission is still saved in Airtable.
 
-### Idempotency
-Double-submits happen (impatient clicks, retries). Send a stable `Idempotency-Key` header (a UUID generated once per form-fill); the CRM will not create two enquiries for the same key.
+There is no idempotency key. Re-submits are handled by the CRM's email dedup (a repeat email links to the same household) rather than a client-supplied token; the widget's routing runs once per submission.
 
-## 5. Widget-side checklist (your session)
+## 5. Widget side — how it's wired (`tg-widgets`)
 
-1. **Config per embed:** add two settings to the widget — `crmEndpoint` (default `https://crm.travelify.io/api/widget/lead`) and `crmWidgetKey` (the agency's publishable key). These come from the widget's Airtable/config the same way other settings do.
-2. **On submit:** build the JSON payload above from the form fields (see the mapping in §6), `fetch` the endpoint with the `X-Widget-Key` header and an `Idempotency-Key`.
-3. **Consent:** if the form has a marketing checkbox, populate `consent` with the wording + timestamp; if not, omit it.
-4. **UX:** on `200`, show the success state; on `400`, show `error`; on network/`5xx`/`429`, show a friendly "couldn't send, please try again" and keep the entered data.
-5. **Honeypot:** add the hidden `hp` field.
-6. **Transition:** decide with Andy whether to (a) switch leads from Airtable to the CRM outright, or (b) dual-write to both for a bedding-in period. Dual-write is safer for go-live.
-7. **No secrets beyond the publishable key:** never put any server/admin key in the widget. The widget key is the only credential and it's write-only + origin-locked.
+- **Module:** `api/enquiry/_lib/routing/luna-work.js` — maps the submission to the contract, signs it, POSTs it (10s timeout, HTTPS-only endpoint guard against SSRF). Pure mapping + signature are unit-tested.
+- **Orchestrator:** `api/enquiry/submit.js` imports it statically and lists it in the routing `enabled` array, firing when the form's **Luna Work** flag is on.
+- **Per-form config** (Enquiry Forms table, `appAYzWZxvK6qlwXK` / `tblpw4TCmQfJHZIlF`):
+  - **Luna Work Ingest Key** `fldG6LfpJb5sA1HkV` — the agency's `wlk_` key.
+  - **Luna Work Ingest Secret** `fldNmeld83IwtYlxT` — the agency's signing secret.
+  - **Luna Work Endpoint** `fldxdR9nVUqCfzCbg` — optional; blank uses `https://crm.travelify.io/api/widget/lead`. Override only for a white-label CRM.
+- **Test:** `test/enquiry-luna-work-smoke.mjs` (41 checks) — full + minimal mapping, endpoint guard, and a signature recomputed independently to prove the CRM verifies exactly what is sent. `npm run test:enquiry-luna-work`.
 
-## 6. Field mapping (widget form → CRM enquiry)
+## 6. Field mapping (widget submission → CRM enquiry)
 
-| Widget form field | CRM field | Notes |
+| Widget field | CRM field | Notes |
 |---|---|---|
-| Name | `contact_name` | **required** |
-| Email | `contact_email` | powers dedup + reply |
-| Phone | `contact_phone` | |
-| Destination / "where" | `destination` | |
-| Travel date | `depart_date` | format `YYYY-MM-DD` |
-| Flexible dates? | `date_flexibility` | map to the 3 enums |
-| Nights / duration | `duration_nights` | integer |
-| Departure airport | `departure_airport` | |
-| Adults / children / ages | `adults`, `children`, `child_ages` | |
-| Budget (+ per person?) | `budget`, `budget_basis` | number + enum |
-| Holiday type | `holiday_type` | |
-| Board / accommodation | `board_basis`, `accommodation` | |
-| Occasion | `occasion` | |
-| "Must have" / "must avoid" | `must_haves`, `deal_breakers` | arrays |
-| Message / comments | `notes` | |
-| (automatic) | `source: "website"`, `page_url`, `widget_id` | set by the widget |
-| Marketing checkbox | `consent{...}` | only if ticked |
+| `first_name` + `last_name` | `contact_name` | joined, trimmed (**required**) |
+| `email` | `contact_email` | dedup + reply |
+| `phone` | `contact_phone` | |
+| `destinations[].name` | `destination` | joined to one string |
+| `travel_dates.depart` | `depart_date` | `YYYY-MM-DD` |
+| `travel_dates.flexible` | `date_flexibility` | `flexible` if true, else `fixed` |
+| `duration.nights` | `duration_nights` | |
+| `departure_airport[]` | `departure_airport` | joined to one string |
+| `travellers.adults/children/childAges` | `adults`, `children`, `child_ages` | |
+| `budget_pp` | `budget` + `budget_basis: per_person` | widget budget is per person |
+| `board` (RO/BB/HB/FB/AI) | `board_basis` | expanded to a label |
+| `interests[]` | `must_haves` | |
+| `notes` (visitor's words) | `original_wording` | |
+| return date, infants, stars, flights, custom duration | `notes` | folded in — no contract home, but never dropped |
+| `marketing_consent` | `consent{...}` | only when ticked |
+| (automatic) | `source: "website"` | forced by the CRM |
 
-Anything the widget doesn't collect: just omit it.
+## 7. CRM side — what's built (`travelgenix-crm`)
 
-## 7. What the CRM side will build (so you know it's coming)
-For reference, the CRM tasks (not yours) are: the `/api/widget/lead` route + middleware allowlist + CORS/OPTIONS; a per-agency publishable widget key (with allowed-domains); reuse of the existing enquiry-create logic; persisting the `consent` block; the honeypot/Turnstile check; and rate limiting. **Ask Andy to have the CRM session build this before you can integration-test.** Until it exists, build against the contract in §4 and mock the endpoint.
+- `app/api/widget/lead/route.ts` — the endpoint: IP rate-limit → key lookup (system client) → raw-body HMAC verify → honeypot drop → `normaliseEnquiryFields` → `createEnquiry`. Opaque responses.
+- `lib/widget/signature.ts` — HMAC sign/verify with the 5-minute replay window (tested).
+- `lib/enquiries/create.ts` — the shared create core, used by both this endpoint and the hand-typed `/api/enquiries` form (tested).
+- Migration `…_agency_lead_ingest.sql` — `agencies.lead_ingest_key` (unique) + `lead_ingest_secret`.
+- `middleware.ts` — `/api/widget/lead` on the always-open allowlist (a widget can't hold a login cookie).
 
-## 8. Testing / go-live
-1. CRM session provisions a **test agency + test widget key** and gives you the key + allowed domain.
-2. Point a staging widget at the endpoint with that key.
-3. Submit a test lead → confirm it appears on the CRM's `/enquiries` screen within seconds, on the response clock, and (if the email matches a seeded customer) linked to that customer.
-4. Submit a duplicate with the same `Idempotency-Key` → confirm only one enquiry.
-5. Submit with a marketing opt-in → confirm consent is recorded when the enquiry is worked.
-6. Roll out per widget; dual-write to Airtable first if Andy prefers, then cut over.
+## 8. Not yet done — the config UI (next milestone)
 
-## 9. Open decisions for Andy
-- **One key per agency** (recommended) vs one key per widget instance.
-- **Turnstile** in v1, or honeypot-only to start.
-- **Dual-write to Airtable** during transition, or straight cut-over.
-- **Consent channels** the forms should offer (email only, or email + SMS).
-- Do any widgets need to **create a customer immediately** rather than an enquiry? (Default and recommendation: everything lands as an enquiry and is converted in the CRM — one front door, human-reviewed.)
+The backend is live but **switched off in the editor**: `public/editor-enquiry.html` still marks Luna Work as `comingSoon: true` (guarded by `test/enquiry-luna-comingsoon-smoke.mjs`), so no client can enable it yet. To turn it on for clients:
+1. Remove `comingSoon: true` from the `lunaWork` destination and give it a config inspector that captures the three form fields (Ingest Key, Ingest Secret, optional Endpoint).
+2. Update the coming-soon smoke test (Luna Work is no longer coming soon; Luna Chat / Luna Marketing still are).
+3. In the CRM, add a **Settings** surface that issues an agency its `lead_ingest_key` + `lead_ingest_secret` and shows the copy-paste values.
+4. Optionally, promote consent from an enquiry note to a structured, per-channel consent ledger entry on conversion.
 
----
+## 9. Testing / go-live
 
-*This is the contract. The widget session can build §4–§6 now; the CRM endpoint in §7 is a separate task for the CRM session. They meet at `POST /api/widget/lead`.*
+1. CRM Settings issues a test agency its key + secret.
+2. Paste both into a test form's Luna Work config; enable Luna Work.
+3. Submit a test lead → it appears on `/enquiries` within seconds, on the response clock, linked to a seeded customer if the email matches.
+4. Confirm the widget's routing log shows `luna-work: ok`, and the CRM logs a create.
+5. Tamper test: a wrong secret must yield `401` and no enquiry.
+6. Roll out per form; Luna Work runs alongside the existing destinations, so leads keep reaching Airtable/email during bedding-in.

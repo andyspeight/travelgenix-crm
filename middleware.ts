@@ -42,6 +42,9 @@ function isAlwaysOpen(pathname: string): boolean {
     pathname === "/api/email/webhook" ||
     // Inbound Parse: a mail server delivering a customer's reply.
     pathname === "/api/email/inbound" ||
+    // A website enquiry widget can't hold a login cookie; it authenticates
+    // with a per-agency key + HMAC signature inside the route instead.
+    pathname === "/api/widget/lead" ||
     // An uptime monitor cannot sign in. The route answers liveness only —
     // no counts, no config, nothing that maps the estate.
     pathname === "/api/health" ||

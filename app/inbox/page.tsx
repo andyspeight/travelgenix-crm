@@ -47,20 +47,14 @@ export default async function InboxPage({
     new Set(ix.map((i) => i.household_id).filter(Boolean) as string[])
   );
 
-  const { data: households } = householdIds.length
-    ? await supabase
-        .from("households")
-        .select("*")
-        .in("id", householdIds)
-    : { data: [] };
-
-  // Pull lead contacts for the same households (for the mini-card name resolution)
-  const { data: contacts } = householdIds.length
-    ? await supabase
-        .from("contacts")
-        .select("*")
-        .in("household_id", householdIds)
-    : { data: [] };
+  // Households and lead contacts both depend only on householdIds, so fetch
+  // them together rather than one after the other — one round-trip, not two.
+  const [{ data: households }, { data: contacts }] = householdIds.length
+    ? await Promise.all([
+        supabase.from("households").select("*").in("id", householdIds),
+        supabase.from("contacts").select("*").in("household_id", householdIds),
+      ])
+    : [{ data: [] }, { data: [] }];
 
   return (
     <>
