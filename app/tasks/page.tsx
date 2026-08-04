@@ -33,9 +33,11 @@ export default async function TasksPage() {
   ]);
 
   const tasks = (taskRows ?? []) as TaskRow[];
-  const nameById = Object.fromEntries(
-    (households ?? []).map((h: { id: string; display_name: string }) => [h.id, h.display_name])
-  );
+  const householdRows = (households ?? []) as { id: string; display_name: string }[];
+  const nameById = Object.fromEntries(householdRows.map((h) => [h.id, h.display_name]));
+  const customers = householdRows
+    .map((h) => ({ id: h.id, name: h.display_name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <>
@@ -56,7 +58,7 @@ export default async function TasksPage() {
           </span>
         }
       />
-      <TasksView tasks={tasks} nameById={nameById} />
+      <TasksView tasks={tasks} nameById={nameById} customers={customers} />
     </>
   );
 }
