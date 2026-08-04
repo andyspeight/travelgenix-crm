@@ -9,9 +9,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PlusIcon, XIcon } from "@/components/ui/icons";
+import { PlusIcon } from "@/components/ui/icons";
 import { AddressFields, emptyAddress, type AddressValue } from "@/components/address-fields";
 import { useToast } from "@/components/toast/toast";
+import { Modal } from "@/components/ui/modal";
 
 const field: React.CSSProperties = {
   width: "100%",
@@ -121,47 +122,7 @@ export function AddCustomer({
         </button>
       )}
 
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Add customer"
-          onClick={() => setOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 120,
-            background: "rgba(2, 6, 23, 0.5)",
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "center",
-            padding: "10vh 16px 16px",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 420,
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 14,
-              boxShadow: "var(--shadow-lg)",
-              padding: 20,
-              animation: "fadeUp 0.18s ease-out",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Add customer</h2>
-              <button
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: 6, width: 26, height: 26, color: "var(--text-muted)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-              >
-                <XIcon width={13} height={13} />
-              </button>
-            </div>
-
+      <Modal open={open} onClose={() => setOpen(false)} title="Add customer" maxWidth={460}>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div>
                 <span style={label}>Customer / household name *</span>
@@ -235,9 +196,7 @@ export function AddCustomer({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </>
   );
 }
