@@ -7,6 +7,8 @@ import { useTheme } from "./theme-provider";
 import { useSidebar } from "./sidebar-context";
 import { useCommand } from "@/components/command/command-context";
 import { useTour } from "@/components/tour/tour-context";
+import { useHelp } from "@/components/help/help-context";
+import { getGuide } from "@/components/help/section-guides";
 import {
   HomeIcon,
   InboxIcon,
@@ -48,6 +50,7 @@ export function Sidebar() {
   const { open, setOpen } = useSidebar();
   const { setOpen: setCommandOpen } = useCommand();
   const { setOpen: setTourOpen } = useTour();
+  const { open: openHelp } = useHelp();
 
   // Live "needs you today" count for the Inbox badge. Refreshed on navigation
   // so acting on a message updates the number. Hidden at zero or on failure.
@@ -208,47 +211,76 @@ export function Sidebar() {
         {navItems.map(({ href, label, icon: Icon, match }) => {
           const active = match(pathname || "/");
           const badge = href === "/inbox" ? inboxBadge : null;
+          const hasGuide = Boolean(getGuide(href));
           return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setOpen(false)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "7px 10px",
-                borderRadius: 6,
-                color: active ? "var(--tg-primary)" : "var(--text-muted)",
-                fontSize: 13.5,
-                fontWeight: active ? 600 : 500,
-                background: active
-                  ? "linear-gradient(135deg, rgba(0, 180, 216, 0.08) 0%, rgba(27, 43, 91, 0.04) 100%)"
-                  : "transparent",
-                textDecoration: "none",
-                transition: "all 0.12s ease",
-              }}
-              data-active={active}
-            >
-              <Icon width={16} height={16} style={{ flexShrink: 0 }} />
-              <span>{label}</span>
-              {badge != null && (
-                <span
+            <div key={href} className="nav-row" style={{ display: "flex", alignItems: "center" }}>
+              <Link
+                href={href}
+                onClick={() => setOpen(false)}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "7px 10px",
+                  borderRadius: 6,
+                  color: active ? "var(--tg-primary)" : "var(--text-muted)",
+                  fontSize: 13.5,
+                  fontWeight: active ? 600 : 500,
+                  background: active
+                    ? "linear-gradient(135deg, rgba(0, 180, 216, 0.08) 0%, rgba(27, 43, 91, 0.04) 100%)"
+                    : "transparent",
+                  textDecoration: "none",
+                  transition: "all 0.12s ease",
+                }}
+                data-active={active}
+              >
+                <Icon width={16} height={16} style={{ flexShrink: 0 }} />
+                <span>{label}</span>
+                {badge != null && (
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      background: "var(--tg-accent)",
+                      color: "white",
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      padding: "1px 6px",
+                      borderRadius: 999,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {badge}
+                  </span>
+                )}
+              </Link>
+              {hasGuide && (
+                <button
+                  type="button"
+                  className="nav-help"
+                  onClick={() => { setOpen(false); openHelp(href); }}
+                  title={`How to use ${label}`}
+                  aria-label={`How to use ${label}`}
                   style={{
-                    marginLeft: "auto",
-                    background: "var(--tg-accent)",
-                    color: "white",
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                    padding: "1px 6px",
-                    borderRadius: 999,
-                    lineHeight: 1.5,
+                    flexShrink: 0,
+                    marginLeft: 2,
+                    width: 26,
+                    height: 26,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: 6,
+                    color: "var(--text-subtle)",
+                    cursor: "pointer",
                   }}
                 >
-                  {badge}
-                </span>
+                  <HelpIcon width={13} height={13} />
+                </button>
               )}
-            </Link>
+            </div>
           );
         })}
       </div>
