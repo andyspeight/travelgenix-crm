@@ -1,7 +1,8 @@
 /**
  * PATCH /api/customers/[id]/household
  *
- * Agent edits to the core household record: display name, type, city, postcode.
+ * Agent edits to the core household record: display name, type, and the
+ * address (street lines, town, county, postcode).
  *
  * Scope is deliberately narrow. This route will NOT write:
  *   - lifetime_value, trips_count, last_booking_at (derived from bookings)
@@ -31,7 +32,18 @@ const UUID_RE =
 const HOUSEHOLD_TYPES = ["solo", "couple", "family", "group", "other"] as const;
 type HouseholdType = (typeof HOUSEHOLD_TYPES)[number];
 
-const LIMITS = { display_name: 120, city: 80, postcode: 16 };
+const LIMITS = {
+  display_name: 120,
+  address_line1: 120,
+  address_line2: 120,
+  city: 80,
+  county: 80,
+  postcode: 16,
+};
+
+// The free-text address fields all validate the same way: must be a string,
+// trimmed and length-capped; an empty string legitimately clears the field.
+const ADDRESS_FIELDS = ["address_line1", "address_line2", "city", "county", "postcode"] as const;
 
 export async function PATCH(
   request: Request,
@@ -66,18 +78,12 @@ export async function PATCH(
     update.household_type = b.household_type as string;
   }
 
-  if (b.city !== undefined) {
-    if (typeof b.city !== "string") {
-      return NextResponse.json({ ok: false, error: "Invalid city" }, { status: 400 });
+  for (const key of ADDRESS_FIELDS) {
+    if (b[key] === undefined) continue;
+    if (typeof b[key] !== "string") {
+      return NextResponse.json({ ok: false, error: `Invalid ${key.replace("_", " ")}` }, { status: 400 });
     }
-    update.city = b.city.trim().slice(0, LIMITS.city);
-  }
-
-  if (b.postcode !== undefined) {
-    if (typeof b.postcode !== "string") {
-      return NextResponse.json({ ok: false, error: "Invalid postcode" }, { status: 400 });
-    }
-    update.postcode = b.postcode.trim().slice(0, LIMITS.postcode);
+    update[key] = (b[key] as string).trim().slice(0, LIMITS[key]);
   }
 
   // Nothing to do beyond the timestamp? Reject rather than write a no-op.
@@ -98,7 +104,7 @@ export async function PATCH(
     .update(update)
     .eq("id", householdId)
     .eq("agency_id", agencyId)
-    .select("id, display_name, household_type, city, postcode")
+    .select("id, display_name, household_type, address_line1, address_line2, city, county, postcode")
     .maybeSingle();
 
   if (error) {

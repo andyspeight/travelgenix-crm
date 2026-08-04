@@ -30,14 +30,17 @@ insert into suppliers (agency_id, name, category, rating, flags) values ('000000
 -- Household: Sarah & James Thompson
 with new_household as (
   insert into households (
-    agency_id, display_name, household_type, city, postcode, country, tags,
+    agency_id, display_name, household_type, address_line1, address_line2, city, county, postcode, country, tags,
     notes, customer_since, lifetime_value, trips_count, next_departure, last_booking_at,
     ai_brief, ai_brief_at
   ) values (
     '00000000-0000-0000-0000-000000000001',
     'Sarah & James Thompson',
     'family',
+    '14 Marlborough Road',
+    null,
     'Bournemouth',
+    'Dorset',
     'BH1 2AA',
     'GB',
     '{"VIP","Repeat"}'::text[],

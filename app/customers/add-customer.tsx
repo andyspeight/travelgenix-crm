@@ -10,6 +10,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, XIcon } from "@/components/ui/icons";
+import { AddressFields, emptyAddress, type AddressValue } from "@/components/address-fields";
 
 const field: React.CSSProperties = {
   width: "100%",
@@ -38,7 +39,7 @@ export function AddCustomer() {
 
   const [displayName, setDisplayName] = useState("");
   const [householdType, setHouseholdType] = useState("");
-  const [city, setCity] = useState("");
+  const [address, setAddress] = useState<AddressValue>(emptyAddress);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -54,7 +55,11 @@ export function AddCustomer() {
         body: JSON.stringify({
           display_name: displayName,
           household_type: householdType || null,
-          city: city || null,
+          address_line1: address.address_line1 || null,
+          address_line2: address.address_line2 || null,
+          city: address.city || null,
+          county: address.county || null,
+          postcode: address.postcode || null,
           lead: { first_name: firstName, last_name: lastName || null, email: email || null, phone: phone || null },
         }),
       });
@@ -137,22 +142,21 @@ export function AddCustomer() {
                 <span style={label}>Customer / household name *</span>
                 <input style={field} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Sarah & James Thompson" autoFocus />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <span style={label}>Type</span>
-                  <select style={field} value={householdType} onChange={(e) => setHouseholdType(e.target.value)}>
-                    <option value="">—</option>
-                    <option value="family">Family</option>
-                    <option value="couple">Couple</option>
-                    <option value="solo">Solo</option>
-                    <option value="group">Group</option>
-                  </select>
-                </div>
-                <div>
-                  <span style={label}>City</span>
-                  <input style={field} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Poole" />
-                </div>
+              <div>
+                <span style={label}>Type</span>
+                <select style={field} value={householdType} onChange={(e) => setHouseholdType(e.target.value)}>
+                  <option value="">—</option>
+                  <option value="family">Family</option>
+                  <option value="couple">Couple</option>
+                  <option value="solo">Solo</option>
+                  <option value="group">Group</option>
+                </select>
               </div>
+
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, fontSize: 11, fontWeight: 600, color: "var(--text-subtle)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                Address <span style={{ opacity: 0.7, textTransform: "none", letterSpacing: 0 }}>· optional</span>
+              </div>
+              <AddressFields value={address} onChange={setAddress} />
 
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, fontSize: 11, fontWeight: 600, color: "var(--text-subtle)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                 Lead contact

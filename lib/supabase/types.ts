@@ -34,7 +34,10 @@ export type Household = {
   agency_id: string;
   display_name: string;
   household_type: "family" | "couple" | "solo" | "group" | null;
+  address_line1: string | null;
+  address_line2: string | null;
   city: string | null;
+  county: string | null;
   postcode: string | null;
   country: string | null;
   tags: string[];
