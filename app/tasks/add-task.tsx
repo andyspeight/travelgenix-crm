@@ -12,6 +12,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, XIcon } from "@/components/ui/icons";
+import { CustomerCombobox } from "@/components/customer-combobox";
 
 const field: React.CSSProperties = {
   width: "100%",
@@ -143,16 +144,16 @@ export function AddTask({
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "100%",
-              maxWidth: 400,
+              maxWidth: 520,
               background: "var(--surface)",
               border: "1px solid var(--border)",
               borderRadius: 14,
               boxShadow: "var(--shadow-lg)",
-              padding: 20,
+              padding: 26,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Add task</h2>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text)" }}>Add task</h2>
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close"
@@ -162,7 +163,7 @@ export function AddTask({
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <span style={label}>Task *</span>
                 <input
@@ -190,12 +191,12 @@ export function AddTask({
               </div>
               <div>
                 <span style={label}>Customer (optional)</span>
-                <select style={field} value={householdId} onChange={(e) => setHouseholdId(e.target.value)}>
-                  <option value="">— No customer —</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <CustomerCombobox
+                  customers={customers}
+                  value={householdId}
+                  onChange={setHouseholdId}
+                  placeholder="Start typing a customer's name…"
+                />
               </div>
 
               {error && <div style={{ fontSize: 12, color: "var(--error)" }}>{error}</div>}
