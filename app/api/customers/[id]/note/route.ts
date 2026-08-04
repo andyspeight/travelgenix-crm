@@ -11,7 +11,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { apiAgencyId } from "@/lib/auth/session";
-import { validateLogEntry, logEntryRow } from "@/lib/customer/log-entry";
+import { validateLogEntry, logEntryRow, resolveOccurredAt } from "@/lib/customer/log-entry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,9 +28,9 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Invalid customer id" }, { status: 400 });
   }
 
-  let parsed: { body?: unknown; kind?: unknown };
+  let parsed: { body?: unknown; kind?: unknown; occurred_at?: unknown };
   try {
-    parsed = (await request.json()) as { body?: unknown; kind?: unknown };
+    parsed = (await request.json()) as { body?: unknown; kind?: unknown; occurred_at?: unknown };
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
   }
@@ -64,6 +64,7 @@ export async function POST(
   }
 
   const nowIso = new Date().toISOString();
+  const occurredAt = resolveOccurredAt(parsed.occurred_at, nowIso);
   const row = logEntryRow(entry.kind);
   const { data, error } = await supabase
     .from("interactions")
@@ -77,7 +78,7 @@ export async function POST(
       body: entry.body,
       is_read: true,
       is_triaged: true,
-      occurred_at: nowIso,
+      occurred_at: occurredAt,
     })
     .select("id, occurred_at")
     .maybeSingle();

@@ -45,6 +45,24 @@ export function validateLogEntry(input: LogEntryInput): LogEntryResult {
 }
 
 /**
+ * When it happened. A note or call is usually logged as it happens, but a call
+ * taken yesterday should be recordable with yesterday's date so the timeline
+ * stays in true order. Rules: empty/unparseable → now; a date-only value lands
+ * at midday (so a timezone shift can't bump it to the day before); and the
+ * future is never allowed — you can't log something that hasn't happened, so it
+ * clamps to now.
+ */
+export function resolveOccurredAt(raw: unknown, nowIso: string): string {
+  if (typeof raw !== "string" || !raw.trim()) return nowIso;
+  const v = raw.trim();
+  const candidate = /^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v}T12:00:00` : v;
+  const t = Date.parse(candidate);
+  if (Number.isNaN(t)) return nowIso;
+  const now = Date.parse(nowIso);
+  return t > now ? nowIso : new Date(t).toISOString();
+}
+
+/**
  * The interaction columns for a validated entry. One place that decides what a
  * call row and a note row look like, so the timeline's labels can rely on it.
  */

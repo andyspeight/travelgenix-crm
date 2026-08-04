@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateLogEntry, logEntryRow, MAX_LOG_BODY } from "@/lib/customer/log-entry";
+import { validateLogEntry, logEntryRow, MAX_LOG_BODY, resolveOccurredAt } from "@/lib/customer/log-entry";
 
 describe("validateLogEntry", () => {
   it("accepts a note and trims it", () => {
@@ -47,5 +47,28 @@ describe("logEntryRow", () => {
 
   it("maps a note to a note row", () => {
     expect(logEntryRow("note")).toEqual({ kind: "note", channel: "note", subject: "Note" });
+  });
+});
+
+describe("resolveOccurredAt", () => {
+  const NOW = "2026-08-04T10:00:00.000Z";
+
+  it("falls back to now when empty or unparseable", () => {
+    expect(resolveOccurredAt("", NOW)).toBe(NOW);
+    expect(resolveOccurredAt(undefined, NOW)).toBe(NOW);
+    expect(resolveOccurredAt("not a date", NOW)).toBe(NOW);
+  });
+
+  it("lands a date-only value at midday so a timezone shift can't move the day", () => {
+    expect(resolveOccurredAt("2026-08-01", NOW)).toBe("2026-08-01T12:00:00.000Z");
+  });
+
+  it("keeps a valid past timestamp", () => {
+    expect(resolveOccurredAt("2026-07-30T09:30:00.000Z", NOW)).toBe("2026-07-30T09:30:00.000Z");
+  });
+
+  it("never lets it be in the future — clamps to now", () => {
+    expect(resolveOccurredAt("2026-12-25", NOW)).toBe(NOW);
+    expect(resolveOccurredAt("2027-01-01T00:00:00.000Z", NOW)).toBe(NOW);
   });
 });

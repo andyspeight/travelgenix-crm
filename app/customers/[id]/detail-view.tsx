@@ -29,6 +29,7 @@ import { PreferencesPanelEditable } from "./preferences-panel";
 import { CustomFieldsPanel } from "./custom-fields-panel";
 import { TravellersPanel, type TravellerRow } from "./travellers-panel";
 import { HouseholdEditButton } from "./household-edit";
+import { TimelineCompose } from "./timeline-compose";
 import { ConsentPanel, type ConsentPanelContact } from "./consent-panel";
 import type { ConsentChannel, ChannelState } from "@/lib/consent/state";
 import type { MemoryFact, MemoryCategory } from "@/lib/memory/travel-memory";
@@ -199,7 +200,7 @@ export function CustomerDetailView({
           <AIBrief household={household} exemplar={exemplar} latestInboundId={latestInboundId} />
           <PredictionsRow exemplar={exemplar} cards={predictionCards} />
           <TravelMemoryPanel facts={memoryFacts} />
-          <Timeline interactions={interactions} engagement={engagement} />
+          <Timeline interactions={interactions} engagement={engagement} householdId={household.id} />
           <ListeningFooter exemplar={exemplar} />
         </div>
 
@@ -735,9 +736,11 @@ function PredictionsRow({
 function Timeline({
   interactions,
   engagement,
+  householdId,
 }: {
   interactions: Interaction[];
   engagement?: Record<string, EngagementState>;
+  householdId: string;
 }) {
   // Internal audit entries (kind: 'system') record things like brief
   // regeneration for our own diagnostics. They must never appear in the
@@ -748,6 +751,7 @@ function Timeline({
   if (visible.length === 0) {
     return (
       <Panel title="Timeline">
+        <TimelineCompose householdId={householdId} />
         <div
           style={{
             padding: "30px 16px",
@@ -764,6 +768,7 @@ function Timeline({
 
   return (
     <Panel title="Timeline">
+      <TimelineCompose householdId={householdId} />
       <div style={{ padding: 16 }}>
         {visible.map((ix) => {
           // What became of this email after it left. Honest by construction:
