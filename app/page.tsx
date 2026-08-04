@@ -90,6 +90,7 @@ export default async function DashboardPage() {
     { data: quoteRows },
     { data: contactRows },
     { data: urgentCaseRows },
+    { count: openCaseCount },
   ] = await Promise.all([
     supabase
       .from("households")
@@ -158,6 +159,13 @@ export default async function DashboardPage() {
       .lte("priority", 2)
       .order("priority", { ascending: true })
       .limit(10),
+    // Total open cases, for the quiet glance line (the list above only carries
+    // the urgent ones).
+    supabase
+      .from("cases")
+      .select("*", { count: "exact", head: true })
+      .eq("agency_id", agencyId)
+      .in("status", ["open", "in_progress", "waiting"]),
   ]);
 
   const hh = (households ?? []) as Pick<
@@ -456,6 +464,8 @@ export default async function DashboardPage() {
           pipeline={openPipeline}
           departing={departing7}
           openTasks={openTasks}
+          openCases={openCaseCount ?? 0}
+          waitingEnquiries={waitingEnquiries.length}
         />
       </Shell>
     </>
@@ -592,19 +602,29 @@ function QuietNumbers({
   pipeline,
   departing,
   openTasks,
+  openCases,
+  waitingEnquiries,
 }: {
   customers: number;
   pipeline: number;
   departing: number;
   openTasks: number;
+  openCases: number;
+  waitingEnquiries: number;
 }) {
   const parts: { text: string; href: string }[] = [
     { text: `${customers} customer${customers === 1 ? "" : "s"}`, href: "/customers" },
     { text: `${formatMoney(pipeline)} live pipeline`, href: "/trips" },
     { text: `${departing} departing this week`, href: "/trips" },
   ];
+  if (waitingEnquiries > 0) {
+    parts.push({ text: `${waitingEnquiries} enquir${waitingEnquiries === 1 ? "y" : "ies"} waiting`, href: "/enquiries" });
+  }
   if (openTasks > 0) {
     parts.push({ text: `${openTasks} open task${openTasks === 1 ? "" : "s"}`, href: "/tasks" });
+  }
+  if (openCases > 0) {
+    parts.push({ text: `${openCases} open case${openCases === 1 ? "" : "s"}`, href: "/service" });
   }
 
   return (
