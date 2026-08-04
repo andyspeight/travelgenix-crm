@@ -11,6 +11,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, XIcon } from "@/components/ui/icons";
 import { CASE_TYPES, CASE_TYPE_LABELS, type CaseType } from "@/lib/cases/priority";
+import { CustomerCombobox } from "@/components/customer-combobox";
 
 const field: React.CSSProperties = {
   width: "100%",
@@ -187,17 +188,12 @@ export function NewCase({
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
                   <span style={label}>Customer</span>
-                  <select
-                    style={field}
+                  <CustomerCombobox
+                    customers={households.map((h) => ({ id: h.id, name: h.label }))}
                     value={householdId}
-                    onChange={(e) => { setHouseholdId(e.target.value); setTripId(""); }}
-                    autoFocus
-                  >
-                    <option value="">No customer link (internal / unknown)</option>
-                    {households.map((h) => (
-                      <option key={h.id} value={h.id}>{h.label}</option>
-                    ))}
-                  </select>
+                    onChange={(id) => { setHouseholdId(id); setTripId(""); }}
+                    placeholder="Search customers, or leave blank for internal…"
+                  />
                 </div>
                 {householdId && householdTrips.length > 0 && (
                   <div>
