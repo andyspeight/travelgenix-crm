@@ -75,6 +75,28 @@ export function TravellersPanel({
     }
   }
 
+  async function remove(id: string) {
+    const row = rows.find((r) => r.id === id);
+    const who = row ? [row.first_name, row.last_name].filter(Boolean).join(" ") || "this traveller" : "this traveller";
+    if (!window.confirm(`Remove ${who}? This can't be undone.`)) return;
+    setSaving(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/contacts/${id}`, { method: "DELETE" });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? "Couldn't remove that traveller.");
+        return;
+      }
+      setRows((list) => list.filter((r) => r.id !== id));
+      setOpenId(null);
+    } catch {
+      setError("Couldn't remove that traveller. Check your connection.");
+    } finally {
+      setSaving(null);
+    }
+  }
+
   async function add(fields: Record<string, unknown>) {
     setSaving("new");
     setError(null);
@@ -108,8 +130,10 @@ export function TravellersPanel({
             open={openId === r.id}
             saving={saving === r.id}
             tripPending={tripPending}
+            canRemove={rows.length > 1}
             onToggle={() => setOpenId(openId === r.id ? null : r.id)}
             onSave={(patch) => void save(r.id, patch)}
+            onRemove={() => void remove(r.id)}
           />
         ))}
       </div>
@@ -135,15 +159,19 @@ function TravellerCard({
   open,
   saving,
   tripPending,
+  canRemove,
   onToggle,
   onSave,
+  onRemove,
 }: {
   row: TravellerRow;
   open: boolean;
   saving: boolean;
   tripPending: boolean;
+  canRemove: boolean;
   onToggle: () => void;
   onSave: (patch: Record<string, unknown>) => void;
+  onRemove: () => void;
 }) {
   const name = [row.first_name, row.last_name].filter(Boolean).join(" ");
   const passportMissing = tripPending && !row.passport_expiry;
@@ -206,6 +234,25 @@ function TravellerCard({
           <div style={{ gridColumn: "1 / -1" }}>
             <FlagRow value={row.flags ?? []} onSave={(v) => onSave({ flags: v })} />
           </div>
+          {canRemove && (
+            <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", marginTop: 2 }}>
+              <button
+                onClick={onRemove}
+                disabled={saving}
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "4px 10px",
+                  fontSize: 11.5,
+                  color: "var(--error)",
+                  cursor: saving ? "default" : "pointer",
+                }}
+              >
+                Remove traveller
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

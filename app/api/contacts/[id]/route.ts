@@ -66,3 +66,60 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   return NextResponse.json({ ok: true, contact: data });
 }
+
+/**
+ * DELETE /api/contacts/[id] — remove a traveller.
+ *
+ * For the "added by mistake" case the review flagged as a dead end. Agency-
+ * scoped, and it refuses to remove a household's LAST contact — a household
+ * has to have someone. Dependent rows (trip links, consent) cascade per the
+ * schema's foreign keys.
+ */
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  if (!UUID_RE.test(params.id ?? "")) {
+    return NextResponse.json({ ok: false, error: "Invalid traveller id" }, { status: 400 });
+  }
+
+  const agencyId = await apiAgencyId();
+  if (!agencyId) {
+    return NextResponse.json({ ok: false, error: "No access to this workspace." }, { status: 403 });
+  }
+
+  const supabase = createClient();
+
+  // Resolve the contact (agency-scoped) to learn its household.
+  const { data: contact } = await supabase
+    .from("contacts")
+    .select("id, household_id")
+    .eq("id", params.id)
+    .eq("agency_id", agencyId)
+    .maybeSingle();
+  if (!contact) {
+    return NextResponse.json({ ok: false, error: "Traveller not found." }, { status: 404 });
+  }
+
+  // A household must keep at least one person.
+  const { count } = await supabase
+    .from("contacts")
+    .select("id", { count: "exact", head: true })
+    .eq("agency_id", agencyId)
+    .eq("household_id", (contact as { household_id: string }).household_id);
+  if ((count ?? 0) <= 1) {
+    return NextResponse.json(
+      { ok: false, error: "This is the household's only contact — a customer needs at least one person." },
+      { status: 409 }
+    );
+  }
+
+  const { error } = await supabase
+    .from("contacts")
+    .delete()
+    .eq("id", params.id)
+    .eq("agency_id", agencyId);
+  if (error) {
+    console.error("[contacts] delete failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Couldn't remove that traveller." }, { status: 502 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
