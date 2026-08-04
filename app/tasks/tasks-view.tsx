@@ -17,6 +17,7 @@ export type TaskRow = {
   id: string;
   household_id: string | null;
   trip_id: string | null;
+  assigned_to: string | null;
   title: string;
   description: string | null;
   status: string;
@@ -33,10 +34,12 @@ type Filter = "open" | "snoozed" | "done" | "all";
 export function TasksView({
   tasks,
   nameById,
+  memberById = {},
   customers,
 }: {
   tasks: TaskRow[];
   nameById: Record<string, string>;
+  memberById?: Record<string, string>;
   customers: { id: string; name: string }[];
 }) {
   const router = useRouter();
@@ -207,6 +210,7 @@ export function TasksView({
                     key={t.id}
                     task={t}
                     name={t.household_id ? nameById[t.household_id] ?? null : null}
+                    assignee={t.assigned_to ? memberById[t.assigned_to] ?? null : null}
                     busy={busy === t.id}
                     last={i === g.items.length - 1}
                     onStatus={setStatus}
@@ -224,12 +228,14 @@ export function TasksView({
 function TaskItem({
   task,
   name,
+  assignee,
   busy,
   last,
   onStatus,
 }: {
   task: TaskRow;
   name: string | null;
+  assignee: string | null;
   busy: boolean;
   last: boolean;
   onStatus: (id: string, status: string) => void;
@@ -310,6 +316,21 @@ function TaskItem({
             >
               {name}
             </Link>
+          )}
+          {assignee && (
+            <span
+              style={{
+                fontSize: 11,
+                color: "var(--text-muted)",
+                background: "var(--bg-subtle)",
+                border: "1px solid var(--border)",
+                borderRadius: 5,
+                padding: "2px 7px",
+                fontWeight: 500,
+              }}
+            >
+              {assignee}
+            </span>
           )}
           {task.due_at && (
             <span
