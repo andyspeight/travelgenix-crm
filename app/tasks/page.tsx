@@ -21,15 +21,16 @@ export default async function TasksPage() {
   const supabase = createClient();
   const agencyId = await requireAgencyId();
 
-  const [{ data: taskRows }, { data: households }] = await Promise.all([
+  const [{ data: taskRows }, { data: households }, { data: users }] = await Promise.all([
     supabase
       .from("tasks")
       .select(
-        "id, household_id, trip_id, title, description, status, priority, due_at, completed_at, source, source_meta, created_at"
+        "id, household_id, trip_id, assigned_to, title, description, status, priority, due_at, completed_at, source, source_meta, created_at"
       )
       .eq("agency_id", agencyId)
       .order("due_at", { ascending: true, nullsFirst: false }),
     supabase.from("households").select("id, display_name").eq("agency_id", agencyId),
+    supabase.from("users").select("id, full_name, email").eq("agency_id", agencyId),
   ]);
 
   const tasks = (taskRows ?? []) as TaskRow[];
@@ -38,6 +39,12 @@ export default async function TasksPage() {
   const customers = householdRows
     .map((h) => ({ id: h.id, name: h.display_name }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  const memberById = Object.fromEntries(
+    ((users ?? []) as { id: string; full_name: string | null; email: string }[]).map((u) => [
+      u.id,
+      u.full_name?.trim() || u.email,
+    ])
+  );
 
   return (
     <>
@@ -58,7 +65,7 @@ export default async function TasksPage() {
           </span>
         }
       />
-      <TasksView tasks={tasks} nameById={nameById} customers={customers} />
+      <TasksView tasks={tasks} nameById={nameById} memberById={memberById} customers={customers} />
     </>
   );
 }

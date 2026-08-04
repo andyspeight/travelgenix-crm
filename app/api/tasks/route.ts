@@ -32,7 +32,7 @@ function toDueIso(raw: unknown): string | null {
 }
 
 export async function POST(request: Request) {
-  let body: { title?: unknown; due_at?: unknown; priority?: unknown; household_id?: unknown };
+  let body: { title?: unknown; due_at?: unknown; priority?: unknown; household_id?: unknown; assigned_to?: unknown };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -52,6 +52,8 @@ export async function POST(request: Request) {
 
   const householdId =
     typeof body.household_id === "string" && UUID_RE.test(body.household_id) ? body.household_id : null;
+  const assignedTo =
+    typeof body.assigned_to === "string" && UUID_RE.test(body.assigned_to) ? body.assigned_to : null;
 
   const supabase = createClient();
   const agencyId = await apiAgencyId();
@@ -72,18 +74,32 @@ export async function POST(request: Request) {
     }
   }
 
+  // An assignee must be a member of this agency.
+  if (assignedTo) {
+    const { data: member } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", assignedTo)
+      .eq("agency_id", agencyId)
+      .maybeSingle();
+    if (!member) {
+      return NextResponse.json({ ok: false, error: "That teammate wasn't found." }, { status: 404 });
+    }
+  }
+
   const { data, error } = await supabase
     .from("tasks")
     .insert({
       agency_id: agencyId,
       household_id: householdId,
+      assigned_to: assignedTo,
       title,
       status: "open",
       priority,
       due_at: dueAt,
       source: "manual",
     })
-    .select("id, title, due_at, priority, household_id")
+    .select("id, title, due_at, priority, household_id, assigned_to")
     .maybeSingle();
 
   if (error) {

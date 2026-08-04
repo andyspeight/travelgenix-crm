@@ -9,7 +9,7 @@
  * 360 quick action. This is the "just add a reminder" path.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, XIcon } from "@/components/ui/icons";
 import { CustomerCombobox } from "@/components/customer-combobox";
@@ -64,14 +64,40 @@ export function AddTask({
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState("0");
   const [householdId, setHouseholdId] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
+  const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
+
+  // The team is small, so load assignees once the modal is open.
+  useEffect(() => {
+    if (!open || members.length) return;
+    void fetch("/api/team/members")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.ok && Array.isArray(d.members)) setMembers(d.members);
+      })
+      .catch(() => {});
+  }, [open, members.length]);
 
   function reset() {
     setTitle("");
     setDue("");
     setPriority("0");
     setHouseholdId("");
+    setAssignedTo("");
     setError(null);
   }
+
+  // Quick due-date presets — most follow-ups are today, tomorrow or next week.
+  function isoInDays(days: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+  const dueChips: { label: string; days: number }[] = [
+    { label: "Today", days: 0 },
+    { label: "Tomorrow", days: 1 },
+    { label: "Next week", days: 7 },
+  ];
 
   async function save() {
     setError(null);
@@ -85,6 +111,7 @@ export function AddTask({
           due_at: due || null,
           priority: Number(priority),
           household_id: householdId || null,
+          assigned_to: assignedTo || null,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
@@ -179,6 +206,31 @@ export function AddTask({
                 <div>
                   <span style={label}>Due date</span>
                   <input type="date" style={field} value={due} onChange={(e) => setDue(e.target.value)} />
+                  <div style={{ display: "flex", gap: 5, marginTop: 5 }}>
+                    {dueChips.map((chip) => {
+                      const chipDate = isoInDays(chip.days);
+                      const activeChip = due === chipDate;
+                      return (
+                        <button
+                          key={chip.label}
+                          type="button"
+                          onClick={() => setDue(activeChip ? "" : chipDate)}
+                          style={{
+                            background: activeChip ? "var(--tg-primary)" : "var(--bg-subtle)",
+                            border: `1px solid ${activeChip ? "var(--tg-primary)" : "var(--border)"}`,
+                            color: activeChip ? "white" : "var(--text-muted)",
+                            borderRadius: 6,
+                            padding: "3px 9px",
+                            fontSize: 11.5,
+                            fontWeight: 500,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {chip.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div>
                   <span style={label}>Priority</span>
@@ -189,14 +241,27 @@ export function AddTask({
                   </select>
                 </div>
               </div>
-              <div>
-                <span style={label}>Customer (optional)</span>
-                <CustomerCombobox
-                  customers={customers}
-                  value={householdId}
-                  onChange={setHouseholdId}
-                  placeholder="Start typing a customer's name…"
-                />
+              <div style={{ display: "grid", gridTemplateColumns: members.length ? "1fr 1fr" : "1fr", gap: 12 }}>
+                <div>
+                  <span style={label}>Customer (optional)</span>
+                  <CustomerCombobox
+                    customers={customers}
+                    value={householdId}
+                    onChange={setHouseholdId}
+                    placeholder="Start typing a customer's name…"
+                  />
+                </div>
+                {members.length > 0 && (
+                  <div>
+                    <span style={label}>Assign to (optional)</span>
+                    <select style={field} value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
+                      <option value="">— Unassigned —</option>
+                      {members.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {error && <div style={{ fontSize: 12, color: "var(--error)" }}>{error}</div>}
