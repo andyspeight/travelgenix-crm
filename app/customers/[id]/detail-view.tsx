@@ -11,6 +11,7 @@
  *   Right column: next steps, trips, household graph, preferences, compliance
  */
 
+import Link from "next/link";
 import {
   SparklesIcon,
   ClockIcon,
@@ -34,11 +35,20 @@ import type { MemoryFact, MemoryCategory } from "@/lib/memory/travel-memory";
 import type { NextStep } from "@/lib/customer/next-steps";
 import type { EngagementState } from "@/lib/email/engagement";
 import type { FieldDef, CustomValues } from "@/lib/custom-fields/schema";
+import {
+  CASE_TYPE_LABELS,
+  PRIORITY_META,
+  CASE_STATUS_LABELS,
+  isCaseOpen,
+  type CaseType,
+} from "@/lib/cases/priority";
+import { clockState } from "@/lib/enquiries/clock";
 import type {
   Household,
   Contact,
   Trip,
   Interaction,
+  CaseRow,
 } from "@/lib/supabase/types";
 
 type Preference = {
@@ -66,6 +76,9 @@ type Props = {
   consentState: Record<string, Partial<Record<ConsentChannel, ChannelState>>>;
   consentLedgerMissing: boolean;
   memoryFacts: MemoryFact[];
+  /** Service cases for this household, most urgent first. */
+  cases?: CaseRow[];
+  casesMissing?: boolean;
 };
 
 // Sarah Thompson's UUID changes per seed; we identify the exemplar by name
@@ -150,6 +163,8 @@ export function CustomerDetailView({
   consentState,
   consentLedgerMissing,
   memoryFacts,
+  cases,
+  casesMissing,
 }: Props) {
   const exemplar = isExemplar(household);
   const lead = contacts.find((c) => c.role === "lead") ?? contacts[0];
@@ -196,6 +211,8 @@ export function CustomerDetailView({
             upcomingTrips={upcomingTrips}
             pastTrips={pastTrips}
           />
+          <ServiceCasesPanel cases={cases ?? []} />
+
           {(lead || partners.length || children.length || dependants.length) ? (
             <HouseholdGraph
               lead={lead}
@@ -1007,6 +1024,98 @@ function TripsPanel({
         ))}
       </div>
     </Panel>
+  );
+}
+
+// ─── Service cases ──────────────────────────────────────────────────────
+// What's gone wrong for this customer, and whether it's been put right. The
+// same P1–P4 badges and SLA clock as the /service queue, so a case reads the
+// same wherever it's seen. Open cases lead; resolved ones fall to the bottom
+// and are shown settled. Nothing to show → the panel doesn't appear.
+function ServiceCasesPanel({ cases }: { cases: CaseRow[] }) {
+  if (cases.length === 0) return null;
+
+  const open = cases.filter((c) => isCaseOpen(c.status));
+  const settled = cases.filter((c) => !isCaseOpen(c.status));
+  const ordered = [...open, ...settled];
+
+  return (
+    <Panel
+      title="Service cases"
+      extra={
+        open.length > 0 ? (
+          <Link href="/service" style={{ color: "var(--tg-accent-dark)", textDecoration: "none" }}>
+            {open.length} open →
+          </Link>
+        ) : (
+          "All resolved"
+        )
+      }
+      noPadding
+    >
+      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+        {ordered.map((c) => (
+          <CaseCard key={c.id} c={c} />
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function CaseCard({ c }: { c: CaseRow }) {
+  const badge = PRIORITY_META[c.priority];
+  const settled = !isCaseOpen(c.status);
+  // Only the live cases run a clock; a resolved case just says so.
+  const clock = settled
+    ? null
+    : clockState({ receivedAt: c.opened_at, dueAt: c.sla_due_at, respondedAt: null });
+  const clockColor =
+    clock?.state === "overdue"
+      ? "var(--error)"
+      : clock?.state === "warning"
+        ? "var(--warning)"
+        : "var(--text-muted)";
+
+  return (
+    <div
+      style={{
+        background: "var(--bg-subtle)",
+        border: "1px solid var(--border)",
+        borderRadius: 10,
+        padding: "10px 12px",
+        opacity: settled ? 0.72 : 1,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            padding: "2px 7px",
+            borderRadius: 999,
+            background: badge.bg,
+            color: badge.fg,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {badge.label}
+        </span>
+        <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+          {CASE_TYPE_LABELS[c.case_type as CaseType] ?? c.case_type}
+        </span>
+        <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 600, color: settled ? "var(--success)" : "var(--text-subtle)" }}>
+          {CASE_STATUS_LABELS[c.status]}
+        </span>
+      </div>
+      <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.35 }}>{c.subject}</div>
+      <div style={{ marginTop: 4, fontSize: 11, color: settled ? "var(--text-subtle)" : clockColor }}>
+        {settled
+          ? `Resolved ${c.resolved_at ? formatDate(c.resolved_at) : ""}`.trim()
+          : clock?.label
+            ? `SLA ${clock.label}`
+            : `Opened ${formatDate(c.opened_at)}`}
+      </div>
+    </div>
   );
 }
 

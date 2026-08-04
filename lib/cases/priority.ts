@@ -15,7 +15,7 @@
  * Pure functions, no I/O.
  */
 
-import type { Contact, Trip } from "@/lib/supabase/types";
+import type { Contact, Trip, CaseStatus } from "@/lib/supabase/types";
 
 export const CASE_TYPES = [
   "general_enquiry",
@@ -67,6 +67,32 @@ const BASE_PRIORITY: Record<CaseType, 1 | 2 | 3 | 4> = {
   general_enquiry: 4,
   post_trip_complaint: 4,
 };
+
+/**
+ * How a priority reads as a badge — one definition, shared by the /service
+ * queue and the case panel on a customer's 360 so a P1 looks identical in both.
+ */
+export const PRIORITY_META: Record<1 | 2 | 3 | 4, { label: string; bg: string; fg: string }> = {
+  1: { label: "P1 · act now", bg: "rgba(220, 38, 38, 0.12)", fg: "#dc2626" },
+  2: { label: "P2 · today", bg: "rgba(217, 119, 6, 0.12)", fg: "#d97706" },
+  3: { label: "P3 · this week", bg: "rgba(0, 180, 216, 0.12)", fg: "var(--tg-accent-dark)" },
+  4: { label: "P4 · routine", bg: "var(--bg-subtle)", fg: "var(--text-muted)" },
+};
+
+/** Human labels for each case status. */
+export const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
+  open: "Open",
+  in_progress: "In progress",
+  waiting: "Waiting",
+  resolved: "Resolved",
+  closed: "Closed",
+};
+
+/** Open in the sense that matters to a customer: still needs work. Resolved
+ *  and closed are done; everything else is live. */
+export function isCaseOpen(status: string): boolean {
+  return status !== "resolved" && status !== "closed";
+}
 
 /** SLA resolution targets in hours, by priority. */
 export const SLA_HOURS: Record<1 | 2 | 3 | 4, number> = {

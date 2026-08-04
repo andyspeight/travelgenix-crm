@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { computeCasePriority, slaDueAt, SLA_HOURS, type CaseTravelContext } from "@/lib/cases/priority";
+import {
+  computeCasePriority,
+  slaDueAt,
+  SLA_HOURS,
+  PRIORITY_META,
+  CASE_STATUS_LABELS,
+  isCaseOpen,
+  type CaseTravelContext,
+} from "@/lib/cases/priority";
 
 const NOW = "2026-07-24T09:00:00.000Z";
 
@@ -99,5 +107,25 @@ describe("slaDueAt", () => {
   it("stamps the due time from the priority's target", () => {
     expect(slaDueAt(NOW, SLA_HOURS[1])).toBe("2026-07-24T11:00:00.000Z");
     expect(slaDueAt(NOW, SLA_HOURS[4])).toBe("2026-07-27T09:00:00.000Z");
+  });
+});
+
+describe("shared presentation — one badge everywhere", () => {
+  it("has a badge for every priority and a label for every status", () => {
+    for (const p of [1, 2, 3, 4] as const) {
+      expect(PRIORITY_META[p].label).toMatch(new RegExp(`^P${p} `));
+      expect(PRIORITY_META[p].fg).toBeTruthy();
+    }
+    for (const s of ["open", "in_progress", "waiting", "resolved", "closed"] as const) {
+      expect(CASE_STATUS_LABELS[s].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("treats resolved and closed as done, everything else as live", () => {
+    expect(isCaseOpen("open")).toBe(true);
+    expect(isCaseOpen("in_progress")).toBe(true);
+    expect(isCaseOpen("waiting")).toBe(true);
+    expect(isCaseOpen("resolved")).toBe(false);
+    expect(isCaseOpen("closed")).toBe(false);
   });
 });

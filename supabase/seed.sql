@@ -67,6 +67,11 @@ with new_household as (
 , ins_pref_13 as (insert into preferences (household_id, category, value, source) select id, 'room', 'Sea view · adjoining', 'manual' from new_household returning id)
 , ins_pref_14 as (insert into preferences (household_id, category, value, source) select id, 'budget', 'Flexible for milestones', 'manual' from new_household returning id)
 , ins_pref_15 as (insert into preferences (household_id, category, value, source) select id, 'avoid', 'Olympic Holidays (transfers)', 'manual' from new_household returning id)
+-- A live P1 while they're in destination — the case the 360 panel exists to
+-- surface, and the travel-aware priority rule the blueprint names.
+, ins_case_16 as (insert into cases (agency_id, household_id, trip_id, case_type, subject, detail, status, priority, priority_reason, opened_at, sla_due_at) select '00000000-0000-0000-0000-000000000001', new_household.id, ins_trip_4.id, 'accommodation_issue', 'Air-conditioning failed in the villa, Crete', 'Sarah called: the a/c has been out since last night and it''s 34°C with the two boys. Wants it fixed today or a move to a comparable villa.', 'in_progress'::case_status, 1, 'P1: accommodation issue starts at P2; the customer is travelling right now; 2 children in the party.', '2026-05-08T07:40:00.000Z', '2026-05-08T09:40:00.000Z' from new_household, ins_trip_4 returning id)
+-- A resolved case, so the panel shows a settled item too, not just live ones.
+, ins_case_17 as (insert into cases (agency_id, household_id, trip_id, case_type, subject, detail, status, priority, priority_reason, opened_at, sla_due_at, resolved_at, resolution) select '00000000-0000-0000-0000-000000000001', new_household.id, ins_trip_6.id, 'refund', 'Refund for the cancelled Banff helicopter tour', 'Operator cancelled the glacier flight for weather on the final day; Sarah asked for the £480 back.', 'resolved'::case_status, 3, 'P3: refund starts at P3.', '2025-09-04T09:15:00.000Z', '2025-09-05T09:15:00.000Z', '2025-09-05T16:20:00.000Z', 'Full £480 refunded to the original card; confirmed by email.' from new_household, ins_trip_6 returning id)
 select 1 from new_household;
 
 -- Household: Margaret Collins
