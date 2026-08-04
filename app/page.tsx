@@ -455,18 +455,28 @@ export default async function DashboardPage() {
       />
 
       <Shell>
-        <Greeting name={firstName} subtitle={brief} />
+        {/* data-tour anchors: the spotlight walkthrough (help guide) targets
+            these so each step can highlight the real element on the page. */}
+        <div data-tour="dash-brief">
+          <Greeting name={firstName} subtitle={brief} />
+        </div>
         {/* The list says what needs you; this says what you want to know. */}
-        <AskBar />
-        <TodayList items={today} />
-        <QuietNumbers
-          customers={totalCustomers}
-          pipeline={openPipeline}
-          departing={departing7}
-          openTasks={openTasks}
-          openCases={openCaseCount ?? 0}
-          waitingEnquiries={waitingEnquiries.length}
-        />
+        <div data-tour="dash-ask">
+          <AskBar />
+        </div>
+        <div data-tour="dash-today">
+          <TodayList items={today} />
+        </div>
+        <div data-tour="dash-glance">
+          <QuietNumbers
+            customers={totalCustomers}
+            pipeline={openPipeline}
+            departing={departing7}
+            openTasks={openTasks}
+            openCases={openCaseCount ?? 0}
+            waitingEnquiries={waitingEnquiries.length}
+          />
+        </div>
       </Shell>
     </>
   );
