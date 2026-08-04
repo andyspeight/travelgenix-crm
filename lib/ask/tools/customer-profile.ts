@@ -33,10 +33,11 @@ function fmtDate(s: string | null): string {
 export const customerProfile: QueryTool = {
   name: "customer_profile",
   description:
-    "Look up ONE customer/household by name and summarise everything known about them: who they are, lifetime value, trip history, upcoming travel, risks. Use for questions that name a specific customer or family, like 'tell me about X', 'who are the Ys', 'what do we know about Z', 'when did X last travel'.",
+    "Look up ONE customer/household OR an individual traveller by name and summarise their status: who they are, lifetime value, trip history, upcoming travel, and risks like passport validity. Resolves a named passenger too (including a child or a partner with a different surname), not just the household name. Use for 'tell me about X', 'who are the Ys', 'what's the status of traveller Z', 'when did X last travel'.",
   examples: [
     "Tell me about Sarah Thompson",
     "Who are the Patels?",
+    "What's the status of Oliver Thompson?",
     "What do we know about the Davies family?",
     "When did Margaret Doyle last travel?",
   ],
@@ -61,10 +62,43 @@ export const customerProfile: QueryTool = {
       .ilike("display_name", `%${name}%`)
       .limit(6);
 
-    const matches = (data ?? []) as Household[];
+    let matches = (data ?? []) as Household[];
+
+    // Nothing on the household name? Try a traveller's own name — a child, or a
+    // partner whose surname isn't in the household label — and resolve their
+    // household(s). Each token is matched against first or last name.
+    if (matches.length === 0) {
+      const tokens = name.toLowerCase().split(/\s+/).map((t) => t.trim()).filter(Boolean);
+      if (tokens.length) {
+        const { data: contactHits } = await ctx.db
+          .from("contacts")
+          .select("household_id, first_name, last_name")
+          .eq("agency_id", ctx.agencyId)
+          .limit(2000);
+        const ids = Array.from(
+          new Set(
+            ((contactHits ?? []) as { household_id: string | null; first_name: string | null; last_name: string | null }[])
+              .filter((c) => {
+                const full = `${c.first_name ?? ""} ${c.last_name ?? ""}`.toLowerCase();
+                return tokens.some((tk) => full.includes(tk));
+              })
+              .map((c) => c.household_id)
+              .filter(Boolean)
+          )
+        ) as string[];
+        if (ids.length) {
+          const { data: byContact } = await ctx.db
+            .from("households")
+            .select("*")
+            .eq("agency_id", ctx.agencyId)
+            .in("id", ids.slice(0, 6));
+          matches = (byContact ?? []) as Household[];
+        }
+      }
+    }
 
     if (matches.length === 0) {
-      return emptyResult(`No customer matching "${raw}" on file.`);
+      return emptyResult(`No customer or traveller matching "${raw}" on file.`);
     }
 
     // Several matches — list them so the user can click through or re-ask.

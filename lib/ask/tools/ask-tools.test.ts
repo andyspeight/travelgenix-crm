@@ -38,7 +38,7 @@ describe("customer_profile", () => {
     const db = fakeDb({ households: [] });
     const r = await customerProfile.run({ name: "Nobody" }, ctx(db));
     expect(r.shape).toBe("empty");
-    expect(r.summary).toMatch(/no customer matching/i);
+    expect(r.summary).toMatch(/no customer or traveller matching/i);
   });
 
   it("lists candidates when several match, without profiling any", async () => {
