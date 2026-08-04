@@ -27,6 +27,7 @@ import { rebookingDue } from "./tools/rebooking-due";
 import { upcomingBirthdays } from "./tools/upcoming-birthdays";
 import { dietaryAndFlags } from "./tools/dietary-and-flags";
 import { dataQuality } from "./tools/data-quality";
+import { commissionOutstanding } from "./tools/commission-outstanding";
 
 export const TOOLS: QueryTool[] = [
   tripsDeparting,
@@ -49,6 +50,7 @@ export const TOOLS: QueryTool[] = [
   upcomingBirthdays,
   dietaryAndFlags,
   dataQuality,
+  commissionOutstanding,
 ];
 
 export function findTool(name: string): QueryTool | undefined {
