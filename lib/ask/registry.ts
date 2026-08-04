@@ -18,6 +18,9 @@ import { businessReport } from "./tools/business-report";
 import { customersGoneQuiet } from "./tools/customers-gone-quiet";
 import { quotesAtRisk } from "./tools/quotes-at-risk";
 import { passportStatus } from "./tools/passport-status";
+import { openCases } from "./tools/open-cases";
+import { enquiriesAwaitingResponse } from "./tools/enquiries-awaiting-response";
+import { tasksDue } from "./tools/tasks-due";
 
 export const TOOLS: QueryTool[] = [
   tripsDeparting,
@@ -31,6 +34,9 @@ export const TOOLS: QueryTool[] = [
   customersGoneQuiet,
   quotesAtRisk,
   passportStatus,
+  openCases,
+  enquiriesAwaitingResponse,
+  tasksDue,
 ];
 
 export function findTool(name: string): QueryTool | undefined {
