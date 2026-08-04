@@ -22,6 +22,7 @@ import { openCases } from "./tools/open-cases";
 import { enquiriesAwaitingResponse } from "./tools/enquiries-awaiting-response";
 import { tasksDue } from "./tools/tasks-due";
 import { currentlyTravelling } from "./tools/currently-travelling";
+import { marketingReach } from "./tools/marketing-reach";
 
 export const TOOLS: QueryTool[] = [
   tripsDeparting,
@@ -39,6 +40,7 @@ export const TOOLS: QueryTool[] = [
   enquiriesAwaitingResponse,
   tasksDue,
   currentlyTravelling,
+  marketingReach,
 ];
 
 export function findTool(name: string): QueryTool | undefined {
