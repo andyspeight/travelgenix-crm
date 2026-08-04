@@ -34,12 +34,17 @@ const label: React.CSSProperties = {
 };
 
 export function AddTask({
-  customers,
+  customers = [],
+  defaultCustomerId,
   open: openProp,
   onClose,
   hideTrigger = false,
 }: {
-  customers: { id: string; name: string }[];
+  /** The customer options. When empty, they're fetched on open (e.g. when
+   *  opened from a record that doesn't have the full list to hand). */
+  customers?: { id: string; name: string }[];
+  /** Pre-select this customer — used when adding a task from a 360. */
+  defaultCustomerId?: string;
   /** Controlled mode for the global quick-add; omit to self-manage + show the
    *  "Add task" button. */
   open?: boolean;
@@ -63,20 +68,34 @@ export function AddTask({
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState("0");
-  const [householdId, setHouseholdId] = useState("");
+  const [householdId, setHouseholdId] = useState(defaultCustomerId ?? "");
   const [assignedTo, setAssignedTo] = useState("");
   const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
+  const [fetchedCustomers, setFetchedCustomers] = useState<{ id: string; name: string }[]>([]);
+  const customerOptions = customers.length ? customers : fetchedCustomers;
 
-  // The team is small, so load assignees once the modal is open.
+  // The team is small, so load assignees once the modal is open; also fetch the
+  // customer options if the caller didn't hand them in (e.g. from a record).
   useEffect(() => {
-    if (!open || members.length) return;
-    void fetch("/api/team/members")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.ok && Array.isArray(d.members)) setMembers(d.members);
-      })
-      .catch(() => {});
-  }, [open, members.length]);
+    if (!open) return;
+    if (!members.length) {
+      void fetch("/api/team/members")
+        .then((r) => r.json())
+        .then((d) => { if (d?.ok && Array.isArray(d.members)) setMembers(d.members); })
+        .catch(() => {});
+    }
+    if (!customers.length && !fetchedCustomers.length) {
+      void fetch("/api/customers/options")
+        .then((r) => r.json())
+        .then((d) => { if (d?.ok && Array.isArray(d.customers)) setFetchedCustomers(d.customers); })
+        .catch(() => {});
+    }
+  }, [open, members.length, customers.length, fetchedCustomers.length]);
+
+  // Pre-select the customer each time the modal opens from a record.
+  useEffect(() => {
+    if (open && defaultCustomerId) setHouseholdId(defaultCustomerId);
+  }, [open, defaultCustomerId]);
 
   function reset() {
     setTitle("");
@@ -245,7 +264,7 @@ export function AddTask({
                 <div>
                   <span style={label}>Customer (optional)</span>
                   <CustomerCombobox
-                    customers={customers}
+                    customers={customerOptions}
                     value={householdId}
                     onChange={setHouseholdId}
                     placeholder="Start typing a customer's name…"
