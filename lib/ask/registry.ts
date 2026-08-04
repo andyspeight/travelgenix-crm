@@ -17,6 +17,7 @@ import { customerProfile } from "./tools/customer-profile";
 import { businessReport } from "./tools/business-report";
 import { customersGoneQuiet } from "./tools/customers-gone-quiet";
 import { quotesAtRisk } from "./tools/quotes-at-risk";
+import { passportStatus } from "./tools/passport-status";
 
 export const TOOLS: QueryTool[] = [
   tripsDeparting,
@@ -29,6 +30,7 @@ export const TOOLS: QueryTool[] = [
   businessReport,
   customersGoneQuiet,
   quotesAtRisk,
+  passportStatus,
 ];
 
 export function findTool(name: string): QueryTool | undefined {
