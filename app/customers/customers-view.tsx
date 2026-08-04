@@ -110,7 +110,9 @@ export function CustomersView({
     setActionMsg({ kind, text });
   }
 
-  // Open the user's mail client addressed (BCC) to a set of households.
+  // Open the user's mail client addressed (BCC) to a set of households, for a
+  // SERVICE ANNOUNCEMENT (a flight change and the like) — not marketing. The
+  // endpoint sends operational only; marketing goes through the campaign sender.
   async function emailTargets(ids: string[], subject?: string, body?: string) {
     if (ids.length === 0) return;
     setActionMsg(null);
@@ -119,22 +121,22 @@ export function CustomersView({
       const res = await fetch("/api/customers/emails", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ ids, purpose: "operational" }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         emails?: string[];
-        excluded_no_consent?: number;
+        excluded_suppressed?: number;
         error?: string;
       };
       if (!res.ok || !data.ok) throw new Error(data.error || `Failed (${res.status})`);
       const emails = data.emails ?? [];
-      const excluded = data.excluded_no_consent ?? 0;
+      const excluded = data.excluded_suppressed ?? 0;
       if (emails.length === 0) {
         flash(
           "err",
           excluded > 0
-            ? `None of those customers has email marketing consent on file (${excluded} excluded). Record consent on their records first.`
+            ? `Every address for those customers has bounced or complained (${excluded} skipped).`
             : "No email addresses on file for those customers."
         );
         return;
@@ -146,8 +148,8 @@ export function CustomersView({
       window.location.href = `mailto:?${params.toString()}`;
       flash(
         "ok",
-        `Opened a draft to ${emails.length} customer${emails.length > 1 ? "s" : ""}.${
-          excluded > 0 ? ` ${excluded} excluded, no marketing consent.` : ""
+        `Opened a service-announcement draft to ${emails.length} customer${emails.length > 1 ? "s" : ""}.${
+          excluded > 0 ? ` ${excluded} skipped (bounced or complained).` : ""
         }`
       );
     } catch (err) {
@@ -507,9 +509,10 @@ export function CustomersView({
                   type="button"
                   style={pillBtn("ghost")}
                   disabled={actionBusy === "email"}
+                  title="Opens a service-announcement draft (e.g. a flight change) to these customers. Not for marketing."
                   onClick={() => emailTargets(targetIds())}
                 >
-                  <SendIcon width={12} height={12} /> {actionBusy === "email" ? "Opening…" : "Email all"}
+                  <SendIcon width={12} height={12} /> {actionBusy === "email" ? "Opening…" : "Service email"}
                 </button>
                 <button
                   type="button"
@@ -805,28 +808,16 @@ export function CustomersView({
           <button
             style={bulkBtn()}
             disabled={actionBusy === "email"}
+            title="Opens a service-announcement draft (e.g. a flight change) to the selected customers. Not for marketing."
             onClick={() => emailTargets(Array.from(selected))}
           >
-            <SendIcon width={12} height={12} /> {actionBusy === "email" ? "Opening…" : "Email selected"}
+            <SendIcon width={12} height={12} /> {actionBusy === "email" ? "Opening…" : "Service email"}
           </button>
           <button
             style={bulkBtn()}
             onClick={() => { setTagPromptOpen((o) => !o); setActionMsg(null); }}
           >
             <NoteIcon width={12} height={12} /> Add tag
-          </button>
-          <button
-            style={bulkBtn()}
-            disabled={actionBusy === "email"}
-            onClick={() =>
-              emailTargets(
-                Array.from(selected),
-                "A quick hello from your travel team",
-                "Hi there,\n\nWe were thinking of you and wanted to reach out.\n\n"
-              )
-            }
-          >
-            <SparklesIcon width={12} height={12} /> Draft outreach
           </button>
         </div>
       )}
