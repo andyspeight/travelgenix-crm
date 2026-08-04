@@ -32,9 +32,30 @@ const label: React.CSSProperties = {
   marginBottom: 3,
 };
 
-export function AddTask({ customers }: { customers: { id: string; name: string }[] }) {
+export function AddTask({
+  customers,
+  open: openProp,
+  onClose,
+  hideTrigger = false,
+}: {
+  customers: { id: string; name: string }[];
+  /** Controlled mode for the global quick-add; omit to self-manage + show the
+   *  "Add task" button. */
+  open?: boolean;
+  onClose?: () => void;
+  hideTrigger?: boolean;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [selfOpen, setSelfOpen] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : selfOpen;
+  const setOpen = (next: boolean) => {
+    if (controlled) {
+      if (!next) onClose?.();
+    } else {
+      setSelfOpen(next);
+    }
+  };
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,25 +100,27 @@ export function AddTask({ customers }: { customers: { id: string; name: string }
 
   return (
     <>
-      <button
-        onClick={() => { setOpen(true); setError(null); }}
-        style={{
-          background: "var(--tg-primary)",
-          border: "1px solid var(--tg-primary)",
-          borderRadius: 7,
-          padding: "7px 12px",
-          color: "white",
-          fontSize: 12.5,
-          fontWeight: 600,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          cursor: "pointer",
-        }}
-      >
-        <PlusIcon width={14} height={14} />
-        Add task
-      </button>
+      {!hideTrigger && (
+        <button
+          onClick={() => { setOpen(true); setError(null); }}
+          style={{
+            background: "var(--tg-primary)",
+            border: "1px solid var(--tg-primary)",
+            borderRadius: 7,
+            padding: "7px 12px",
+            color: "white",
+            fontSize: 12.5,
+            fontWeight: 600,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            cursor: "pointer",
+          }}
+        >
+          <PlusIcon width={14} height={14} />
+          Add task
+        </button>
+      )}
 
       {open && (
         <div

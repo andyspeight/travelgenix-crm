@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { MenuIcon } from "@/components/ui/icons";
 import { useSidebar } from "./sidebar-context";
+import { QuickAdd } from "./quick-add";
 
 export function Topbar({
   title,
@@ -51,6 +52,7 @@ export function Topbar({
       </div>
       <div style={{ flex: 1 }} />
       {actions}
+      <QuickAdd />
     </header>
   );
 }
