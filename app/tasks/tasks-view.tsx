@@ -11,6 +11,7 @@ import { useState, useTransition, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckSquareIcon, ClockIcon, ZapIcon, NoteIcon } from "@/components/ui/icons";
+import { AddTask } from "./add-task";
 
 export type TaskRow = {
   id: string;
@@ -32,9 +33,11 @@ type Filter = "open" | "snoozed" | "done" | "all";
 export function TasksView({
   tasks,
   nameById,
+  customers,
 }: {
   tasks: TaskRow[];
   nameById: Record<string, string>;
+  customers: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -111,13 +114,16 @@ export function TasksView({
 
   return (
     <div style={{ padding: 28, maxWidth: 1000, margin: "0 auto", width: "100%" }}>
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em", margin: "0 0 4px" }}>
-          Tasks
-        </h1>
-        <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0 }}>
-          Everything that needs doing, including the follow-ups Luna queues from journeys.
-        </p>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em", margin: "0 0 4px" }}>
+            Tasks
+          </h1>
+          <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0 }}>
+            Everything that needs doing, including the follow-ups Luna queues from journeys.
+          </p>
+        </div>
+        <AddTask customers={customers} />
       </div>
 
       {/* Filter tabs */}
