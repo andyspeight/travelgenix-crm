@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, XIcon } from "@/components/ui/icons";
 import { AddressFields, emptyAddress, type AddressValue } from "@/components/address-fields";
+import { useToast } from "@/components/toast/toast";
 
 const field: React.CSSProperties = {
   width: "100%",
@@ -44,6 +45,7 @@ export function AddCustomer({
   hideTrigger?: boolean;
 } = {}) {
   const router = useRouter();
+  const { push } = useToast();
   const [selfOpen, setSelfOpen] = useState(false);
   const controlled = openProp !== undefined;
   const open = controlled ? openProp : selfOpen;
@@ -86,6 +88,7 @@ export function AddCustomer({
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; id?: string; error?: string };
       if (!res.ok || !data.ok || !data.id) throw new Error(data.error || `Failed (${res.status})`);
       setOpen(false);
+      push("Customer created");
       router.push(`/customers/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create the customer");

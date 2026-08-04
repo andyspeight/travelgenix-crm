@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddressFields, type AddressValue } from "@/components/address-fields";
+import { useToast } from "@/components/toast/toast";
 
 const TYPES = [
   { key: "solo", label: "Solo" },
@@ -42,6 +43,7 @@ export function HouseholdEditButton({
   postcode: string | null;
 }) {
   const router = useRouter();
+  const { push } = useToast();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(displayName);
   const [type, setType] = useState(householdType ?? "solo");
@@ -79,6 +81,7 @@ export function HouseholdEditButton({
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.error || "Couldn't save");
       setOpen(false);
+      push("Details saved");
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save");
