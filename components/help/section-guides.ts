@@ -96,6 +96,213 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
     ],
     cta: { href: "/", label: "Go to the Dashboard" },
   },
+
+  "/inbox": {
+    key: "/inbox",
+    title: "Inbox",
+    blurb: "Every inbound message, triaged by Luna into what needs you first.",
+    steps: [
+      { title: "Work the lanes", body: "Luna sorts inbound messages into Today, This week and Later, so you answer the ones that matter before the ones that can wait." },
+      { title: "Read with context", body: "Click a message to see a mini customer card beside it — who they are and their recent history — without leaving the inbox." },
+      { title: "Reply with a head start", body: "Each message comes with ranked draft replies. Pick one and edit, or “Draft with Luna” to regenerate. Nothing sends until you press send." },
+      { title: "Clear it", body: "Send or mark it handled and it drops out of the lane, so the inbox always shows what's still open." },
+    ],
+    tips: [
+      "The lane is Luna's suggestion, not a rule — you can open anything from any lane.",
+      "A reply that bounces reopens the thread, so “sent” always means actually delivered.",
+      "The number on the Inbox menu item is how many messages need you today.",
+    ],
+    cta: { href: "/inbox", label: "Go to the Inbox" },
+  },
+
+  "/enquiries": {
+    key: "/enquiries",
+    title: "Enquiries",
+    blurb: "The front door — every new request, with a response clock already running.",
+    steps: [
+      { title: "See what's waiting", body: "New enquiries land here the moment they arrive, each with a first-response countdown so nothing slips." },
+      { title: "Let Luna read it", body: "Paste the customer's email and “Read with Luna” fills the form for you. You review before anything saves; their original wording stays on the record." },
+      { title: "Check the scores", body: "Four honest scores — likelihood, value, urgency and fit — help you decide where to spend your time." },
+      { title: "Act", body: "Respond to the customer, Convert to a trip when it's real, or Close with a reason so the record stays honest." },
+    ],
+    tips: [
+      "Website widget leads arrive here automatically — scored and deduped against existing customers.",
+      "The response clock is what powers “N enquiries waiting” on the dashboard; clear them to keep it green.",
+      "Closing with a reason feeds Reports, so you learn why enquiries don't convert.",
+    ],
+    cta: { href: "/enquiries", label: "Go to Enquiries" },
+  },
+
+  "/customers": {
+    key: "/customers",
+    title: "Customers",
+    blurb: "Everyone you look after — searchable in plain English, one click to their full record.",
+    steps: [
+      { title: "Find anyone", body: "Type a plain-English search like “families who went to Greece and have gone quiet” and Luna turns it into a filter." },
+      { title: "Save a segment", body: "Keep a search you'll reuse. The chips along the top show a live count for each, so you can see the size of a group at a glance." },
+      { title: "Act on a group", body: "Select customers (or the whole filter) to add a tag, add them to a journey, or send a service email." },
+      { title: "Open a record", body: "Click any customer for their 360 — Luna's brief, how they travel with every fact cited, the full timeline, and the best next steps." },
+    ],
+    tips: [
+      "Add a customer with the button top-right; the address look-up fills the rest from a postcode.",
+      "Search matches names, emails and phone numbers, so a half-remembered detail is enough.",
+      "Marketing consent is tracked per channel — bulk marketing only reaches customers who agreed.",
+    ],
+    cta: { href: "/customers", label: "Go to Customers" },
+  },
+
+  "/trips": {
+    key: "/trips",
+    title: "Trips",
+    blurb: "Your pipeline as a board — every trip from enquiry to returned.",
+    steps: [
+      { title: "Read the board", body: "Each column is a stage; each card a trip. The column total shows the value sitting in that stage." },
+      { title: "Move a trip on", body: "Drag a card to the next stage, or use the stage dropdown on touch and keyboard." },
+      { title: "Open a trip", body: "Click a card to see its detail and the customer behind it." },
+      { title: "Keep it current", body: "Moving cards as things happen is what makes the pipeline — and the forecast built on it — trustworthy." },
+    ],
+    tips: [
+      "Cancelled trips sit behind a toggle, so the board shows live business by default.",
+      "The forecast's stage weights come straight from this board — an honest board is an honest forecast.",
+    ],
+    cta: { href: "/trips", label: "Go to Trips" },
+  },
+
+  "/quotes": {
+    key: "/quotes",
+    title: "Quotes",
+    blurb: "Every priced proposal tracked — and rescued before it goes cold.",
+    steps: [
+      { title: "See the state of each quote", body: "Sent, viewed, expiring, versions, and the customer's own words, all in one place." },
+      { title: "Catch the ones at risk", body: "Luna's rescue strip flags quotes viewed several times with no reply, expiring soon, or sent but never opened — and names the best next move." },
+      { title: "Follow up", body: "Act on a flagged quote straight from the strip, while there's still time to save it." },
+      { title: "Book it", body: "Accepting a quote books the trip at that price in one click." },
+    ],
+    tips: [
+      "“Viewed four times, no reply” usually means an unasked question — a quick call beats another email.",
+      "An expiring quote is a reason to make contact, not just a deadline.",
+    ],
+    cta: { href: "/quotes", label: "Go to Quotes" },
+  },
+
+  "/service": {
+    key: "/service",
+    title: "Service",
+    blurb: "Customer problems as cases, ranked by real travel urgency.",
+    steps: [
+      { title: "See what's most urgent", body: "Each case carries a priority Luna computes from context — someone travelling right now outranks a routine post-trip question." },
+      { title: "Understand the ranking", body: "Hover the P-badge to see exactly why a case sits where it does. Each priority has a resolution target and a countdown." },
+      { title: "Work it", body: "Start a case, mark it Waiting when the ball is with someone else, and Resolve it with the outcome." },
+      { title: "Keep the record", body: "The resolution lands on the customer's timeline, so their history stays complete." },
+    ],
+    tips: [
+      "Raise a case here or from a customer's record — either way it's linked to them and their trip.",
+      "A case for a customer in resort is meant to jump the queue; that's the system working.",
+    ],
+    cta: { href: "/service", label: "Go to Service" },
+  },
+
+  "/sequences": {
+    key: "/sequences",
+    title: "Sequences",
+    blurb: "A chase that runs over days, and stops itself the moment it should.",
+    steps: [
+      { title: "Understand the shape", body: "A sequence follows up on a schedule — day 0, day 4, day 10 — instead of one email and hope." },
+      { title: "Trust the stop", body: "It ends the moment they reply, the quote is answered, or the address turns out to be dead. That's what keeps it service, not nagging." },
+      { title: "Review each step", body: "Steps arrive in Tasks for you to approve by default — nothing goes out unseen." },
+      { title: "Go hands-off (optional)", body: "Letting a sequence send on its own is a separate, deliberate switch that you control." },
+    ],
+    tips: [
+      "Use a sequence for the follow-ups you'd forget; keep the personal ones personal.",
+      "If a sequence stops early, that's a good sign — it means the customer responded.",
+    ],
+    cta: { href: "/sequences", label: "Go to Sequences" },
+  },
+
+  "/journeys": {
+    key: "/journeys",
+    title: "Journeys",
+    blurb: "Auto-pilot — rules that watch your customers and do the follow-ups for you.",
+    steps: [
+      { title: "Start with the starters", body: "Install the four ready-made journeys, then Run to see who's eligible right now." },
+      { title: "Build your own in words", body: "Describe a rule in plain English — “when a quote over £5,000 isn't answered in 3 days, create a call task” — and Luna builds it." },
+      { title: "Check before it runs", body: "Review Luna's plain explanation and a live dry-run before switching a journey on." },
+      { title: "Stay in control", body: "Journeys queue tasks and drafts for your review. Nothing sends without you." },
+    ],
+    tips: [
+      "A dry-run shows exactly who a journey would act on today, so there are no surprises.",
+      "Journeys and sequences pair up: a journey decides who to chase, a sequence runs the chase.",
+    ],
+    cta: { href: "/journeys", label: "Go to Journeys" },
+  },
+
+  "/tasks": {
+    key: "/tasks",
+    title: "Tasks",
+    blurb: "Your work queue — everything that needs doing, in one list.",
+    steps: [
+      { title: "Work top-down", body: "Tasks are bucketed by due date, so today's work sits together at the top." },
+      { title: "See where they came from", body: "Tasks Luna queues from journeys and sequences arrive here for you to action." },
+      { title: "Clear each one", body: "Complete it, snooze it to resurface later, or reopen one you closed too soon." },
+      { title: "Add your own", body: "Create a task for anything — from here, or straight from a customer's record, pre-filled." },
+    ],
+    tips: [
+      "Assign a task to a teammate and it shows up in their queue.",
+      "Snoozing is honest procrastination — it keeps the task, just not today.",
+    ],
+    cta: { href: "/tasks", label: "Go to Tasks" },
+  },
+
+  "/commission": {
+    key: "/commission",
+    title: "Commission",
+    blurb: "What you earned, and who still owes you — the agency's income, not turnover.",
+    steps: [
+      { title: "See your income", body: "Unlike the other money screens, which show the holiday price, this shows your commission — earned, and still outstanding." },
+      { title: "Chase what's late", body: "The ageing view flags commission overdue from suppliers, oldest first, so you know who to nudge." },
+      { title: "Trust the total", body: "Only booked trips count; enquiries, quotes and cancellations are excluded. A booking with no rate recorded is named “unknown”, never guessed." },
+      { title: "Fix the gaps", body: "Set a missing rate so the booking counts properly toward your earnings." },
+    ],
+    tips: [
+      "A total that quietly drops bookings is worse than none — that's why unknowns are shown, not hidden.",
+      "Commission is tracked per booking and per supplier, so you can see who's slow to pay.",
+    ],
+    cta: { href: "/commission", label: "Go to Commission" },
+  },
+
+  "/reports": {
+    key: "/reports",
+    title: "Reports",
+    blurb: "The numbers, and what's changing — with the working behind every figure.",
+    steps: [
+      { title: "Read the headlines", body: "Booked revenue, open pipeline, conversion, and your top destinations and sources." },
+      { title: "See what's moving", body: "Luna's trend panel says what's changed — enquiries, destinations, response times — with the numbers behind each claim." },
+      { title: "Look ahead", body: "The forecast weights your open pipeline by stage (weights shown) and maps committed vs potential revenue by departure month." },
+      { title: "Act on it", body: "Turn a weak spot — a slow response time, a source that isn't converting — into this week's focus." },
+    ],
+    tips: [
+      "Every claim links to its numbers, so a report is the start of a question, not the end.",
+      "Conversion and sources come straight from how you close enquiries — honest inputs, honest reports.",
+    ],
+    cta: { href: "/reports", label: "Go to Reports" },
+  },
+
+  "/settings": {
+    key: "/settings",
+    title: "Settings",
+    blurb: "Your workspace, your team, and how Luna writes for you.",
+    steps: [
+      { title: "Set the house style", body: "Tell Luna how your agency writes, and she'll hold to it in every draft she makes." },
+      { title: "Manage your team", body: "Invite colleagues and set who can do what." },
+      { title: "Check your integrations", body: "See what's connected — email, and the website widgets feeding enquiries in." },
+      { title: "Watch compliance", body: "Live GDPR, marketing-consent and passport figures, so you can see your standing at a glance." },
+    ],
+    tips: [
+      "The house style is the biggest lever on how “you” Luna's drafts sound — worth a few minutes.",
+      "The compliance figures are live, not a report you run — they reflect your data right now.",
+    ],
+    cta: { href: "/settings", label: "Go to Settings" },
+  },
 };
 
 /** The guide for a nav href, if one has been written yet. */

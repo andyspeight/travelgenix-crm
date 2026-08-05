@@ -8,14 +8,19 @@ import { QuickAdd } from "./quick-add";
 export function Topbar({
   title,
   actions,
+  tourId,
 }: {
   title: string;
   actions?: ReactNode;
+  /** Optional data-tour anchor, so a section's help spotlight can highlight
+      the header (title + primary action) as a step. */
+  tourId?: string;
 }) {
   const { setOpen } = useSidebar();
 
   return (
     <header
+      data-tour={tourId}
       style={{
         height: "var(--topbar-h)",
         borderBottom: "1px solid var(--border)",

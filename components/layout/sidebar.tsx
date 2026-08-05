@@ -213,7 +213,7 @@ export function Sidebar() {
           const badge = href === "/inbox" ? inboxBadge : null;
           const hasGuide = Boolean(getGuide(href));
           return (
-            <div key={href} className="nav-row" style={{ display: "flex", alignItems: "center" }}>
+            <div key={href} className="nav-row" style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Link
                 href={href}
                 onClick={() => setOpen(false)}
@@ -238,23 +238,25 @@ export function Sidebar() {
               >
                 <Icon width={16} height={16} style={{ flexShrink: 0 }} />
                 <span>{label}</span>
-                {badge != null && (
-                  <span
-                    style={{
-                      marginLeft: "auto",
-                      background: "var(--tg-accent)",
-                      color: "white",
-                      fontSize: 10.5,
-                      fontWeight: 600,
-                      padding: "1px 6px",
-                      borderRadius: 999,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {badge}
-                  </span>
-                )}
               </Link>
+              {/* Right cluster: the count pill and the help "?" sit side by side
+                  with a gap, so they never overlap. */}
+              {badge != null && (
+                <span
+                  style={{
+                    flexShrink: 0,
+                    background: "var(--tg-accent)",
+                    color: "white",
+                    fontSize: 10.5,
+                    fontWeight: 600,
+                    padding: "1px 6px",
+                    borderRadius: 999,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {badge}
+                </span>
+              )}
               {hasGuide && (
                 <button
                   type="button"
@@ -264,9 +266,8 @@ export function Sidebar() {
                   aria-label={`How to use ${label}`}
                   style={{
                     flexShrink: 0,
-                    marginLeft: 2,
-                    width: 26,
-                    height: 26,
+                    width: 22,
+                    height: 22,
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
