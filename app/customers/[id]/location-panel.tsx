@@ -33,10 +33,23 @@ type Status = "loading" | "ready" | "unavailable";
 
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
 
+/** The small "by road" line under each airport's straight-line distance. */
+function roadLabel(
+  state: "idle" | "loading" | "ready" | "off",
+  leg: { miles: number | null; minutes: number | null } | undefined
+): string {
+  if (state === "loading") return "…";
+  if (state !== "ready" || !leg) return "";
+  if (leg.miles == null) return "no road route";
+  return `${leg.miles} mi · ${leg.minutes} min`;
+}
+
 export function LocationPanel({ postcode, address }: { postcode: string; address: string }) {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [airports, setAirports] = useState<NearbyAirport[]>([]);
   const [status, setStatus] = useState<Status>("loading");
+  const [roads, setRoads] = useState<Record<string, { miles: number | null; minutes: number | null }>>({});
+  const [roadState, setRoadState] = useState<"idle" | "loading" | "ready" | "off">("idle");
 
   useEffect(() => {
     let cancelled = false;
@@ -57,9 +70,35 @@ export function LocationPanel({ postcode, address }: { postcode: string; address
         const lng = body.result?.longitude;
         if (cancelled) return;
         if (typeof lat === "number" && typeof lng === "number") {
+          const near = nearestAirports({ lat, lng }, 4);
           setCoords({ lat, lng });
-          setAirports(nearestAirports({ lat, lng }, 4));
+          setAirports(near);
           setStatus("ready");
+
+          // Road distances are additive — fetch them after the list is up, and
+          // leave the straight-line figures alone if routing isn't available.
+          setRoadState("loading");
+          fetch("/api/geo/road-distances", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              source: { lat, lng },
+              airports: near.map((a) => ({ iata: a.iata, lat: a.lat, lng: a.lng })),
+            }),
+          })
+            .then((r) => r.json())
+            .then((d: { ok?: boolean; legs?: typeof roads }) => {
+              if (cancelled) return;
+              if (d?.ok && d.legs) {
+                setRoads(d.legs);
+                setRoadState("ready");
+              } else {
+                setRoadState("off");
+              }
+            })
+            .catch(() => {
+              if (!cancelled) setRoadState("off");
+            });
         } else {
           setStatus("unavailable");
         }
@@ -233,14 +272,22 @@ export function LocationPanel({ postcode, address }: { postcode: string; address
                       </span>
                     )}
                   </span>
-                  <span style={{ flexShrink: 0, fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>
-                    ~{a.miles} mi
+                  <span style={{ flexShrink: 0, textAlign: "right", lineHeight: 1.35 }}>
+                    <span style={{ display: "block", fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>
+                      ~{a.miles} mi
+                    </span>
+                    <span style={{ display: "block", fontSize: 11, color: "var(--text-subtle)" }}>
+                      {roadLabel(roadState, roads[a.iata])}
+                    </span>
                   </span>
                 </li>
               ))}
             </ul>
             <div style={{ marginTop: 10, fontSize: 11, color: "var(--text-subtle)", lineHeight: 1.5 }}>
-              Straight-line distances. “Hub” means long-haul reach and more choice — handy when suggesting where to fly from.
+              {roadState === "ready"
+                ? "Top figure is straight-line; below is by road (via OpenRouteService). "
+                : "Straight-line distances. "}
+              “Hub” means long-haul reach and more choice — handy when suggesting where to fly from.
             </div>
           </>
         )}
