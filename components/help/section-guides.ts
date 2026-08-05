@@ -181,6 +181,10 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
       "Cancelled trips sit behind a toggle, so the board shows live business by default.",
       "The forecast's stage weights come straight from this board — an honest board is an honest forecast.",
     ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Your pipeline", body: "The whole board, enquiry to returned. The header carries the pipeline summary and the cancelled-trips toggle." },
+      { selector: '[data-tour="trips-board"]', title: "Drag trips along", body: "Each column is a stage, each card a trip, and the column total shows the value sitting there. Drag a card on, or use its stage dropdown. Click a card to open it." },
+    ],
     cta: { href: "/trips", label: "Go to Trips" },
   },
 
@@ -197,6 +201,10 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
     tips: [
       "“Viewed four times, no reply” usually means an unasked question — a quick call beats another email.",
       "An expiring quote is a reason to make contact, not just a deadline.",
+    ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Every priced proposal", body: "Sent, viewed, expiring, versioned — all tracked in one place." },
+      { selector: '[data-tour="quotes-rescue"]', title: "Quote rescue", body: "Luna flags the quotes at risk — viewed with no reply, expiring soon, never opened — and names the best next move, so you act before they go cold." },
     ],
     cta: { href: "/quotes", label: "Go to Quotes" },
   },
@@ -215,6 +223,10 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
       "Raise a case here or from a customer's record — either way it's linked to them and their trip.",
       "A case for a customer in resort is meant to jump the queue; that's the system working.",
     ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Cases, by urgency", body: "Every customer problem becomes a case, ranked by real travel context." },
+      { selector: '[data-tour="service-tabs"]', title: "Work the queue", body: "Switch between open, waiting and resolved. Each case has a priority and a countdown — hover its P-badge to see exactly why Luna ranked it there." },
+    ],
     cta: { href: "/service", label: "Go to Service" },
   },
 
@@ -231,6 +243,10 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
     tips: [
       "Use a sequence for the follow-ups you'd forget; keep the personal ones personal.",
       "If a sequence stops early, that's a good sign — it means the customer responded.",
+    ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Chases that run themselves", body: "A follow-up spread over days that stops the moment it should." },
+      { selector: '[data-tour="sequences-main"]', title: "Install and review", body: "Start with the quote-chase starter — it installs paused and in review, so you read every step before anything goes out." },
     ],
     cta: { href: "/sequences", label: "Go to Sequences" },
   },
@@ -249,6 +265,10 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
       "A dry-run shows exactly who a journey would act on today, so there are no surprises.",
       "Journeys and sequences pair up: a journey decides who to chase, a sequence runs the chase.",
     ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Auto-pilot", body: "Rules that watch your customers and do the follow-ups for you." },
+      { selector: ".rgrid-journeys", title: "Your journeys", body: "Install the starters and Run to see who's eligible now, or describe a new rule in plain English. Review Luna's dry-run before switching one on." },
+    ],
     cta: { href: "/journeys", label: "Go to Journeys" },
   },
 
@@ -265,6 +285,10 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
     tips: [
       "Assign a task to a teammate and it shows up in their queue.",
       "Snoozing is honest procrastination — it keeps the task, just not today.",
+    ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Your work queue", body: "Everything that needs doing, including the follow-ups Luna queues." },
+      { selector: '[data-tour="tasks-filters"]', title: "By due date", body: "Tasks are bucketed so today's work sits together. Complete, snooze or reopen each one — and add your own from the button top-right." },
     ],
     cta: { href: "/tasks", label: "Go to Tasks" },
   },
@@ -283,6 +307,10 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
       "A total that quietly drops bookings is worse than none — that's why unknowns are shown, not hidden.",
       "Commission is tracked per booking and per supplier, so you can see who's slow to pay.",
     ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Your income", body: "Not turnover — the agency's commission, earned and outstanding." },
+      { selector: '[data-tour="commission-figures"]', title: "Earned, and what's late", body: "Received, invoiced, expected and overdue at a glance. Only booked trips count; a booking with no rate is named “unknown”, never guessed." },
+    ],
     cta: { href: "/commission", label: "Go to Commission" },
   },
 
@@ -300,6 +328,10 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
       "Every claim links to its numbers, so a report is the start of a question, not the end.",
       "Conversion and sources come straight from how you close enquiries — honest inputs, honest reports.",
     ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "The numbers", body: "Revenue, pipeline, conversion, destinations and sources." },
+      { selector: '[data-tour="reports-ranges"]', title: "Pick a window", body: "Switch the date range and the whole page follows. Luna's trend panel says what's changed, and the forecast weights your pipeline by stage." },
+    ],
     cta: { href: "/reports", label: "Go to Reports" },
   },
 
@@ -316,6 +348,10 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
     tips: [
       "The house style is the biggest lever on how “you” Luna's drafts sound — worth a few minutes.",
       "The compliance figures are live, not a report you run — they reflect your data right now.",
+    ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Your workspace", body: "Identity, team, integrations and compliance, all in one place." },
+      { selector: '[data-tour="settings-main"]', title: "Set it up", body: "Set the house style Luna writes in, invite your team, check what's connected, and watch your live GDPR and passport figures." },
     ],
     cta: { href: "/settings", label: "Go to Settings" },
   },

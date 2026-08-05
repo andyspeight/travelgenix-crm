@@ -188,6 +188,7 @@ export default async function SettingsPage() {
       />
 
       <div
+        data-tour="settings-main"
         style={{
           padding: 28,
           maxWidth: 980,

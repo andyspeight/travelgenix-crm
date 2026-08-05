@@ -86,7 +86,7 @@ export function SequencesView({
   const active = enrolments.filter((e) => e.status === "active");
 
   return (
-    <div style={{ padding: "20px 28px", maxWidth: 1100, margin: "0 auto" }}>
+    <div data-tour="sequences-main" style={{ padding: "20px 28px", maxWidth: 1100, margin: "0 auto" }}>
       {note && (
         <div style={{ fontSize: 12.5, color: "#dc2626", marginBottom: 12 }}>{note}</div>
       )}

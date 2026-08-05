@@ -133,6 +133,7 @@ export function QuotesView({ quotes, alerts, nameById, tripMeta }: QuotesViewPro
       {/* ─── Quote Rescue strip ─── */}
       {alerts.length > 0 && (
         <section
+          data-tour="quotes-rescue"
           style={{
             background: "var(--surface)",
             border: "1px solid var(--border)",

@@ -195,7 +195,7 @@ export function CommissionView({
   return (
     <div style={{ padding: 28, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
       {/* ─── What we earned ───────────────────────────────────── */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 26, marginBottom: 6 }}>
+      <div data-tour="commission-figures" style={{ display: "flex", flexWrap: "wrap", gap: 26, marginBottom: 6 }}>
         <Figure label="Received" value={money(summary.received)} strong note="In the bank" />
         <Figure label="Invoiced" value={money(summary.invoiced)} note="Billed, not yet paid" />
         <Figure label="Expected" value={money(summary.expected)} note="Not yet invoiced" />
