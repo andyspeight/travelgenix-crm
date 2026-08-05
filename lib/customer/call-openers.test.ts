@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { relativePhrase, lastTripSummary, nextTripSummary, type TripLite } from "@/lib/customer/call-openers";
+import {
+  relativePhrase,
+  lastTripSummary,
+  nextTripSummary,
+  birthdayOpener,
+  rebookingOpener,
+  loyaltyOpener,
+  type TripLite,
+} from "@/lib/customer/call-openers";
 
 const NOW = new Date("2026-08-05T12:00:00.000Z");
 const trip = (p: Partial<TripLite>): TripLite => ({ destination: null, depart_date: null, return_date: null, ...p });
@@ -62,5 +70,53 @@ describe("nextTripSummary", () => {
 
   it("is null when there's nothing to talk about", () => {
     expect(nextTripSummary(null, [], NOW)).toBeNull();
+  });
+});
+
+describe("birthdayOpener", () => {
+  it("surfaces an upcoming birthday with the age they turn", () => {
+    const r = birthdayOpener([{ first_name: "Sarah", date_of_birth: "1990-08-15" }], NOW);
+    expect(r).toEqual({ emoji: "🎂", text: "Sarah's birthday in 10 days (turning 36)" });
+  });
+
+  it("ignores birthdays more than a month out, and picks the soonest", () => {
+    expect(birthdayOpener([{ first_name: "Jo", date_of_birth: "1990-12-01" }], NOW)).toBeNull();
+    const r = birthdayOpener(
+      [
+        { first_name: "Far", date_of_birth: "1990-08-30" },
+        { first_name: "Near", date_of_birth: "1985-08-06" },
+      ],
+      NOW
+    );
+    expect(r?.text.startsWith("Near's birthday tomorrow")).toBe(true);
+  });
+});
+
+describe("rebookingOpener", () => {
+  it("flags a trip that departed around now in an earlier year", () => {
+    const r = rebookingOpener([{ destination: "Rhodes", destination_country: null, depart_date: "2025-08-01", return_date: null }], NOW);
+    expect(r).toEqual({ emoji: "🔁", text: "This time last year: Rhodes — rebooking time?" });
+  });
+
+  it("ignores off-season and same-year trips", () => {
+    expect(
+      rebookingOpener([{ destination: "Rhodes", destination_country: null, depart_date: "2025-02-01", return_date: null }], NOW)
+    ).toBeNull();
+    expect(
+      rebookingOpener([{ destination: "Rhodes", destination_country: null, depart_date: "2026-08-01", return_date: null }], NOW)
+    ).toBeNull();
+  });
+});
+
+describe("loyaltyOpener", () => {
+  it("summarises a repeat customer", () => {
+    expect(loyaltyOpener({ customer_since: "2019-03-01", trips_count: 7 })).toEqual({
+      emoji: "⭐",
+      text: "With you since 2019 · 7 trips",
+    });
+  });
+
+  it("stays quiet for one-trip customers", () => {
+    expect(loyaltyOpener({ customer_since: "2025-01-01", trips_count: 1 })).toBeNull();
   });
 });

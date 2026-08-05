@@ -17,8 +17,21 @@ import { geocodePlace, currentWeather, type WeatherNow } from "@/lib/weather/ope
 
 type LastTrip = { destination: string; phrase: string };
 type NextTrip = { destination: string; active: boolean; phrase: string | null };
+type Opener = { emoji: string; text: string };
 
-export function CallOpenersPanel({ lastTrip, nextTrip }: { lastTrip: LastTrip | null; nextTrip: NextTrip | null }) {
+export function CallOpenersPanel({
+  lastTrip,
+  nextTrip,
+  birthday,
+  rebooking,
+  loyalty,
+}: {
+  lastTrip: LastTrip | null;
+  nextTrip: NextTrip | null;
+  birthday: Opener | null;
+  rebooking: Opener | null;
+  loyalty: Opener | null;
+}) {
   const [destWeather, setDestWeather] = useState<WeatherNow | null>(null);
 
   useEffect(() => {
@@ -37,7 +50,7 @@ export function CallOpenersPanel({ lastTrip, nextTrip }: { lastTrip: LastTrip | 
     };
   }, [nextTrip?.destination]);
 
-  if (!lastTrip && !nextTrip) return null;
+  if (!lastTrip && !nextTrip && !birthday && !rebooking && !loyalty) return null;
 
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, marginBottom: 16, overflow: "hidden" }}>
@@ -45,11 +58,7 @@ export function CallOpenersPanel({ lastTrip, nextTrip }: { lastTrip: LastTrip | 
         For the call
       </div>
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-        {lastTrip && (
-          <Opener emoji="🧳">
-            Back from <strong style={{ fontWeight: 600 }}>{lastTrip.destination}</strong>, {lastTrip.phrase}.
-          </Opener>
-        )}
+        {birthday && <Opener emoji={birthday.emoji}>{birthday.text}</Opener>}
 
         {nextTrip && (
           <Opener emoji={destWeather ? destWeather.emoji : nextTrip.active ? "🌍" : "✈️"}>
@@ -67,6 +76,15 @@ export function CallOpenersPanel({ lastTrip, nextTrip }: { lastTrip: LastTrip | 
             {nextTrip.phrase ? ` · ${nextTrip.phrase}` : ""}
           </Opener>
         )}
+
+        {lastTrip && (
+          <Opener emoji="🧳">
+            Back from <strong style={{ fontWeight: 600 }}>{lastTrip.destination}</strong>, {lastTrip.phrase}.
+          </Opener>
+        )}
+
+        {rebooking && <Opener emoji={rebooking.emoji}>{rebooking.text}</Opener>}
+        {loyalty && <Opener emoji={loyalty.emoji}>{loyalty.text}</Opener>}
       </div>
     </div>
   );

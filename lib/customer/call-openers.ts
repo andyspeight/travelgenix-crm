@@ -4,12 +4,20 @@
  * the panel adds live destination weather on top.
  */
 
+import { daysUntilBirthday, ageTurning } from "@/lib/contacts/birthdays";
+
 export type TripLite = {
   destination: string | null;
   destination_country?: string | null;
   depart_date: string | null;
   return_date: string | null;
 };
+
+export type ContactLite = { first_name: string; date_of_birth: string | null };
+export type HouseholdLite = { customer_since: string | null; trips_count: number };
+
+/** A ready-to-show opener line: an emoji and a sentence. */
+export type Opener = { emoji: string; text: string };
 
 const DAY = 86_400_000;
 
@@ -80,3 +88,55 @@ export function nextTripSummary(
     phrase: activeTrip ? "there now" : pick.depart_date ? `departs ${relativePhrase(pick.depart_date, now)}` : null,
   };
 }
+
+/** An upcoming birthday within the next month — a warm, timely opener. */
+export function birthdayOpener(contacts: ContactLite[], now: Date): Opener | null {
+  let best: { name: string; days: number; age: number | null } | null = null;
+  for (const c of contacts) {
+    if (!c.date_of_birth) continue;
+    const days = daysUntilBirthday(c.date_of_birth, now);
+    if (days == null || days > 30) continue; // only when it's coming up
+    if (!best || days < best.days) {
+      best = { name: c.first_name, days, age: ageTurning(c.date_of_birth, now) };
+    }
+  }
+  if (!best) return null;
+  const when =
+    best.days === 0 ? "today" : best.days === 1 ? "tomorrow" : best.days < 14 ? `in ${best.days} days` : `in ${Math.round(best.days / 7)} weeks`;
+  const age = best.age != null ? ` (turning ${best.age})` : "";
+  return { emoji: "🎂", text: `${best.name}'s birthday ${when}${age}` };
+}
+
+/**
+ * A past trip that departed around this time of year in an earlier year — the
+ * "they travel this season, time for a nudge" opener.
+ */
+export function rebookingOpener(pastTrips: TripLite[], now: Date): Opener | null {
+  const nowMonth = now.getUTCMonth();
+  const nowYear = now.getUTCFullYear();
+  let best: { dest: string; year: number } | null = null;
+  for (const t of pastTrips) {
+    if (!t.depart_date) continue;
+    const d = new Date(t.depart_date);
+    const monthDiff = Math.abs(d.getUTCMonth() - nowMonth);
+    const seasonal = monthDiff <= 1 || monthDiff === 11; // within a month, wrapping Dec↔Jan
+    if (!seasonal || d.getUTCFullYear() >= nowYear) continue;
+    const dest = place(t);
+    if (!dest) continue;
+    if (!best || d.getUTCFullYear() > best.year) best = { dest, year: d.getUTCFullYear() };
+  }
+  if (!best) return null;
+  const yrs = nowYear - best.year;
+  const whenYr = yrs === 1 ? "this time last year" : `around now ${yrs} years ago`;
+  return { emoji: "🔁", text: `${cap(whenYr)}: ${best.dest} — rebooking time?` };
+}
+
+/** A loyalty snapshot for a repeat customer. */
+export function loyaltyOpener(h: HouseholdLite): Opener | null {
+  if (h.trips_count < 2) return null; // one trip is already covered by "last trip"
+  const year = h.customer_since ? new Date(h.customer_since).getUTCFullYear() : null;
+  const text = year ? `With you since ${year} · ${h.trips_count} trips` : `${h.trips_count} trips with you`;
+  return { emoji: "⭐", text };
+}
+
+const cap = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
