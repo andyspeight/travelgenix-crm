@@ -49,6 +49,30 @@ export function describeWeather(code: number): { label: string; emoji: string } 
   return WMO[code] ?? { label: "—", emoji: "🌡️" };
 }
 
+/**
+ * Look up a place name → coordinates, via Open-Meteo's free geocoding API.
+ * Used to weather-check a trip destination ("Algarve", "Maldives"). Returns
+ * null for anything it can't place (a vague "beach holiday"), so the caller
+ * just skips the weather.
+ */
+export async function geocodePlace(name: string): Promise<{ lat: number; lng: number; name: string } | null> {
+  const q = name.trim();
+  if (!q) return null;
+  try {
+    const res = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en&format=json`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (!res.ok) return null;
+    const j = (await res.json()) as { results?: { latitude?: number; longitude?: number; name?: string }[] };
+    const r = j.results?.[0];
+    if (!r || typeof r.latitude !== "number" || typeof r.longitude !== "number") return null;
+    return { lat: r.latitude, lng: r.longitude, name: r.name ?? q };
+  } catch {
+    return null;
+  }
+}
+
 /** Current temperature + conditions at a point, or null on any failure. */
 export async function currentWeather(lat: number, lng: number): Promise<WeatherNow | null> {
   try {
