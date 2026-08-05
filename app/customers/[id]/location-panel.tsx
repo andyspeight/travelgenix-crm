@@ -70,7 +70,7 @@ export function LocationPanel({ postcode, address }: { postcode: string; address
         const lng = body.result?.longitude;
         if (cancelled) return;
         if (typeof lat === "number" && typeof lng === "number") {
-          const near = nearestAirports({ lat, lng }, 4);
+          const near = nearestAirports({ lat, lng }, 5);
           setCoords({ lat, lng });
           setAirports(near);
           setStatus("ready");
