@@ -28,6 +28,7 @@ import { NextSteps } from "./next-steps";
 import { PreferencesPanelEditable } from "./preferences-panel";
 import { CustomFieldsPanel } from "./custom-fields-panel";
 import { TravellersPanel, type TravellerRow } from "./travellers-panel";
+import { LocationPanel } from "./location-panel";
 import { HouseholdEditButton } from "./household-edit";
 import { TimelineCompose } from "./timeline-compose";
 import { AddTask } from "@/app/tasks/add-task";
@@ -215,6 +216,10 @@ export function CustomerDetailView({
             pastTrips={pastTrips}
           />
           <ServiceCasesPanel cases={cases ?? []} />
+
+          {household.postcode && (
+            <LocationPanel postcode={household.postcode} address={formatAddress(household)} />
+          )}
 
           {(lead || partners.length || children.length || dependants.length) ? (
             <HouseholdGraph
