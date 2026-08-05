@@ -30,7 +30,7 @@ import { CustomFieldsPanel } from "./custom-fields-panel";
 import { TravellersPanel, type TravellerRow } from "./travellers-panel";
 import { LocationPanel } from "./location-panel";
 import { CallOpenersPanel } from "./call-openers-panel";
-import { lastTripSummary, nextTripSummary } from "@/lib/customer/call-openers";
+import { lastTripSummary, nextTripSummary, birthdayOpener, rebookingOpener, loyaltyOpener } from "@/lib/customer/call-openers";
 import { HouseholdEditButton } from "./household-edit";
 import { TimelineCompose } from "./timeline-compose";
 import { AddTask } from "@/app/tasks/add-task";
@@ -188,6 +188,9 @@ export function CustomerDetailView({
   const nowForOpeners = new Date();
   const lastTripOpener = lastTripSummary(pastTrips, nowForOpeners);
   const nextTripOpener = nextTripSummary(activeTrip ?? null, upcomingTrips, nowForOpeners);
+  const birthday = birthdayOpener(contacts, nowForOpeners);
+  const rebooking = rebookingOpener(pastTrips, nowForOpeners);
+  const loyalty = loyaltyOpener(household);
 
   return (
     <div
@@ -224,7 +227,13 @@ export function CustomerDetailView({
           />
           <ServiceCasesPanel cases={cases ?? []} />
 
-          <CallOpenersPanel lastTrip={lastTripOpener} nextTrip={nextTripOpener} />
+          <CallOpenersPanel
+            lastTrip={lastTripOpener}
+            nextTrip={nextTripOpener}
+            birthday={birthday}
+            rebooking={rebooking}
+            loyalty={loyalty}
+          />
 
           {household.postcode && (
             <LocationPanel postcode={household.postcode} address={formatAddress(household)} />
