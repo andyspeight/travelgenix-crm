@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
   }
 
-  const key = process.env.OPENROUTESERVICE_API_KEY;
+  const key = process.env.OPENROUTESERVICE_API_KEY?.trim();
   if (!key) {
     // Not configured — the panel falls back to straight-line only.
     return NextResponse.json({ ok: false, error: "Road distances not configured" });

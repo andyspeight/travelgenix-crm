@@ -58,10 +58,18 @@ export async function roadDistances(
   if (destinations.length === 0) return [];
   const res = await fetch(ORS_MATRIX_URL, {
     method: "POST",
-    headers: { authorization: apiKey, "content-type": "application/json" },
+    headers: {
+      authorization: apiKey,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
     body: JSON.stringify(buildMatrixBody(source, destinations)),
     signal: AbortSignal.timeout(6000),
   });
-  if (!res.ok) throw new Error(`OpenRouteService ${res.status}`);
+  if (!res.ok) {
+    // Include the body so a 403/400 tells us *why* (bad key, quota, etc.).
+    const detail = await res.text().catch(() => "");
+    throw new Error(`OpenRouteService ${res.status}: ${detail.slice(0, 300)}`);
+  }
   return parseMatrix(await res.json(), destinations.length);
 }
