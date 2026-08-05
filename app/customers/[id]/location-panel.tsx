@@ -6,11 +6,18 @@
  * from, nearest first. It's here so an agent can make a sensible suggestion in
  * the moment ("Bournemouth's on your doorstep, but Heathrow opens up long-haul").
  *
- * No API key and no server work: the map is a keyless Google Maps embed keyed on
- * the postcode, and the airports come from geocoding the postcode with the free,
- * CORS-friendly postcodes.io (UK) in the browser, then measuring straight-line
- * distance to a bundled airport list. If geocoding fails (a non-UK or unknown
- * postcode), the map still shows and the airport list bows out quietly.
+ * MAP PROVIDER: MapTiler — the same provider the Travelgenix widgets license.
+ * We use MapTiler's static-map image (an <img>, no Leaflet or CDN script needed)
+ * centred on the geocoded point, with our own pin overlaid at the centre so a
+ * marker always shows. The publishable key is NEXT_PUBLIC_MAPTILER_KEY, and the
+ * key's allowed-origins list in the MapTiler dashboard must include the CRM's
+ * domain or the tiles 403. If the key is unset, the airports still work and the
+ * map area shows an "Open in Maps" link instead.
+ *
+ * GEOCODING: postcodes.io (free, CORS-friendly, UK) turns the postcode into a
+ * lat/long in the browser — one call that feeds both the map and the airports.
+ * A postcode that can't be placed (non-UK or unknown) drops the map and the
+ * list quietly rather than erroring.
  */
 
 import { useEffect, useState } from "react";
@@ -19,7 +26,10 @@ import { nearestAirports, type NearbyAirport } from "@/lib/airports/nearest";
 
 type Status = "loading" | "ready" | "unavailable";
 
+const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
+
 export function LocationPanel({ postcode, address }: { postcode: string; address: string }) {
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [airports, setAirports] = useState<NearbyAirport[]>([]);
   const [status, setStatus] = useState<Status>("loading");
 
@@ -36,13 +46,13 @@ export function LocationPanel({ postcode, address }: { postcode: string; address
           signal: AbortSignal.timeout(6000),
         });
         const body = (await res.json()) as {
-          status?: number;
           result?: { latitude?: number; longitude?: number } | null;
         };
         const lat = body.result?.latitude;
         const lng = body.result?.longitude;
         if (cancelled) return;
         if (typeof lat === "number" && typeof lng === "number") {
+          setCoords({ lat, lng });
           setAirports(nearestAirports({ lat, lng }, 4));
           setStatus("ready");
         } else {
@@ -57,9 +67,11 @@ export function LocationPanel({ postcode, address }: { postcode: string; address
     };
   }, [postcode]);
 
-  const mapQuery = encodeURIComponent(address || postcode);
-  const mapSrc = `https://maps.google.com/maps?q=${mapQuery}&z=11&hl=en&output=embed`;
-  const mapLink = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+  const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address || postcode)}`;
+  const mapSrc =
+    MAPTILER_KEY && coords
+      ? `https://api.maptiler.com/maps/streets-v2/static/${coords.lng},${coords.lat},12/600x200@2x.png?key=${MAPTILER_KEY}`
+      : null;
 
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, marginBottom: 16, overflow: "hidden" }}>
@@ -88,14 +100,63 @@ export function LocationPanel({ postcode, address }: { postcode: string; address
       </div>
 
       {/* Map */}
-      <div style={{ position: "relative", height: 170, background: "var(--bg-subtle)" }}>
-        <iframe
-          title={`Map of ${address || postcode}`}
-          src={mapSrc}
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          style={{ border: 0, width: "100%", height: "100%", display: "block" }}
-        />
+      <div
+        style={{
+          position: "relative",
+          height: 170,
+          background: "var(--bg-subtle)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {mapSrc ? (
+          <>
+            <img
+              src={mapSrc}
+              alt={`Map of ${address || postcode}`}
+              loading="lazy"
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+            {/* Our own pin, dead-centre — the map is centred on the address, so
+                this always marks the right spot regardless of tile markers. */}
+            <span
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -100%)",
+                pointerEvents: "none",
+              }}
+            >
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 22s7-6.2 7-12A7 7 0 0 0 5 10c0 5.8 7 12 7 12Z"
+                  fill="var(--tg-primary)"
+                  stroke="white"
+                  strokeWidth="1.5"
+                />
+                <circle cx="12" cy="10" r="2.6" fill="white" />
+              </svg>
+            </span>
+          </>
+        ) : (
+          <div style={{ textAlign: "center", padding: 16 }}>
+            <PlaneIcon width={20} height={20} style={{ color: "var(--text-subtle)", opacity: 0.6 }} />
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-subtle)" }}>
+              {status === "loading" ? "Loading map…" : "Map unavailable"}
+            </div>
+            <a
+              href={mapLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 12, fontWeight: 600, color: "var(--tg-primary)", textDecoration: "none" }}
+            >
+              Open in Maps ↗
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Nearest airports */}
@@ -123,7 +184,7 @@ export function LocationPanel({ postcode, address }: { postcode: string; address
 
         {status === "unavailable" && (
           <div style={{ fontSize: 12.5, color: "var(--text-subtle)", lineHeight: 1.5 }}>
-            Couldn't place this postcode, so no airport distances. The map above still shows the address.
+            Couldn't place this postcode, so no airport distances.
           </div>
         )}
 
