@@ -98,7 +98,7 @@ export function ReportsView({
   return (
     <div style={{ padding: "20px 28px 40px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
       {/* Range toggle */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
+      <div data-tour="reports-ranges" style={{ display: "flex", gap: 4, marginBottom: 20 }}>
         {RANGES.map((r) => (
           <button
             key={r.key}

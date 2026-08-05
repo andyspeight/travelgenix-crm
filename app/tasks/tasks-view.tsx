@@ -130,7 +130,7 @@ export function TasksView({
       </div>
 
       {/* Filter tabs */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+      <div data-tour="tasks-filters" style={{ display: "flex", gap: 6, marginBottom: 18 }}>
         {filters.map((f) => {
           const active = filter === f.id;
           return (

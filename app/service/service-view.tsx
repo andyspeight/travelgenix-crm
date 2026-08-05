@@ -103,7 +103,7 @@ export function ServiceView({ cases, nameById, tripMeta }: ServiceViewProps) {
 
   return (
     <div style={{ padding: "20px 24px" }}>
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+      <div data-tour="service-tabs" style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {TABS.map(({ key, label }) => {
           const active = tab === key;
           return (

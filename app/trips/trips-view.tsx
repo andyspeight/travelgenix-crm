@@ -126,6 +126,7 @@ export function TripsBoard({ trips: initialTrips }: { trips: BoardTrip[] }) {
 
       {/* ── The board ── */}
       <div
+        data-tour="trips-board"
         style={{
           display: "flex",
           gap: 14,
