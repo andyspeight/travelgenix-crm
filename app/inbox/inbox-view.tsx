@@ -418,7 +418,7 @@ export function InboxView({
           activeLane={lane}
           onChange={selectLane}
         />
-        <div style={{ flex: 1, overflow: "auto" }}>
+        <div data-tour="inbox-list" style={{ flex: 1, overflow: "auto" }}>
           {visible.length === 0 ? (
             <EmptyLane lane={lane} />
           ) : (
@@ -616,6 +616,7 @@ function LaneTabs({
 
   return (
     <div
+      data-tour="inbox-lanes"
       style={{
         display: "flex",
         borderBottom: "1px solid var(--border)",

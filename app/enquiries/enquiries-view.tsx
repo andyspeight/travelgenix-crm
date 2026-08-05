@@ -235,7 +235,7 @@ export function EnquiriesView({ enquiries, nameById, emailLive, enrichment }: En
   return (
     <div style={{ padding: "20px 24px" }}>
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+      <div data-tour="enq-tabs" style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {TABS.map(({ key, label }) => {
           const active = tab === key;
           return (
@@ -291,7 +291,7 @@ export function EnquiriesView({ enquiries, nameById, emailLive, enrichment }: En
       )}
 
       {/* Rows */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div data-tour="enq-list" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {visible.map((e) => {
           const clock = clockState({
             receivedAt: e.received_at,
