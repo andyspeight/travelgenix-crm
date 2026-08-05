@@ -6,13 +6,14 @@
  * from, nearest first. It's here so an agent can make a sensible suggestion in
  * the moment ("Bournemouth's on your doorstep, but Heathrow opens up long-haul").
  *
- * MAP PROVIDER: MapTiler — the same provider the Travelgenix widgets use for the
- * offers world map. The widgets keep their (publishable, domain-restricted) key
+ * MAP PROVIDER: MapTiler — the same provider (and same publishable key) the
+ * Travelgenix widgets use for the offers world map. The widgets keep that key
  * inline in the client JS; here we read it from NEXT_PUBLIC_MAPTILER_KEY instead,
- * so the key isn't committed to this (public) repo. Set it to the shared
- * Travelgenix key, and add crm.travelify.io to that key's allowed origins in the
- * MapTiler dashboard, or the tiles 403. If the key is unset, the airports still
- * work and the map area shows an "Open in Maps" link.
+ * so it isn't committed to this (public) repo. That's the only setup: set the
+ * env var to the shared Travelgenix key and redeploy. No per-domain step — the
+ * key already serves the offers map on clients' own websites (arbitrary
+ * domains), so it isn't origin-restricted. If the key is unset, the airports
+ * still work and the map area shows an "Open in Maps" link.
  *
  * We use MapTiler's static-map image (an <img>, no Leaflet or CDN script needed)
  * centred on the geocoded point, with our own pin overlaid at the centre so a
