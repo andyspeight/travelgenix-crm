@@ -6,13 +6,17 @@
  * from, nearest first. It's here so an agent can make a sensible suggestion in
  * the moment ("Bournemouth's on your doorstep, but Heathrow opens up long-haul").
  *
- * MAP PROVIDER: MapTiler — the same provider the Travelgenix widgets license.
+ * MAP PROVIDER: MapTiler — the same provider the Travelgenix widgets use for the
+ * offers world map. The widgets keep their (publishable, domain-restricted) key
+ * inline in the client JS; here we read it from NEXT_PUBLIC_MAPTILER_KEY instead,
+ * so the key isn't committed to this (public) repo. Set it to the shared
+ * Travelgenix key, and add crm.travelify.io to that key's allowed origins in the
+ * MapTiler dashboard, or the tiles 403. If the key is unset, the airports still
+ * work and the map area shows an "Open in Maps" link.
+ *
  * We use MapTiler's static-map image (an <img>, no Leaflet or CDN script needed)
  * centred on the geocoded point, with our own pin overlaid at the centre so a
- * marker always shows. The publishable key is NEXT_PUBLIC_MAPTILER_KEY, and the
- * key's allowed-origins list in the MapTiler dashboard must include the CRM's
- * domain or the tiles 403. If the key is unset, the airports still work and the
- * map area shows an "Open in Maps" link instead.
+ * marker always shows.
  *
  * GEOCODING: postcodes.io (free, CORS-friendly, UK) turns the postcode into a
  * lat/long in the browser — one call that feeds both the map and the airports.
