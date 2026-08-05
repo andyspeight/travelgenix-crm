@@ -112,6 +112,11 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
       "A reply that bounces reopens the thread, so “sent” always means actually delivered.",
       "The number on the Inbox menu item is how many messages need you today.",
     ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Luna triages every message", body: "Inbound mail is read and sorted for you as it arrives, so the inbox is a worklist, not a pile." },
+      { selector: '[data-tour="inbox-lanes"]', title: "Today, this week, later", body: "Messages are bucketed by when they need you. Start at Today and work down." },
+      { selector: '[data-tour="inbox-list"]', title: "Open a message", body: "Click one to see the customer's mini-card beside it and ranked draft replies — pick one, edit, and send. Nothing sends until you do." },
+    ],
     cta: { href: "/inbox", label: "Go to the Inbox" },
   },
 
@@ -130,6 +135,11 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
       "The response clock is what powers “N enquiries waiting” on the dashboard; clear them to keep it green.",
       "Closing with a reason feeds Reports, so you learn why enquiries don't convert.",
     ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Log a new enquiry", body: "New enquiry up here. Paste the customer's email and “Read with Luna” fills the form; you review before it saves." },
+      { selector: '[data-tour="enq-tabs"]', title: "Filter by status", body: "New, working, converted, closed — with a count on each, so you can see the queue at a glance." },
+      { selector: '[data-tour="enq-list"]', title: "The queue, on the clock", body: "Each enquiry shows its response countdown and four scores (likelihood, value, urgency, fit). Open one to respond, convert it to a trip, or close it with a reason." },
+    ],
     cta: { href: "/enquiries", label: "Go to Enquiries" },
   },
 
@@ -147,6 +157,12 @@ export const SECTION_GUIDES: Record<string, SectionGuide> = {
       "Add a customer with the button top-right; the address look-up fills the rest from a postcode.",
       "Search matches names, emails and phone numbers, so a half-remembered detail is enough.",
       "Marketing consent is tracked per channel — bulk marketing only reaches customers who agreed.",
+    ],
+    walkthrough: [
+      { selector: ".app-main > header", title: "Add a customer, any time", body: "The button up here adds a customer — the address look-up fills the rest from just a postcode." },
+      { selector: '[data-tour="cust-search"]', title: "Search in plain English", body: "Describe who you want — “families who went to Greece and have gone quiet” — and Luna turns it into a filter." },
+      { selector: '[data-tour="cust-segments"]', title: "Saved segments", body: "Reusable groups, each with a live count. Click one to filter to it in a tap." },
+      { selector: '[data-tour="cust-list"]', title: "Your customers", body: "Click anyone for their full 360. Select several to act on them together — a tag, a journey, or a service email." },
     ],
     cta: { href: "/customers", label: "Go to Customers" },
   },

@@ -334,6 +334,7 @@ export function CustomersView({
       {/* ─── Smart Segmentation bar ─────────────────────────── */}
       <form
         onSubmit={handleSubmit}
+        data-tour="cust-search"
         style={{
           background: "var(--surface)",
           border: "1px solid var(--border)",
@@ -592,6 +593,7 @@ export function CustomersView({
 
       {/* ─── Saved segment chips ─────────────────────────────── */}
       <div
+        data-tour="cust-segments"
         style={{
           display: "flex",
           flexWrap: "wrap",
@@ -880,6 +882,7 @@ export function CustomersView({
 
       {/* ─── Table ──────────────────────────────────────────── */}
       <div
+        data-tour="cust-list"
         style={{
           background: "var(--surface)",
           border: "1px solid var(--border)",
