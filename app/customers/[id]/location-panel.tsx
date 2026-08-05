@@ -28,6 +28,7 @@
 import { useEffect, useState } from "react";
 import { PlaneIcon } from "@/components/ui/icons";
 import { nearestAirports, type NearbyAirport } from "@/lib/airports/nearest";
+import { currentWeather, type WeatherNow } from "@/lib/weather/open-meteo";
 
 type Status = "loading" | "ready" | "unavailable";
 
@@ -50,6 +51,7 @@ export function LocationPanel({ postcode, address }: { postcode: string; address
   const [status, setStatus] = useState<Status>("loading");
   const [roads, setRoads] = useState<Record<string, { miles: number | null; minutes: number | null }>>({});
   const [roadState, setRoadState] = useState<"idle" | "loading" | "ready" | "off">("idle");
+  const [weather, setWeather] = useState<WeatherNow | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +76,11 @@ export function LocationPanel({ postcode, address }: { postcode: string; address
           setCoords({ lat, lng });
           setAirports(near);
           setStatus("ready");
+
+          // Current weather at their location — a warm opener for the call.
+          currentWeather(lat, lng).then((w) => {
+            if (!cancelled) setWeather(w);
+          });
 
           // Road distances are additive — fetch them after the list is up, and
           // leave the straight-line figures alone if routing isn't available.
@@ -202,6 +209,38 @@ export function LocationPanel({ postcode, address }: { postcode: string; address
           </div>
         )}
       </div>
+
+      {/* Current weather — an easy opener ("bet it's grey with you today"). */}
+      {weather && (
+        <div
+          style={{
+            padding: "9px 16px",
+            borderBottom: "1px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 12.5,
+          }}
+        >
+          <span style={{ fontSize: 15 }} aria-hidden>
+            {weather.emoji}
+          </span>
+          <span style={{ fontWeight: 600, color: "var(--text)" }}>{weather.tempC}°C</span>
+          <span style={{ color: "var(--text-muted)" }}>{weather.label}</span>
+          <span
+            style={{
+              marginLeft: "auto",
+              fontSize: 10,
+              fontWeight: 600,
+              color: "var(--text-subtle)",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Right now
+          </span>
+        </div>
+      )}
 
       {/* Nearest airports */}
       <div style={{ padding: 16 }}>
