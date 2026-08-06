@@ -124,14 +124,16 @@ export async function runAsk(
     return { ok: false, question, error: "Couldn't understand that just now. Try rephrasing." };
   }
 
-  // No tool chosen — Luna can't answer this yet.
+  // No tool chosen — Luna can't answer this yet. Record the miss (best-effort,
+  // agency-scoped) so we build a real backlog of what people ask and can't get.
   if (!toolName) {
+    await logMiss(ctx, question, routerText);
     return {
       ok: true,
       question,
       insight:
         routerText.trim() ||
-        "I can't answer that one yet. I can help with: a customer or traveller by name; who's travelling in a date range or right now; trips to a destination; revenue or a business report for a period; top or quiet customers; quotes at risk; passport issues; open service cases; enquiries awaiting a response; tasks due; and who you can email.",
+        "I can't answer that one yet. I can help with: a customer or traveller by name; who's travelling in a date range or right now; trips to a destination; bookings, quotes or enquiries filtered by value (over/under/between a price), stage and date; revenue or a business report for a period; top or quiet customers; quotes at risk; passport issues; open service cases; enquiries awaiting a response; tasks due; and who you can email.",
     };
   }
 
@@ -160,6 +162,24 @@ export async function runAsk(
   }
 
   return { ok: true, question, tool: toolName, result, insight };
+}
+
+// ─── Miss logging ───────────────────────────────────────────────────────────
+/**
+ * Record a question the router couldn't route to any tool. Agency-scoped and
+ * best-effort: it stores only the user's own text, and any failure here is
+ * swallowed so it can never stop Luna answering the next question.
+ */
+async function logMiss(ctx: QueryContext, question: string, routerText: string): Promise<void> {
+  try {
+    await ctx.db.from("ask_misses").insert({
+      agency_id: ctx.agencyId,
+      question: question.trim().slice(0, 2000),
+      router_text: routerText.trim() ? routerText.trim().slice(0, 2000) : null,
+    });
+  } catch (err) {
+    console.error("[ask] miss log failed (non-fatal):", err);
+  }
 }
 
 // ─── Insight narration ──────────────────────────────────────────────────────
