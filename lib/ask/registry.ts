@@ -12,6 +12,8 @@ import { tripsByDestination } from "./tools/trips-by-destination";
 import { revenueForPeriod } from "./tools/revenue-for-period";
 import { tripsByStage } from "./tools/trips-by-stage";
 import { findBookings } from "./tools/find-bookings";
+import { findQuotes } from "./tools/find-quotes";
+import { findEnquiries } from "./tools/find-enquiries";
 import { customersByValueOrTag } from "./tools/customers-by-value-or-tag";
 import { tripsRecentlyReturned } from "./tools/trips-recently-returned";
 import { customerProfile } from "./tools/customer-profile";
@@ -36,6 +38,8 @@ export const TOOLS: QueryTool[] = [
   revenueForPeriod,
   tripsByStage,
   findBookings,
+  findQuotes,
+  findEnquiries,
   customersByValueOrTag,
   tripsRecentlyReturned,
   customerProfile,
