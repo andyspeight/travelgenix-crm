@@ -29,6 +29,8 @@ import { NextResponse } from "next/server";
 import { createSystemClient } from "@/lib/supabase/server";
 import { runJourneysForAgency } from "@/lib/journeys/run";
 import { runSequencesForAgency } from "@/lib/sequences/runner";
+import { safeSecretEqual, bearerToken } from "@/lib/security/secret";
+import { logSecurityEvent, clientIp } from "@/lib/security/log";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -39,7 +41,11 @@ export async function GET(request: Request) {
   if (!secret) {
     return NextResponse.json({ ok: false, error: "Schedule not enabled" }, { status: 404 });
   }
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!safeSecretEqual(bearerToken(request.headers.get("authorization")), secret)) {
+    logSecurityEvent("cron.token.rejected", {
+      route: "/api/cron/journeys",
+      ip: clientIp(request),
+    });
     return NextResponse.json({ ok: false, error: "Bad token" }, { status: 401 });
   }
 

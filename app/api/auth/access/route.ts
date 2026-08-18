@@ -2,14 +2,18 @@
  * POST /api/auth/access — the knock on the front door.
  *
  * Body: { code }. On a match with LUNA_ACCESS_CODE it sets the signed,
- * httpOnly access cookie (30 days). Comparison is constant-time-ish and the
- * endpoint is rate-limited hard (5/min per IP) to make brute force boring.
- * Returns identical errors for wrong code and disabled gate — no oracle.
+ * httpOnly access cookie (30 days). Comparison is constant-time with no length
+ * leak (SHA-256 then timingSafeEqual) and the endpoint is rate-limited hard
+ * (5/min per IP) to make brute force boring. Returns identical errors for wrong
+ * code and disabled gate — no oracle. Rejections are logged to the security
+ * channel so a brute-force attempt is visible.
  */
 
 import { NextResponse } from "next/server";
 import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
-import { ACCESS_COOKIE, ACCESS_TTL_MS, safeEqual, signAccessToken } from "@/lib/auth/gate";
+import { ACCESS_COOKIE, ACCESS_TTL_MS, signAccessToken } from "@/lib/auth/gate";
+import { safeSecretEqual } from "@/lib/security/secret";
+import { logSecurityEvent, clientIp } from "@/lib/security/log";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -33,7 +37,11 @@ export async function POST(request: Request) {
   const secret = process.env.LUNA_ACCESS_CODE;
   const supplied = typeof body.code === "string" ? body.code : "";
 
-  if (!secret || !supplied || !safeEqual(supplied, secret)) {
+  if (!secret || !supplied || !safeSecretEqual(supplied, secret)) {
+    logSecurityEvent("auth.access.rejected", {
+      route: "/api/auth/access",
+      ip: clientIp(request),
+    });
     return NextResponse.json({ ok: false, error: "That code isn't right" }, { status: 401 });
   }
 
