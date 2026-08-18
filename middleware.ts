@@ -18,6 +18,15 @@
  *
  * Neither set = open, so a fresh deploy or local dev never locks anyone out.
  *
+ * CANONICAL HOST (Control mode only) — Control's `tg_session` cookie is scoped
+ * to .travelify.io, so it is only sent to the app's travelify.io host
+ * (crm.travelify.io by default, overridable with CANONICAL_HOST). A launchpad
+ * link or stale bookmark that opens the raw *.vercel.app deployment carries no
+ * cookie, so the gate below would bounce it to Control's sign-in and back in an
+ * endless loop. We therefore redirect any non-canonical host to the canonical
+ * one BEFORE the cookie check, so the cookie is actually present when we look.
+ * Local dev and the always-open webhook/cron/widget routes are left untouched.
+ *
  * /api/email/webhook, /api/email/inbound and /api/cron/* are always let
  * through: an email provider, a mail server delivering a reply, and a
  * scheduler cannot hold a login cookie. They authenticate with a shared
@@ -34,6 +43,32 @@ export const config = {
 };
 
 const CONTROL_COOKIE = "tg_session";
+
+// The host the .travelify.io sign-in cookie is actually sent to. Default to
+// crm.travelify.io; CANONICAL_HOST lets a white-label / renamed deployment
+// override it without a code change.
+const CANONICAL_HOST = process.env.CANONICAL_HOST || "crm.travelify.io";
+
+/**
+ * In Control mode, force any non-canonical host onto the canonical one so the
+ * sign-in cookie is present when the gate runs. Returns a redirect, or null
+ * when the request is already fine (canonical host, or local dev).
+ */
+function canonicalHostRedirect(request: NextRequest): NextResponse | null {
+  const hostname = (request.headers.get("host") ?? "").split(":")[0].toLowerCase();
+  // Hostless, localhost, or a bare machine name (dev): never redirect.
+  if (!hostname || hostname === "localhost" || !hostname.includes(".")) return null;
+  if (hostname === "127.0.0.1") return null;
+  if (hostname === CANONICAL_HOST.toLowerCase()) return null;
+
+  const target = new URL(
+    request.nextUrl.pathname + request.nextUrl.search,
+    `https://${CANONICAL_HOST}`
+  );
+  // 307, not 308: a temporary redirect keeps browsers/edges from permanently
+  // caching the mapping, so changing CANONICAL_HOST later takes effect at once.
+  return NextResponse.redirect(target, 307);
+}
 
 function isAlwaysOpen(pathname: string): boolean {
   return (
@@ -60,6 +95,10 @@ export async function middleware(request: NextRequest) {
 
   const controlBase = process.env.CONTROL_BASE_URL;
   if (controlBase) {
+    // Get onto crm.travelify.io first, or the cookie below is never sent.
+    const canonical = canonicalHostRedirect(request);
+    if (canonical) return canonical;
+
     if (request.cookies.get(CONTROL_COOKIE)) return NextResponse.next();
 
     if (pathname.startsWith("/api/")) {
