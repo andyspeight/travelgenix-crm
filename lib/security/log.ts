@@ -16,7 +16,8 @@ export type SecurityEventKind =
   | "auth.access.rejected"
   | "webhook.token.rejected"
   | "inbound.token.rejected"
-  | "cron.token.rejected";
+  | "cron.token.rejected"
+  | "csp.violation";
 
 export function logSecurityEvent(
   kind: SecurityEventKind,
