@@ -80,6 +80,9 @@ function isAlwaysOpen(pathname: string): boolean {
     // A website enquiry widget can't hold a login cookie; it authenticates
     // with a per-agency key + HMAC signature inside the route instead.
     pathname === "/api/widget/lead" ||
+    // The browser posts CSP violation reports here with no session (and often
+    // no credentials). The route only logs a capped, rate-limited line.
+    pathname === "/api/csp-report" ||
     // An uptime monitor cannot sign in. The route answers liveness only —
     // no counts, no config, nothing that maps the estate.
     pathname === "/api/health" ||
