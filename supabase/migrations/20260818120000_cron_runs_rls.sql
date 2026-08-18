@@ -1,0 +1,14 @@
+-- cron_runs: record its Row-Level Security in the migrations folder.
+--
+-- RLS is already ENABLED on this table in production (verified live: rowsecurity
+-- on, zero policies) but it was never captured in a migration — so a rebuild
+-- from this folder would recreate the table WITHOUT RLS, silently re-opening it
+-- to the published anon key. This migration closes that drift.
+--
+-- WHY no policy: cron_runs is estate-wide operational data (no agency_id, no
+-- PII). It is written by the nightly cron and read by the Settings health panel,
+-- both via the SERVICE-ROLE client, which bypasses RLS by design. With RLS on
+-- and no policy, every other caller — i.e. the browser anon key — is denied,
+-- exactly like the tenant tables. Enabling RLS is idempotent, so applying this
+-- against the live database is a safe no-op.
+alter table public.cron_runs enable row level security;
