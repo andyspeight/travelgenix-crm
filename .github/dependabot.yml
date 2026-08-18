@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Application dependencies — weekly, grouped so the PR noise stays low.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      production:
+        dependency-type: "production"
+      development:
+        dependency-type: "development"
+
+  # Keep the CI/security actions themselves patched.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

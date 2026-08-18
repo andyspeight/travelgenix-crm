@@ -33,6 +33,8 @@
 import { NextResponse } from "next/server";
 import { createSystemClient } from "@/lib/supabase/server";
 import { emitEvent } from "@/lib/events/emit";
+import { safeSecretEqual } from "@/lib/security/secret";
+import { logSecurityEvent, clientIp } from "@/lib/security/log";
 import {
   parseInbound,
   threadKeys,
@@ -54,7 +56,12 @@ export async function POST(request: Request) {
   if (!secret) {
     return NextResponse.json({ ok: false, error: "Inbound not enabled" }, { status: 404 });
   }
-  if (new URL(request.url).searchParams.get("token") !== secret) {
+  const token = new URL(request.url).searchParams.get("token") ?? "";
+  if (!safeSecretEqual(token, secret)) {
+    logSecurityEvent("inbound.token.rejected", {
+      route: "/api/email/inbound",
+      ip: clientIp(request),
+    });
     return NextResponse.json({ ok: false, error: "Bad token" }, { status: 401 });
   }
 
