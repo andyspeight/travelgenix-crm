@@ -11,6 +11,12 @@ updates:
         dependency-type: "production"
       development:
         dependency-type: "development"
+    ignore:
+      # Major bumps are breaking (e.g. Next 14 -> 16) and are done deliberately
+      # as their own reviewed PRs, never as an automated update. Dependabot still
+      # raises SECURITY fixes even for versions ignored here.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # Keep the CI/security actions themselves patched.
   - package-ecosystem: "github-actions"
