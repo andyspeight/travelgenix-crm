@@ -11,8 +11,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ideal-postcodes/address-finder": "^5.4.1",
-    "@supabase/ssr": "^0.5.2",
+    "@ideal-postcodes/address-finder": "^5.4.2",
+    "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.45.4",
     "next": "14.2.35",
     "react": "^18.3.1",
