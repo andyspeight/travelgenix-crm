@@ -80,6 +80,13 @@ function isAlwaysOpen(pathname: string): boolean {
     // A website enquiry widget can't hold a login cookie; it authenticates
     // with a per-agency key + HMAC signature inside the route instead.
     pathname === "/api/widget/lead" ||
+    // The customer portal is a separate surface for the agency's OWN customers
+    // (travellers). It authenticates them with its own magic-link session
+    // (lib/portal/session), never the Control/agency sign-in, so it is let
+    // through this gate exactly like the widget and webhook routes.
+    pathname === "/portal" ||
+    pathname.startsWith("/portal/") ||
+    pathname.startsWith("/api/portal/") ||
     // The browser posts CSP violation reports here with no session (and often
     // no credentials). The route only logs a capped, rate-limited line.
     pathname === "/api/csp-report" ||

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { SidebarContext } from "./sidebar-context";
 import { CommandContext } from "@/components/command/command-context";
@@ -20,11 +21,18 @@ import { SpotlightTour } from "@/components/help/spotlight-tour";
  * .sidebar-overlay rules in globals.css).
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [helpSection, setHelpSection] = useState<string | null>(null);
   const [walkthrough, setWalkthrough] = useState<string | null>(null);
+
+  // The customer portal is a separate surface for the agency's own customers —
+  // no agent sidebar, command palette or Luna. Render it bare; it brings its
+  // own layout (app/portal/layout.tsx). Placed AFTER the hooks so hook order is
+  // stable when navigating between the app and the portal.
+  if (pathname?.startsWith("/portal")) return <>{children}</>;
 
   return (
     <SidebarContext.Provider value={{ open, setOpen }}>

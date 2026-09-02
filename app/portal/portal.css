@@ -1,0 +1,155 @@
+/* Customer portal — a calm, self-contained surface for travellers.
+   Reuses the app's design tokens (--tg-*) so light/dark come for free, but
+   shares none of the agent chrome. The agency's brand colour is injected as
+   --portal-accent on the wrapper; it falls back to the app accent. */
+
+.portal {
+  --portal-accent: var(--tg-accent, #0c6e82);
+  min-height: 100vh;
+  background: var(--tg-bg-secondary, #f5f7fa);
+  color: var(--tg-text-primary, #141b2c);
+  font-family: var(--tg-font-body, "Inter", system-ui, sans-serif);
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  background: var(--tg-bg-primary, #fff);
+  border-bottom: 1px solid var(--tg-border, #e1e7ef);
+}
+.portal-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--tg-text-primary, #141b2c);
+}
+.portal-brand img {
+  height: 32px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+}
+.portal-signout {
+  background: none;
+  border: 1px solid var(--tg-border, #e1e7ef);
+  color: var(--tg-text-secondary, #4c5a70);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.portal-signout:hover { background: var(--tg-bg-tertiary, #eef2f7); }
+
+.portal-main {
+  flex: 1;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+.portal-narrow { max-width: 460px; }
+
+.portal-h1 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+.portal-sub { color: var(--tg-text-secondary, #4c5a70); margin: 0 0 24px; font-size: 15px; }
+
+.portal-card {
+  background: var(--tg-bg-primary, #fff);
+  border: 1px solid var(--tg-border, #e1e7ef);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 1px 2px rgba(20, 27, 44, 0.04), 0 6px 18px rgba(20, 27, 44, 0.05);
+}
+.portal-card + .portal-card { margin-top: 14px; }
+
+/* Trip cards */
+.portal-trips { display: flex; flex-direction: column; gap: 14px; }
+.portal-trip {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: var(--tg-bg-primary, #fff);
+  border: 1px solid var(--tg-border, #e1e7ef);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 1px 2px rgba(20, 27, 44, 0.04), 0 6px 18px rgba(20, 27, 44, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.portal-trip:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(20, 27, 44, 0.1); }
+.portal-trip-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.portal-trip-dest { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.portal-trip-meta { color: var(--tg-text-secondary, #4c5a70); font-size: 14px; margin: 6px 0 0; }
+.portal-trip-ref { color: var(--tg-text-tertiary, #7a899e); font-size: 12px; margin-top: 10px; letter-spacing: 0.02em; }
+
+.portal-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.portal-badge.upcoming { background: color-mix(in srgb, var(--portal-accent) 14%, transparent); color: var(--portal-accent); }
+.portal-badge.travelling { background: rgba(16, 122, 84, 0.14); color: #0e7a54; }
+.portal-badge.returned { background: var(--tg-bg-tertiary, #eef2f7); color: var(--tg-text-tertiary, #7a899e); }
+
+/* Itinerary */
+.portal-section-h { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--tg-text-tertiary, #7a899e); margin: 28px 0 12px; }
+.portal-itin { display: flex; flex-direction: column; gap: 10px; }
+.portal-itin-row { display: flex; gap: 14px; align-items: flex-start; background: var(--tg-bg-primary, #fff); border: 1px solid var(--tg-border, #e1e7ef); border-radius: 12px; padding: 14px 16px; }
+.portal-itin-icon { font-size: 20px; line-height: 1.4; flex: none; }
+.portal-itin-title { font-weight: 600; margin: 0; }
+.portal-itin-when { color: var(--tg-text-secondary, #4c5a70); font-size: 13px; margin: 3px 0 0; }
+.portal-party { display: flex; flex-wrap: wrap; gap: 8px; }
+.portal-chip { background: var(--tg-bg-tertiary, #eef2f7); border-radius: 999px; padding: 6px 13px; font-size: 14px; font-weight: 500; }
+
+/* Login form */
+.portal-input {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--tg-border, #e1e7ef);
+  border-radius: 10px;
+  background: var(--tg-bg-primary, #fff);
+  color: var(--tg-text-primary, #141b2c);
+}
+.portal-input:focus { outline: 2.5px solid var(--portal-accent); outline-offset: 1px; }
+.portal-btn {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  background: var(--portal-accent);
+  color: #fff;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.portal-btn:disabled { opacity: 0.6; cursor: default; }
+.portal-note { color: var(--tg-text-tertiary, #7a899e); font-size: 13px; margin-top: 14px; }
+.portal-error { color: var(--tg-error, #b5342c); font-size: 14px; margin: 0 0 14px; }
+.portal-back { display: inline-block; margin-bottom: 18px; color: var(--tg-text-secondary, #4c5a70); text-decoration: none; font-size: 14px; font-weight: 600; }
+.portal-back:hover { color: var(--portal-accent); }
+.portal-empty { text-align: center; color: var(--tg-text-secondary, #4c5a70); padding: 40px 0; }
+
+.portal-dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 20px; font-size: 15px; margin: 0; }
+.portal-dl dt { color: var(--tg-text-tertiary, #7a899e); font-size: 13px; font-weight: 600; }
+.portal-dl dd { margin: 0; }
