@@ -15,6 +15,8 @@ export type PortalBranding = {
   agencyName: string;
   brandColor: string | null;
   logoUrl: string | null;
+  /** Where a traveller can reach the agency (reply-to, else from address). */
+  contactEmail: string | null;
 };
 
 export type PortalContact = {
@@ -67,13 +69,16 @@ export async function getBranding(
 ): Promise<PortalBranding> {
   const { data } = await supabase
     .from("agencies")
-    .select("name, brand_color, logo_url")
+    .select("name, brand_color, logo_url, email_reply_to, email_from_address")
     .eq("id", agencyId)
     .maybeSingle();
+  const contact =
+    ((data?.email_reply_to as string | null) || (data?.email_from_address as string | null) || "").trim();
   return {
     agencyName: (data?.name as string | undefined) || "Your travel agent",
     brandColor: (data?.brand_color as string | null) ?? null,
     logoUrl: (data?.logo_url as string | null) ?? null,
+    contactEmail: contact || null,
   };
 }
 
