@@ -99,18 +99,29 @@ export async function enforceRateLimit(
   }
 }
 
+/**
+ * The client IP, preferring headers the platform sets and a client CANNOT
+ * spoof. `x-forwarded-for` is client-supplied — an attacker can prepend a
+ * random left-most entry to rotate their rate-limit key and defeat the limit —
+ * so it is the last resort, used only when nothing trusted is present (local
+ * dev). On Vercel, `x-vercel-forwarded-for` is set by the platform to the real
+ * client IP and overrides any client value.
+ */
+function clientIpFrom(get: (name: string) => string | null): string {
+  const trusted = get("x-vercel-forwarded-for") || get("x-real-ip");
+  if (trusted) return trusted.split(",")[0]!.trim();
+  const fwd = get("x-forwarded-for") ?? "";
+  return fwd.split(",")[0]?.trim() || "anon";
+}
+
 /** Derive a per-client key from the request, scoped to a route. */
 export function clientKey(request: Request, route: string): string {
-  const fwd = request.headers.get("x-forwarded-for") ?? "";
-  const ip = fwd.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "anon";
-  return `${route}:${ip}`;
+  return `${route}:${clientIpFrom((n) => request.headers.get(n))}`;
 }
 
 /** Same derivation from a headers list (for Server Components). */
 export function clientKeyFromHeaders(h: Headers, route: string): string {
-  const fwd = h.get("x-forwarded-for") ?? "";
-  const ip = fwd.split(",")[0]?.trim() || h.get("x-real-ip") || "anon";
-  return `${route}:${ip}`;
+  return `${route}:${clientIpFrom((n) => h.get(n))}`;
 }
 
 function prune(now: number) {

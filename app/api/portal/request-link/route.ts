@@ -2,9 +2,17 @@
  * POST /api/portal/request-link — "email me a link to see my trips".
  *
  * Body: { email }. For every contact whose email matches, we mint a single-use
- * token and email a login link from that agency. The response is ALWAYS the
- * same generic success — we never reveal whether an email is on file, so the
- * endpoint can't be used to enumerate customers. Rate-limited per IP.
+ * token and email a login link from that agency. Two things keep this from
+ * leaking who is a customer:
+ *
+ *   1. The response is ALWAYS the same generic success, whatever happens.
+ *   2. Every response is padded to a FIXED floor, so a match (which does more
+ *      work and a provider round-trip) takes the same wall-clock time as a
+ *      miss. Without the pad, the identical body would still be given away by
+ *      response latency.
+ *
+ * Emails only ever go to addresses already on file, so this can't be used to
+ * spam arbitrary people. Rate-limited per (platform-trusted) client IP.
  *
  * Public (allow-listed in middleware): a traveller has no session yet.
  */
@@ -20,12 +28,20 @@ import { sendLoginLink } from "@/lib/portal/mailer";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+/** Every real response takes at least this long, to hide the match/miss delta. */
+const FLOOR_MS = 700;
+
 /** Always the same answer, so the endpoint never reveals whether an email exists. */
 function generic() {
   return NextResponse.json({
     ok: true,
     message: "If that email is on file, we've sent a link to view your trips.",
   });
+}
+
+async function floor(start: number) {
+  const wait = FLOOR_MS - (Date.now() - start);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
 }
 
 export async function POST(request: Request) {
@@ -41,36 +57,38 @@ export async function POST(request: Request) {
     );
   }
 
+  const start = Date.now();
   let email = "";
   try {
     const body = (await request.json()) as { email?: unknown };
     email = typeof body.email === "string" ? body.email.trim() : "";
   } catch {
-    return generic(); // don't leak parse errors either
+    // Fall through: a malformed body gets the same padded generic answer.
   }
-  if (!email || !email.includes("@")) return generic();
 
-  // Everything below is best-effort behind the generic response, so a slow or
-  // failed provider never tells the caller whether the email exists.
-  try {
-    const supabase = createPortalClient();
-    const matches = await findContactsByEmail(supabase, email);
-    const base = (process.env.PORTAL_BASE_URL || new URL(request.url).origin).replace(/\/$/, "");
-
-    for (const m of matches) {
-      const token = await createLoginToken(supabase, {
-        agencyId: m.agencyId,
-        householdId: m.householdId,
-        contactId: m.contactId,
-        email: m.email,
-      });
-      const link = `${base}/api/portal/auth?token=${token}`;
-      const name = [m.firstName, m.lastName].filter(Boolean).join(" ") || null;
-      await sendLoginLink(supabase, { agencyId: m.agencyId, toEmail: m.email, toName: name, link });
+  if (email && email.includes("@")) {
+    // Best-effort behind the generic response + fixed floor: a slow or failed
+    // provider never tells the caller whether the email exists.
+    try {
+      const supabase = createPortalClient();
+      const matches = await findContactsByEmail(supabase, email);
+      const base = (process.env.PORTAL_BASE_URL || new URL(request.url).origin).replace(/\/$/, "");
+      for (const m of matches) {
+        const token = await createLoginToken(supabase, {
+          agencyId: m.agencyId,
+          householdId: m.householdId,
+          contactId: m.contactId,
+          email: m.email,
+        });
+        const link = `${base}/api/portal/auth?token=${token}`;
+        const name = [m.firstName, m.lastName].filter(Boolean).join(" ") || null;
+        await sendLoginLink(supabase, { agencyId: m.agencyId, toEmail: m.email, toName: name, link });
+      }
+    } catch {
+      // Swallow: the caller always gets the same answer.
     }
-  } catch {
-    // Swallow: the caller always gets the same answer.
   }
 
+  await floor(start);
   return generic();
 }
