@@ -39,6 +39,8 @@ export type PortalTripSummary = {
   totalValue: number | null;
   currency: string;
   occasion: string | null;
+  /** Travelify booking reference, when the agent has linked one. */
+  travelifyOrderRef: string | null;
 };
 
 export type PortalComponent = {
@@ -112,7 +114,7 @@ export async function listTrips(
   const { data } = await supabase
     .from("trips")
     .select(
-      "id, reference, destination, stage, depart_date, return_date, duration_nights, total_value, currency, occasion"
+      "id, reference, destination, stage, depart_date, return_date, duration_nights, total_value, currency, occasion, travelify_order_ref"
     )
     .eq("agency_id", agencyId)
     .eq("household_id", householdId)
@@ -131,7 +133,7 @@ export async function getTrip(
   const { data: trip } = await supabase
     .from("trips")
     .select(
-      "id, reference, destination, stage, depart_date, return_date, duration_nights, total_value, currency, occasion"
+      "id, reference, destination, stage, depart_date, return_date, duration_nights, total_value, currency, occasion, travelify_order_ref"
     )
     .eq("agency_id", agencyId)
     .eq("household_id", householdId)
@@ -202,6 +204,7 @@ function toSummary(t: Record<string, unknown>): PortalTripSummary {
     totalValue: (t.total_value as number | null) ?? null,
     currency: (t.currency as string) ?? "GBP",
     occasion: (t.occasion as string | null) ?? null,
+    travelifyOrderRef: (t.travelify_order_ref as string | null) ?? null,
   };
 }
 

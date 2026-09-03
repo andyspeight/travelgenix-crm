@@ -226,6 +226,12 @@ a.p-iconline:hover { color: var(--p-accent-ink); }
 .p-sent-icon--muted { background: var(--p-hover); color: var(--p-muted); }
 .p-sent-icon--warn { background: color-mix(in srgb, #F59E0B 14%, transparent); color: #B45309; }
 
+/* ── Payments (live from Travelify) ──────────────────────────── */
+.p-schedule { list-style: none; margin: 14px 0 0; padding: 0; border-top: 1px solid var(--p-border); }
+.p-schedule li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--p-border); font-size: 13px; color: var(--p-muted); }
+.p-schedule li b { color: var(--p-text); font-weight: 600; }
+.p-iconline--ok svg { color: var(--p-success); }
+
 /* ── Branded login ───────────────────────────────────────────── */
 .p-login-mark img { height: 22px; max-width: 150px; width: auto; object-fit: contain; display: block; }
 .p-login-logo { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 10px; background: #fff; position: relative; z-index: 1; }

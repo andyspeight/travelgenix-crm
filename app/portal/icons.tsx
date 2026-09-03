@@ -171,6 +171,31 @@ export const AlertIcon = (p: IconProps) => (
   </svg>
 );
 
+export const FileIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+    <path d="M10 9H8" />
+    <path d="M16 13H8" />
+    <path d="M16 17H8" />
+  </svg>
+);
+
+export const ExternalIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M15 3h6v6" />
+    <path d="M10 14 21 3" />
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+  </svg>
+);
+
+export const WalletIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
+    <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+  </svg>
+);
+
 /** The icon for an itinerary component kind. */
 export function ComponentIcon({ kind, ...p }: IconProps & { kind: string }) {
   switch (kind.toLowerCase()) {

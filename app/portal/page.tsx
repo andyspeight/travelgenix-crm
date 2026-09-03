@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { requirePortalSession } from "@/lib/portal/require";
+import { getTripAccount } from "@/lib/portal/account";
 import { createPortalClient } from "@/lib/portal/client";
 import {
   getBranding,
@@ -11,6 +13,8 @@ import {
 } from "@/lib/portal/data";
 import {
   daysUntil,
+  formatAmount,
+  formatDate,
   formatMoney,
   formatRange,
   glowFor,
@@ -28,6 +32,7 @@ import {
   TicketIcon,
   MapPinIcon,
   UsersIcon,
+  WalletIcon,
 } from "./icons";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +65,12 @@ export default async function PortalHome() {
   const featured: PortalTripSummary | undefined = upcoming[0];
   const others = upcoming.slice(1);
   const days = featured ? daysUntil(featured.departDate) : null;
+
+  // The featured trip's live balance from Travelify, on a short budget so a
+  // slow booking system never holds the home page.
+  const h = headers();
+  const ip = h.get("x-vercel-forwarded-for") || h.get("x-real-ip");
+  const account = featured ? await getTripAccount(supabase, session, featured, { ip, timeoutMs: 4000 }) : null;
 
   // Quotes waiting on the customer come first: they are the one thing on
   // this page that needs something FROM the traveller.
@@ -205,6 +216,20 @@ export default async function PortalHome() {
                     <span>
                       <MapPinIcon width={16} height={16} />
                       {featured.occasion}
+                    </span>
+                  ) : null}
+                  {account?.status === "ok" ? (
+                    <span>
+                      <WalletIcon width={16} height={16} />
+                      <span className="tnum">
+                        {account.balance.outstanding > 0
+                          ? `${formatAmount(account.balance.outstanding, account.currency)} to pay${
+                              account.balance.next?.dueDate
+                                ? `, ${formatAmount(account.balance.next.amount, account.currency)} by ${formatDate(account.balance.next.dueDate)}`
+                                : ""
+                            }`
+                          : "Paid in full"}
+                      </span>
                     </span>
                   ) : null}
                 </div>

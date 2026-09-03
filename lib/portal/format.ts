@@ -127,3 +127,27 @@ export function quoteStatus(state: QuoteState): QuoteDisplayStatus {
       return { label: "No longer available", badge: "off" };
   }
 }
+
+/** "£1,296.50" when there are pence, "£1,300" when there are not. */
+export function formatAmount(amount: number | null, currency = "GBP"): string {
+  if (amount == null || !isFinite(amount)) return "";
+  const whole = Math.abs(amount - Math.round(amount)) < 0.005;
+  try {
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: whole ? 0 : 2,
+      maximumFractionDigits: whole ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount.toFixed(whole ? 0 : 2)}`;
+  }
+}
+
+/** "240 KB", "1.2 MB". */
+export function formatBytes(n: number | null): string {
+  if (n == null || !isFinite(n) || n <= 0) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}

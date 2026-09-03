@@ -32,6 +32,7 @@ import { LocationPanel } from "./location-panel";
 import { CallOpenersPanel } from "./call-openers-panel";
 import { lastTripSummary, nextTripSummary, birthdayOpener, rebookingOpener, loyaltyOpener } from "@/lib/customer/call-openers";
 import { HouseholdEditButton } from "./household-edit";
+import { TravelifyRefField } from "./travelify-ref";
 import { TimelineCompose } from "./timeline-compose";
 import { AddTask } from "@/app/tasks/add-task";
 import { ConsentPanel, type ConsentPanelContact } from "./consent-panel";
@@ -1264,6 +1265,11 @@ function TripCard({
           </>
         )}
       </div>
+      {variant !== "past" ? (
+        <div style={{ marginTop: 8 }}>
+          <TravelifyRefField tripId={trip.id} value={trip.travelify_order_ref ?? null} />
+        </div>
+      ) : null}
     </div>
   );
 }
