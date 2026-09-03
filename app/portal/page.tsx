@@ -2,8 +2,22 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { requirePortalSession } from "@/lib/portal/require";
 import { createPortalClient } from "@/lib/portal/client";
-import { getBranding, getContact, listTrips, type PortalTripSummary } from "@/lib/portal/data";
-import { daysUntil, formatRange, glowFor, initials, tripStatus } from "@/lib/portal/format";
+import {
+  getBranding,
+  getContact,
+  listQuotes,
+  listTrips,
+  type PortalTripSummary,
+} from "@/lib/portal/data";
+import {
+  daysUntil,
+  formatMoney,
+  formatRange,
+  glowFor,
+  initials,
+  quoteState,
+  tripStatus,
+} from "@/lib/portal/format";
 import {
   ArrowRightIcon,
   CalendarIcon,
@@ -11,6 +25,7 @@ import {
   ClockIcon,
   CompassIcon,
   MailIcon,
+  TicketIcon,
   MapPinIcon,
   UsersIcon,
 } from "./icons";
@@ -27,9 +42,10 @@ function nightsLabel(n: number | null): string | null {
 export default async function PortalHome() {
   const session = await requirePortalSession();
   const supabase = createPortalClient();
-  const [contact, trips, branding] = await Promise.all([
+  const [contact, trips, quotes, branding] = await Promise.all([
     getContact(supabase, session.agencyId, session.contactId),
     listTrips(supabase, session.agencyId, session.householdId),
+    listQuotes(supabase, session.agencyId, session.householdId),
     getBranding(supabase, session.agencyId),
   ]);
 
@@ -44,6 +60,11 @@ export default async function PortalHome() {
   const featured: PortalTripSummary | undefined = upcoming[0];
   const others = upcoming.slice(1);
   const days = featured ? daysUntil(featured.departDate) : null;
+
+  // Quotes waiting on the customer come first: they are the one thing on
+  // this page that needs something FROM the traveller.
+  const decisions = quotes.map((q) => ({ ...q, state: quoteState(q) }));
+  const openCount = decisions.filter((q) => q.state === "open").length;
 
   return (
     <main className="p-main">
@@ -68,10 +89,70 @@ export default async function PortalHome() {
               {featured.destination || "Your next trip"} in {days} day{days === 1 ? "" : "s"}
             </span>
           </div>
+        ) : openCount > 0 ? (
+          <div className="p-live">
+            <span className="p-dot" aria-hidden />
+            <span className="tnum">
+              {openCount} quote{openCount === 1 ? "" : "s"} awaiting your decision
+            </span>
+          </div>
         ) : null}
       </div>
 
-      {trips.length === 0 ? (
+      {decisions.length > 0 ? (
+        <section className="p-section" style={{ marginTop: 0 }}>
+          <div className="p-section-h">
+            <h2>For your decision</h2>
+            <span>{decisions.length}</span>
+          </div>
+          <div className="p-list">
+            {decisions.map((q, i) => {
+              const open = q.state === "open";
+              const expiresIn = daysUntil(q.expiresAt);
+              const price = formatMoney(q.totalPrice, q.currency);
+              const when = !open
+                ? "Expired"
+                : expiresIn !== null && expiresIn >= 0
+                  ? `valid ${expiresIn} more day${expiresIn === 1 ? "" : "s"}`
+                  : "";
+              return (
+                <Link
+                  key={q.id}
+                  href={`/portal/quotes/${q.id}`}
+                  prefetch={false}
+                  className="p-row"
+                  style={{ "--i": i } as CSSProperties}
+                >
+                  <span className={`p-thumb ${open ? "p-thumb--accent" : "p-thumb--muted"}`} aria-hidden>
+                    <TicketIcon width={20} height={20} />
+                  </span>
+                  <div>
+                    <p className="p-row-title">{q.trip.destination || "Your trip"}</p>
+                    <p className="p-row-sub tnum">
+                      {[
+                        `Quote v${q.version}`,
+                        price,
+                        formatRange(q.trip.departDate, q.trip.returnDate),
+                        when,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                  <div className="p-row-end">
+                    <span className={`p-chip ${open ? "p-chip--decide" : "p-chip--expired"}`}>
+                      {open ? "Decide" : "Expired"}
+                    </span>
+                    <ChevronRightIcon width={18} height={18} />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {trips.length === 0 && decisions.length === 0 ? (
         <div className="p-empty">
           <div className="p-empty-icon">
             <CompassIcon width={24} height={24} />
@@ -87,7 +168,7 @@ export default async function PortalHome() {
       ) : null}
 
       {featured ? (
-        <section className="p-section" style={{ marginTop: 0 }}>
+        <section className="p-section" style={decisions.length ? undefined : { marginTop: 0 }}>
           <div className="p-section-h">
             <h2>Coming up</h2>
             <span>{upcoming.length} trip{upcoming.length === 1 ? "" : "s"}</span>

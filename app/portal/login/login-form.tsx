@@ -9,7 +9,7 @@ import { AlertIcon, CheckIcon } from "../icons";
  * "sent" confirmation is identical whether or not the address is on file,
  * mirroring the API's anti-enumeration behaviour.
  */
-export function LoginForm() {
+export function LoginForm({ agency }: { agency?: string }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "limited">("idle");
 
@@ -20,7 +20,7 @@ export function LoginForm() {
       const res = await fetch("/api/portal/request-link", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(agency ? { email, agency } : { email }),
       });
       if (res.status === 429) {
         setStatus("limited");

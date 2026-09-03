@@ -10,6 +10,7 @@
  */
 
 import { Topbar } from "@/components/layout/topbar";
+import { portalEnabled } from "@/lib/portal/session";
 import { CustomFieldsSettings } from "./custom-fields";
 import { TeamInvite } from "./team-invite";
 import { createClient, dbAccessMode } from "@/lib/supabase/server";
@@ -166,6 +167,9 @@ export default async function SettingsPage() {
   }).length;
 
   const brandColor = ag?.brand_color ?? "#1B2B5B";
+  // The agency's own front door to the customer portal: their logo, colour
+  // and name on the sign-in. Give this link to customers.
+  const portalUrl = `${(process.env.PORTAL_BASE_URL || "https://crm.travelify.io").replace(/\/$/, "")}/portal/${ag?.slug ?? "travelgenix-demo"}`;
 
   return (
     <>
@@ -206,6 +210,24 @@ export default async function SettingsPage() {
         >
           <Row label="Agency name" value={ag?.name ?? "Travelgenix CRM Demo"} />
           <Row label="Workspace slug" value={ag?.slug ?? "travelgenix-demo"} mono />
+          <Row
+            label="Customer portal"
+            value={
+              portalEnabled() ? (
+                <a
+                  href={portalUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mono"
+                  style={{ fontSize: 13, color: "var(--tg-accent-dark)", textDecoration: "none" }}
+                >
+                  {portalUrl}
+                </a>
+              ) : (
+                <span style={{ color: "var(--text-muted)" }}>Not switched on yet</span>
+              )
+            }
+          />
           <Row
             label="Brand colour"
             value={

@@ -82,6 +82,8 @@ const ALLOWED: Record<string, string> = {
   // household. Isolated in its own file so this covers nothing else.
   "lib/portal/lookup.ts::contacts":
     "resolves which agency/household a login email belongs to; no session yet",
+  "lib/portal/lookup.ts::agencies":
+    "resolves a branded portal URL (/portal/<slug>) to its agency; single row by unique slug",
 };
 
 function sourceFiles(dir: string, out: string[] = []): string[] {

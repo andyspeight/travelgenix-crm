@@ -75,3 +75,55 @@ export function glowFor(text: string): string {
   for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
   return `${58 + (h % 35)}%`;
 }
+
+/** "£4,250" — whole units, the currency's own symbol where en-GB knows it. */
+export function formatMoney(amount: number | null, currency = "GBP"): string {
+  if (amount == null || !isFinite(amount)) return "";
+  try {
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${currency} ${Math.round(amount).toLocaleString("en-GB")}`;
+  }
+}
+
+/**
+ * What a customer can do with a quote right now. "open" is the only state
+ * with actions; an expiry in the past is treated as expired even before the
+ * nightly job marks the row, so a customer can never accept a lapsed price.
+ */
+export type QuoteState = "open" | "expired" | "accepted" | "declined" | "unavailable";
+
+export function quoteState(
+  q: { status: string; expiresAt: string | null },
+  now: Date = new Date()
+): QuoteState {
+  if (q.status === "accepted") return "accepted";
+  if (q.status === "declined") return "declined";
+  if (q.status === "expired") return "expired";
+  if (q.status !== "sent" && q.status !== "viewed") return "unavailable";
+  const exp = parse(q.expiresAt);
+  if (exp && exp.getTime() < now.getTime()) return "expired";
+  return "open";
+}
+
+export type QuoteDisplayStatus = { label: string; badge: "decide" | "expired" | "accepted" | "declined" | "off" };
+
+export function quoteStatus(state: QuoteState): QuoteDisplayStatus {
+  switch (state) {
+    case "open":
+      return { label: "Awaiting your decision", badge: "decide" };
+    case "expired":
+      return { label: "Expired", badge: "expired" };
+    case "accepted":
+      return { label: "Accepted", badge: "accepted" };
+    case "declined":
+      return { label: "Declined", badge: "declined" };
+    default:
+      return { label: "No longer available", badge: "off" };
+  }
+}

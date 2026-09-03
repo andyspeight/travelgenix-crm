@@ -51,3 +51,41 @@ export async function findContactsByEmail(
       email: c.email as string,
     }));
 }
+
+export type AgencyMatch = {
+  agencyId: string;
+  slug: string;
+  name: string;
+  brandColor: string | null;
+  logoUrl: string | null;
+};
+
+export const AGENCY_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+
+/**
+ * The agency behind a branded portal URL (/portal/<slug>). Like the email
+ * lookup this cannot be scoped by the agency it exists to find; it is a
+ * single-row read by a unique slug and returns only what the login screen
+ * shows (name, colour, logo).
+ */
+export async function findAgencyBySlug(
+  supabase: SupabaseClient,
+  slug: string
+): Promise<AgencyMatch | null> {
+  const clean = slug.trim().toLowerCase();
+  if (!AGENCY_SLUG_RE.test(clean)) return null;
+
+  const { data } = await supabase
+    .from("agencies")
+    .select("id, slug, name, brand_color, logo_url")
+    .eq("slug", clean)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    agencyId: data.id as string,
+    slug: data.slug as string,
+    name: (data.name as string) || "Your travel agent",
+    brandColor: (data.brand_color as string | null) ?? null,
+    logoUrl: (data.logo_url as string | null) ?? null,
+  };
+}

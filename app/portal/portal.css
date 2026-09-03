@@ -170,7 +170,9 @@ a.p-iconline:hover { color: var(--p-accent-ink); }
 .p-empty p { margin: 4px 0 0; color: var(--p-muted); font-size: 14px; max-width: 56ch; }
 
 /* ── Login: split arrival screen ─────────────────────────────── */
-.p-login { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 100dvh; }
+/* The login screen sets the agency's colour on ITSELF (there is no session
+   yet, so the shell cannot), so the accent tokens are re-derived here. */
+.p-login { --p-accent: var(--portal-accent, var(--tg-accent, #00B4D8)); --p-accent-ink: color-mix(in srgb, var(--p-accent) 62%, var(--p-navy) 38%); display: grid; grid-template-columns: 1.05fr 1fr; min-height: 100dvh; }
 .p-login-plate { display: flex; flex-direction: column; justify-content: space-between; padding: 40px; color: #fff; border-radius: 0; }
 .p-login-plate.p-plate::before { bottom: 34%; }
 .p-login-mark { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; letter-spacing: 0.02em; position: relative; z-index: 1; }
@@ -196,6 +198,37 @@ a.p-iconline:hover { color: var(--p-accent-ink); }
 .p-sent-icon { width: 40px; height: 40px; border-radius: 50%; background: color-mix(in srgb, var(--p-success) 12%, transparent); color: var(--p-success); display: grid; place-items: center; flex: none; }
 .p-sent h3 { margin: 6px 0 4px; font-size: 17px; font-weight: 600; }
 .p-sent p { margin: 0; color: var(--p-muted); font-size: 14px; }
+
+/* ── Quotes: the decision ────────────────────────────────────── */
+.p-plate .p-pill--decide i { background: #FCD34D; }
+.p-plate .p-pill--expired i, .p-plate .p-pill--off i { background: rgba(255,255,255,0.5); }
+.p-plate .p-pill--accepted i { background: #5EEAD4; }
+.p-thumb--accent { background: linear-gradient(160deg, var(--p-accent-ink), var(--p-navy)); }
+.p-chip--decide { background: color-mix(in srgb, var(--p-accent) 14%, transparent); color: var(--p-accent-ink); border-color: color-mix(in srgb, var(--p-accent) 35%, transparent); }
+.p-chip--expired { color: #B45309; background: color-mix(in srgb, #F59E0B 10%, transparent); border-color: color-mix(in srgb, #F59E0B 35%, transparent); }
+.p-price { font-size: 38px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; margin: 0; font-variant-numeric: tabular-nums; }
+.p-price-sub { color: var(--p-muted); font-size: 13px; margin: 8px 0 0; }
+.p-prose { font-size: 15px; color: var(--p-text); max-width: 62ch; }
+.p-prose p { margin: 0 0 14px; white-space: pre-line; }
+.p-prose p:last-child { margin-bottom: 0; }
+.p-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.p-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 14px; font-size: 14px; color: var(--p-muted); max-width: 60ch; }
+.p-step b { display: block; color: var(--p-text); font-weight: 600; margin-bottom: 2px; }
+.p-step-n { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--p-border-strong); background: var(--p-surface); display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--p-navy); font-variant-numeric: tabular-nums; }
+.p-btn--secondary { background: transparent; color: var(--p-text); border: 1px solid var(--p-border-strong); }
+.p-btn--secondary:hover { background: var(--p-hover); filter: none; }
+.p-btn--ghost { background: transparent; color: var(--p-muted); }
+.p-btn--ghost:hover { color: var(--p-text); filter: none; }
+.p-btn + .p-btn { margin-top: 10px; }
+.p-textarea { min-height: 96px; height: auto; padding: 12px 14px; resize: vertical; line-height: 1.5; }
+.p-confirm { padding: 14px 16px; border-radius: var(--p-r-md); background: var(--p-hover); border: 1px solid var(--p-border); font-size: 14px; color: var(--p-muted); line-height: 1.5; }
+.p-confirm strong { color: var(--p-text); font-weight: 600; }
+.p-sent-icon--muted { background: var(--p-hover); color: var(--p-muted); }
+.p-sent-icon--warn { background: color-mix(in srgb, #F59E0B 14%, transparent); color: #B45309; }
+
+/* ── Branded login ───────────────────────────────────────────── */
+.p-login-mark img { height: 22px; max-width: 150px; width: auto; object-fit: contain; display: block; }
+.p-login-logo { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 10px; background: #fff; position: relative; z-index: 1; }
 
 /* ── Skeleton (loading) ──────────────────────────────────────── */
 .p-skel { border-radius: var(--p-r-md); background: linear-gradient(90deg, var(--p-hover) 25%, var(--p-border) 37%, var(--p-hover) 63%); background-size: 400% 100%; animation: p-shimmer 1.4s ease infinite; }

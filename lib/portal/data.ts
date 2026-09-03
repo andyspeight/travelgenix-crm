@@ -204,3 +204,133 @@ function toSummary(t: Record<string, unknown>): PortalTripSummary {
     occasion: (t.occasion as string | null) ?? null,
   };
 }
+
+// ─── Quotes ──────────────────────────────────────────────────────────────
+
+export type PortalQuoteTrip = {
+  id: string;
+  reference: string | null;
+  destination: string | null;
+  departDate: string | null;
+  returnDate: string | null;
+  nights: number | null;
+  occasion: string | null;
+};
+
+export type PortalQuote = {
+  id: string;
+  version: number;
+  status: string;
+  reference: string | null;
+  totalPrice: number | null;
+  deposit: number | null;
+  currency: string;
+  optionsSummary: string | null;
+  sentAt: string | null;
+  expiresAt: string | null;
+  viewCount: number;
+  trip: PortalQuoteTrip;
+};
+
+/** Quote statuses a customer is shown as "for you to decide on" (or lately expired). */
+const CUSTOMER_QUOTE_STATUSES = ["sent", "viewed", "expired"];
+
+const QUOTE_COLS =
+  "id, trip_id, version, status, reference, total_price, deposit, currency, options_summary, sent_at, expires_at, view_count";
+const QUOTE_TRIP_COLS = "id, reference, destination, depart_date, return_date, duration_nights, occasion";
+
+/**
+ * The household's open quotes, newest first. A quote is only shown once its
+ * trip has ALSO been confirmed to belong to the household, so a mis-linked
+ * quote can never expose another family's trip.
+ */
+export async function listQuotes(
+  supabase: SupabaseClient,
+  agencyId: string,
+  householdId: string
+): Promise<PortalQuote[]> {
+  const { data } = await supabase
+    .from("quotes")
+    .select(QUOTE_COLS)
+    .eq("agency_id", agencyId)
+    .eq("household_id", householdId)
+    .in("status", CUSTOMER_QUOTE_STATUSES)
+    .order("sent_at", { ascending: false, nullsFirst: false });
+  const rows = (data ?? []) as Record<string, unknown>[];
+  if (rows.length === 0) return [];
+
+  const tripIds = Array.from(new Set(rows.map((q) => q.trip_id as string)));
+  const { data: trips } = await supabase
+    .from("trips")
+    .select(QUOTE_TRIP_COLS)
+    .eq("agency_id", agencyId)
+    .eq("household_id", householdId)
+    .in("id", tripIds);
+  const tripById = new Map(
+    ((trips ?? []) as Record<string, unknown>[]).map((t) => [t.id as string, toQuoteTrip(t)])
+  );
+
+  return rows
+    .map((q) => {
+      const trip = tripById.get(q.trip_id as string);
+      return trip ? toQuote(q, trip) : null;
+    })
+    .filter((q): q is PortalQuote => q !== null);
+}
+
+/** One quote of the household's, in any status (so a decided quote still renders). */
+export async function getQuote(
+  supabase: SupabaseClient,
+  agencyId: string,
+  householdId: string,
+  quoteId: string
+): Promise<PortalQuote | null> {
+  const { data: q } = await supabase
+    .from("quotes")
+    .select(QUOTE_COLS)
+    .eq("agency_id", agencyId)
+    .eq("household_id", householdId)
+    .eq("id", quoteId)
+    .maybeSingle();
+  if (!q) return null;
+
+  const { data: trip } = await supabase
+    .from("trips")
+    .select(QUOTE_TRIP_COLS)
+    .eq("agency_id", agencyId)
+    .eq("household_id", householdId)
+    .eq("id", q.trip_id as string)
+    .maybeSingle();
+  if (!trip) return null;
+
+  return toQuote(q as Record<string, unknown>, toQuoteTrip(trip as Record<string, unknown>));
+}
+
+function toQuoteTrip(t: Record<string, unknown>): PortalQuoteTrip {
+  return {
+    id: t.id as string,
+    reference: (t.reference as string | null) ?? null,
+    destination: (t.destination as string | null) ?? null,
+    departDate: (t.depart_date as string | null) ?? null,
+    returnDate: (t.return_date as string | null) ?? null,
+    nights: (t.duration_nights as number | null) ?? null,
+    occasion: (t.occasion as string | null) ?? null,
+  };
+}
+
+function toQuote(q: Record<string, unknown>, trip: PortalQuoteTrip): PortalQuote {
+  return {
+    id: q.id as string,
+    version: (q.version as number) ?? 1,
+    status: (q.status as string) ?? "sent",
+    reference: (q.reference as string | null) ?? null,
+    totalPrice: q.total_price == null ? null : Number(q.total_price),
+    deposit: q.deposit == null ? null : Number(q.deposit),
+    currency: (q.currency as string) ?? "GBP",
+    optionsSummary: (q.options_summary as string | null) ?? null,
+    sentAt: (q.sent_at as string | null) ?? null,
+    expiresAt: (q.expires_at as string | null) ?? null,
+    viewCount: (q.view_count as number) ?? 0,
+    trip,
+  };
+}

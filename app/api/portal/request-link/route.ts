@@ -1,8 +1,10 @@
 /**
  * POST /api/portal/request-link — "email me a link to see my trips".
  *
- * Body: { email }. For every contact whose email matches, we mint a single-use
- * token and email a login link from that agency. Two things keep this from
+ * Body: { email, agency? }. For every contact whose email matches, we mint a
+ * single-use token and email a login link from that agency. From a branded
+ * /portal/<slug> screen the request carries that agency's slug and only its
+ * match is used, so the link and the email are that agency's. Two things keep this from
  * leaking who is a customer:
  *
  *   1. The response is ALWAYS the same generic success, whatever happens.
@@ -21,7 +23,7 @@ import { NextResponse } from "next/server";
 import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 import { portalEnabled } from "@/lib/portal/session";
 import { createPortalClient } from "@/lib/portal/client";
-import { findContactsByEmail } from "@/lib/portal/lookup";
+import { AGENCY_SLUG_RE, findAgencyBySlug, findContactsByEmail } from "@/lib/portal/lookup";
 import { createLoginToken } from "@/lib/portal/token";
 import { sendLoginLink } from "@/lib/portal/mailer";
 
@@ -59,9 +61,12 @@ export async function POST(request: Request) {
 
   const start = Date.now();
   let email = "";
+  let slug = "";
   try {
-    const body = (await request.json()) as { email?: unknown };
+    const body = (await request.json()) as { email?: unknown; agency?: unknown };
     email = typeof body.email === "string" ? body.email.trim() : "";
+    slug = typeof body.agency === "string" ? body.agency.trim().toLowerCase() : "";
+    if (!AGENCY_SLUG_RE.test(slug)) slug = "";
   } catch {
     // Fall through: a malformed body gets the same padded generic answer.
   }
@@ -71,7 +76,12 @@ export async function POST(request: Request) {
     // provider never tells the caller whether the email exists.
     try {
       const supabase = createPortalClient();
-      const matches = await findContactsByEmail(supabase, email);
+      let matches = await findContactsByEmail(supabase, email);
+      if (slug) {
+        // A branded screen only ever signs people in to that agency.
+        const agency = await findAgencyBySlug(supabase, slug);
+        matches = agency ? matches.filter((m) => m.agencyId === agency.agencyId) : [];
+      }
       const base = (process.env.PORTAL_BASE_URL || new URL(request.url).origin).replace(/\/$/, "");
       for (const m of matches) {
         const token = await createLoginToken(supabase, {
@@ -80,7 +90,7 @@ export async function POST(request: Request) {
           contactId: m.contactId,
           email: m.email,
         });
-        const link = `${base}/api/portal/auth?token=${token}`;
+        const link = `${base}/api/portal/auth?token=${token}${slug ? `&a=${slug}` : ""}`;
         const name = [m.firstName, m.lastName].filter(Boolean).join(" ") || null;
         await sendLoginLink(supabase, { agencyId: m.agencyId, toEmail: m.email, toName: name, link });
       }

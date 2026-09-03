@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import { portalEnabled, signPortalSession, PORTAL_COOKIE, PORTAL_TTL_MS } from "@/lib/portal/session";
 import { createPortalClient } from "@/lib/portal/client";
 import { consumeLoginToken } from "@/lib/portal/token";
+import { AGENCY_SLUG_RE } from "@/lib/portal/lookup";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,10 +22,15 @@ export async function GET(request: Request) {
   const base = (process.env.PORTAL_BASE_URL || new URL(request.url).origin).replace(/\/$/, "");
   if (!portalEnabled()) return NextResponse.redirect(`${base}/portal/login`);
 
-  const token = new URL(request.url).searchParams.get("token") ?? "";
+  const url = new URL(request.url);
+  const token = url.searchParams.get("token") ?? "";
+  // A link minted from a branded screen sends a failed attempt back there.
+  const slug = (url.searchParams.get("a") ?? "").toLowerCase();
+  const loginPath = AGENCY_SLUG_RE.test(slug) ? `/portal/${slug}` : "/portal/login";
+
   const grant = await consumeLoginToken(createPortalClient(), token);
   if (!grant) {
-    return NextResponse.redirect(`${base}/portal/login?expired=1`);
+    return NextResponse.redirect(`${base}${loginPath}?expired=1`);
   }
 
   const value = await signPortalSession({
