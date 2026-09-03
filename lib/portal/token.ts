@@ -31,11 +31,16 @@ export type LoginGrant = {
 /**
  * Create a login token for a grant and store its hash. Returns the RAW token
  * to put in the email link (never persisted).
+ *
+ * `ttlMs` defaults to the 30-minute sign-in life; an emailed deep link passes
+ * a longer one (lib/portal/invite) because it is read whenever the customer
+ * gets to it.
  */
 export async function createLoginToken(
   supabase: SupabaseClient,
   grant: LoginGrant,
-  now: number = Date.now()
+  now: number = Date.now(),
+  ttlMs: number = LOGIN_TOKEN_TTL_MS
 ): Promise<string> {
   const raw = randomBytes(32).toString("hex"); // 256 bits
   await supabase.from("portal_login_tokens").insert({
@@ -44,7 +49,7 @@ export async function createLoginToken(
     household_id: grant.householdId,
     contact_id: grant.contactId,
     email: grant.email,
-    expires_at: new Date(now + LOGIN_TOKEN_TTL_MS).toISOString(),
+    expires_at: new Date(now + ttlMs).toISOString(),
   });
   return raw;
 }

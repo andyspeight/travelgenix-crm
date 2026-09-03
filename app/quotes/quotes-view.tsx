@@ -12,6 +12,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { SendPortalLink } from "@/components/portal/send-portal-link";
 import type { Quote } from "@/lib/supabase/types";
 import type { RescueAlert } from "@/lib/quotes/rescue";
 import { SparklesIcon, SendIcon, CheckIcon, XIcon, ClockIcon } from "@/components/ui/icons";
@@ -365,6 +366,7 @@ export function QuotesView({ quotes, alerts, nameById, tripMeta }: QuotesViewPro
                       <button onClick={() => act(q.id, "record_view")} disabled={busy} title="The customer opened the quote" style={{ ...btn, opacity: busy ? 0.6 : 1 }}>
                         Log a view
                       </button>
+                      <SendPortalLink kind="quote" id={q.id} label="Email link to customer" />
                       <button
                         onClick={() => act(q.id, "accept")}
                         disabled={busy}

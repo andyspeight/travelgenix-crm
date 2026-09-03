@@ -2,7 +2,8 @@
  * GET /api/portal/auth?token=… — the magic-link landing.
  *
  * Consumes the single-use token, and on success mints the signed portal
- * session cookie and sends the traveller into the portal. A bad, used or
+ * session cookie and sends the traveller where the link was aimed — the
+ * portal home, or the quote or trip an emailed link named. A bad, used or
  * expired link lands on the login page with a gentle message — never an error
  * that reveals anything.
  *
@@ -14,6 +15,7 @@ import { portalEnabled, signPortalSession, PORTAL_COOKIE, PORTAL_TTL_MS } from "
 import { createPortalClient } from "@/lib/portal/client";
 import { consumeLoginToken } from "@/lib/portal/token";
 import { AGENCY_SLUG_RE } from "@/lib/portal/lookup";
+import { safeNextPath } from "@/lib/portal/invite";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -33,12 +35,16 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${base}${loginPath}?expired=1`);
   }
 
+  // An emailed deep link says where it was meant to land (a quote, a trip).
+  // Only a portal path is honoured, so a link can never redirect off-site.
+  const next = safeNextPath(url.searchParams.get("next")) ?? "/portal";
+
   const value = await signPortalSession({
     agencyId: grant.agencyId,
     householdId: grant.householdId,
     contactId: grant.contactId,
   });
-  const res = NextResponse.redirect(`${base}/portal`);
+  const res = NextResponse.redirect(`${base}${next}`);
   res.cookies.set(PORTAL_COOKIE, value, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
