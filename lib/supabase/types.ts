@@ -87,6 +87,8 @@ export type Trip = {
   agency_id: string;
   household_id: string;
   reference: string | null;
+  /** Travelify booking reference; the portal looks payments/documents up with it. */
+  travelify_order_ref?: string | null;
   stage: TripStage;
   destination: string | null;
   destination_country: string | null;

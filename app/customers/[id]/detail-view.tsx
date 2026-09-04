@@ -32,6 +32,8 @@ import { LocationPanel } from "./location-panel";
 import { CallOpenersPanel } from "./call-openers-panel";
 import { lastTripSummary, nextTripSummary, birthdayOpener, rebookingOpener, loyaltyOpener } from "@/lib/customer/call-openers";
 import { HouseholdEditButton } from "./household-edit";
+import { TravelifyRefField } from "./travelify-ref";
+import { SendPortalLink } from "@/components/portal/send-portal-link";
 import { TimelineCompose } from "./timeline-compose";
 import { AddTask } from "@/app/tasks/add-task";
 import { ConsentPanel, type ConsentPanelContact } from "./consent-panel";
@@ -1264,6 +1266,14 @@ function TripCard({
           </>
         )}
       </div>
+      {variant !== "past" ? (
+        <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <TravelifyRefField tripId={trip.id} value={trip.travelify_order_ref ?? null} />
+          {trip.stage !== "enquiry" && trip.stage !== "quoted" && trip.stage !== "cancelled" ? (
+            <SendPortalLink kind="trip" id={trip.id} label="Email portal link" compact />
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -75,6 +75,15 @@ const ALLOWED: Record<string, string> = {
   // Narrow (one unique key), and every write that follows uses that agency id.
   "app/api/widget/lead/route.ts::agencies":
     "resolves the agency from its lead_ingest_key; system client, no session",
+  // A traveller asking for a portal login link presents only an email and no
+  // session, so which agency/household it belongs to is the whole job of this
+  // lookup — it cannot be scoped by the answer it exists to find. Narrow (one
+  // email), read-only, and the link that follows grants only the matched
+  // household. Isolated in its own file so this covers nothing else.
+  "lib/portal/lookup.ts::contacts":
+    "resolves which agency/household a login email belongs to; no session yet",
+  "lib/portal/lookup.ts::agencies":
+    "resolves a branded portal URL (/portal/<slug>) to its agency; single row by unique slug",
 };
 
 function sourceFiles(dir: string, out: string[] = []): string[] {

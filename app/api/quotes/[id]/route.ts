@@ -22,8 +22,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { apiAgencyId } from "@/lib/auth/session";
-import { refreshHouseholdRollups } from "@/lib/customer/rollups";
 import { emitEvent } from "@/lib/events/emit";
+import { acceptQuote, declineQuote, isResolvedQuote, recordQuoteView } from "@/lib/quotes/lifecycle";
 import type { Quote } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -84,7 +84,7 @@ export async function PATCH(
 
   const quote = quoteRow as Quote;
   const nowIso = new Date().toISOString();
-  const resolved = quote.status === "accepted" || quote.status === "declined" || quote.status === "superseded";
+  const resolved = isResolvedQuote(quote);
 
   // ─── send ────────────────────────────────────────────────────────────
   if (action === "send") {
@@ -116,29 +116,11 @@ export async function PATCH(
   }
 
   // ─── record_view ─────────────────────────────────────────────────────
+  // Shared with the customer portal (lib/quotes/lifecycle).
   if (action === "record_view") {
-    if (resolved || quote.status === "draft") {
-      return NextResponse.json(
-        { ok: false, error: "Views only count on a live, sent quote" },
-        { status: 409 }
-      );
-    }
-    const { error } = await supabase
-      .from("quotes")
-      .update({ status: "viewed", viewed_at: nowIso, view_count: quote.view_count + 1 })
-      .eq("id", id)
-      .eq("agency_id", agencyId);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-
-    await emitEvent(supabase, agencyId, {
-      type: "quote.viewed",
-      subjectType: "quote",
-      subjectId: id,
-      householdId: quote.household_id,
-      payload: { trip_id: quote.trip_id, view_count: quote.view_count + 1 },
-    });
-
-    return NextResponse.json({ ok: true, status: "viewed", view_count: quote.view_count + 1 });
+    const r = await recordQuoteView(supabase, quote, { actor: "agent" });
+    if (!r.ok) return NextResponse.json({ ok: false, error: r.error }, { status: r.status });
+    return NextResponse.json({ ok: true, status: "viewed", view_count: r.viewCount });
   }
 
   // ─── respond ─────────────────────────────────────────────────────────
@@ -182,81 +164,19 @@ export async function PATCH(
   }
 
   // ─── accept / decline ────────────────────────────────────────────────
-  if (resolved) {
-    return NextResponse.json({ ok: false, error: "This quote is already resolved" }, { status: 409 });
-  }
-
+  // Shared with the customer portal (lib/quotes/lifecycle): the booking
+  // moment and the lost-reason collection are one implementation.
   if (action === "accept") {
-    const { error } = await supabase
-      .from("quotes")
-      .update({ status: "accepted" })
-      .eq("id", id)
-      .eq("agency_id", agencyId);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-
-    // The booking moment: trip takes the quoted price and moves to booked,
-    // household counters refresh with last_booking_at stamped.
-    await supabase
-      .from("trips")
-      .update({
-        stage: "booked",
-        total_value: quote.total_price,
-        updated_at: nowIso,
-      })
-      .eq("id", quote.trip_id)
-      .eq("agency_id", agencyId);
-
-    if (quote.household_id) {
-      await refreshHouseholdRollups(supabase, agencyId, quote.household_id, {
-        setLastBookingAt: true,
-      });
-      try {
-        await supabase.from("interactions").insert({
-          agency_id: agencyId,
-          household_id: quote.household_id,
-          trip_id: quote.trip_id,
-          kind: "system",
-          direction: "internal",
-          subject: `Quote v${quote.version} accepted`,
-          body_summary: `Booked at £${Math.round(quote.total_price ?? 0).toLocaleString("en-GB")}. Trip moved to booked.`,
-          occurred_at: nowIso,
-        });
-      } catch {
-        // Timeline write never fails the request.
-      }
-    }
-
-    await emitEvent(supabase, agencyId, {
-      type: "quote.accepted",
-      subjectType: "quote",
-      subjectId: id,
-      householdId: quote.household_id,
-      payload: { trip_id: quote.trip_id, version: quote.version, total_price: quote.total_price },
-    });
-
+    const r = await acceptQuote(supabase, quote, { actor: "agent" });
+    if (!r.ok) return NextResponse.json({ ok: false, error: r.error }, { status: r.status });
     return NextResponse.json({ ok: true, status: "accepted" });
   }
 
-  // decline
   const reason =
     typeof body.declined_reason === "string" && body.declined_reason.trim()
       ? body.declined_reason.trim().slice(0, 200)
       : "No reason recorded";
-
-  const { error } = await supabase
-    .from("quotes")
-    .update({ status: "declined", declined_reason: reason })
-    .eq("id", id)
-    .eq("agency_id", agencyId);
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-
-  await emitEvent(supabase, agencyId, {
-    type: "quote.declined",
-    subjectType: "quote",
-    subjectId: id,
-    householdId: quote.household_id,
-    payload: { trip_id: quote.trip_id, version: quote.version, reason },
-  });
-
+  const r = await declineQuote(supabase, quote, { actor: "agent", reason });
+  if (!r.ok) return NextResponse.json({ ok: false, error: r.error }, { status: r.status });
   return NextResponse.json({ ok: true, status: "declined" });
 }

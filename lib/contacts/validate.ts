@@ -6,13 +6,13 @@
  * passport feature ran on a field only the demo seed could fill. This is the
  * write path that fixes it.
  *
- * WHAT IS NOT HERE, on purpose: the full passport NUMBER. The column exists
- * and is marked "encrypted in phase 2"; a passport number is the one field
- * here that must never sit in the database in the clear, and the encryption
- * (lib/crypto/field) is not yet wired to a key. Expiry is what the checks
- * actually use and is not sensitive in the same way, so it goes in now and
- * the number waits for its key. Storing it plainly to look complete would be
- * the exact mistake this review exists to catch.
+ * WHAT IS NOT HERE, and never will be: the full passport NUMBER. It is not
+ * waiting for anything — it has its own path (lib/passports/store), where it
+ * is encrypted before it reaches the database and every read is recorded
+ * against the person who asked. Letting it through this validator would put
+ * it on the ordinary save-on-blur route with every other field, which is
+ * exactly the treatment it must not have. Expiry is what the compliance
+ * checks read, is far less abusable, and stays here in the clear.
  *
  * Pure functions, no I/O.
  */

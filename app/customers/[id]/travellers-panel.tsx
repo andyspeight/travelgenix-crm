@@ -13,14 +13,17 @@
  * and the one most often missing. A red dot marks a traveller with no expiry
  * on file when there is a trip to worry about.
  *
- * The full passport NUMBER is not here. That field waits for its encryption
- * key (see lib/contacts/validate); expiry is what the checks use.
+ * The full passport NUMBER is here too, but not as an ordinary input: it is
+ * encrypted at rest, closed by default, and every reveal is recorded against
+ * the person who asked (passport-field.tsx). Everything else on this panel
+ * saves on blur; the passport number deliberately does not.
  *
  * Each edit saves on blur, one field at a time — these are corrected while
  * someone is on the phone, not filled in as a form.
  */
 
 import { useState } from "react";
+import { PassportField } from "./passport-field";
 import { ROLES, FLAGS, type ContactRole } from "@/lib/contacts/validate";
 
 export type TravellerRow = {
@@ -33,6 +36,8 @@ export type TravellerRow = {
   date_of_birth: string | null;
   passport_expiry: string | null;
   passport_country: string | null;
+  /** Whether an encrypted passport number exists. Never the number itself. */
+  passport_on_file?: boolean;
   dietary: string | null;
   flags: string[];
 };
@@ -226,6 +231,9 @@ function TravellerCard({
           <Field label="Date of birth" type="date" defaultValue={row.date_of_birth ?? ""} onSave={(v) => onSave({ date_of_birth: v })} />
           <Field label="Passport expiry" type="date" defaultValue={row.passport_expiry ?? ""} onSave={(v) => onSave({ passport_expiry: v })} />
           <Field label="Passport country" defaultValue={row.passport_country ?? ""} onSave={(v) => onSave({ passport_country: v })} />
+          <div style={{ gridColumn: "1 / -1" }}>
+            <PassportField contactId={row.id} onFile={Boolean(row.passport_on_file)} />
+          </div>
           <Field label="Email" defaultValue={row.email ?? ""} onSave={(v) => onSave({ email: v })} />
           <Field label="Phone" defaultValue={row.phone ?? ""} onSave={(v) => onSave({ phone: v })} />
           <div style={{ gridColumn: "1 / -1" }}>
