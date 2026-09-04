@@ -143,7 +143,13 @@ export default async function CustomerDetailPage({
     ]);
 
   const householdRow = household as Household;
-  const contactRows = (contactsRes.data ?? []) as Contact[];
+  // The passport NUMBER never leaves the server. It is ciphertext, but the
+  // point of encrypting it is that reading it is a deliberate, audited act —
+  // shipping it to every agent's browser inside the page props would quietly
+  // undo that. What the client gets is whether one exists.
+  const contactRows = ((contactsRes.data ?? []) as (Contact & { passport_number?: string | null })[]).map(
+    ({ passport_number, ...rest }) => ({ ...rest, passport_on_file: Boolean(passport_number) })
+  ) as (Contact & { passport_on_file: boolean })[];
   const tripRows = (tripsRes.data ?? []) as Trip[];
   const prefRows = (prefsRes.data ?? []) as Preference[];
   const interactionRows = (interactionsRes.data ?? []) as Interaction[];
