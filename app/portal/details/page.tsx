@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { requirePortalSession } from "@/lib/portal/require";
 import { createPortalClient } from "@/lib/portal/client";
-import { getBranding, getContact } from "@/lib/portal/data";
+import { getAddress, getBranding, getContact } from "@/lib/portal/data";
 import { ArrowLeftIcon } from "../icons";
+import { DetailsForm } from "./details-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalDetailsPage() {
   const session = await requirePortalSession();
   const supabase = createPortalClient();
-  const [contact, branding] = await Promise.all([
+  const [contact, address, branding] = await Promise.all([
     getContact(supabase, session.agencyId, session.contactId),
+    getAddress(supabase, session.agencyId, session.householdId),
     getBranding(supabase, session.agencyId),
   ]);
   const name = contact ? [contact.firstName, contact.lastName].filter(Boolean).join(" ") : "";
@@ -24,9 +26,11 @@ export default async function PortalDetailsPage() {
       <div className="p-eyebrow">Your details</div>
       <h1 className="p-h1">What we hold for you</h1>
       <p className="p-lead">
-        The contact details {branding.agencyName} uses to keep your trips running smoothly.
+        Keep your phone, dietary needs and address up to date and {branding.agencyName} will always
+        have the right information for your trips.
       </p>
 
+      {/* Fixed by the agent: these have to match travel documents. */}
       <dl className="p-dl" style={{ marginTop: 28 }}>
         <div className="p-dl-row">
           <dt>Name</dt>
@@ -36,21 +40,24 @@ export default async function PortalDetailsPage() {
           <dt>Email</dt>
           <dd>{contact?.email || "—"}</dd>
         </div>
-        <div className="p-dl-row">
-          <dt>Phone</dt>
-          <dd>{contact?.phone || "—"}</dd>
-        </div>
-        {contact?.dietary ? (
-          <div className="p-dl-row">
-            <dt>Dietary</dt>
-            <dd>{contact.dietary}</dd>
-          </div>
-        ) : null}
       </dl>
-      <p className="p-note">
-        Something changed? Reply to any email from {branding.agencyName} and they&rsquo;ll update it
-        for you.
+      <p className="p-note" style={{ marginTop: 12 }}>
+        Your name and email have to match your travel documents and the bookings already made, so{" "}
+        {branding.agencyName} changes those for you. Ask them and they&rsquo;ll sort it.
       </p>
+
+      <DetailsForm
+        agencyName={branding.agencyName}
+        initial={{
+          phone: contact?.phone ?? "",
+          dietary: contact?.dietary ?? "",
+          address_line1: address.line1 ?? "",
+          address_line2: address.line2 ?? "",
+          city: address.city ?? "",
+          county: address.county ?? "",
+          postcode: address.postcode ?? "",
+        }}
+      />
     </main>
   );
 }

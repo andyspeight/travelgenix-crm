@@ -19,6 +19,14 @@ export type PortalBranding = {
   contactEmail: string | null;
 };
 
+export type PortalAddress = {
+  line1: string | null;
+  line2: string | null;
+  city: string | null;
+  county: string | null;
+  postcode: string | null;
+};
+
 export type PortalContact = {
   id: string;
   firstName: string;
@@ -103,6 +111,27 @@ export async function getContact(
     email: (data.email as string | null) ?? null,
     phone: (data.phone as string | null) ?? null,
     dietary: (data.dietary as string | null) ?? null,
+  };
+}
+
+/** The household's address — shared by everyone in it. */
+export async function getAddress(
+  supabase: SupabaseClient,
+  agencyId: string,
+  householdId: string
+): Promise<PortalAddress> {
+  const { data } = await supabase
+    .from("households")
+    .select("address_line1, address_line2, city, county, postcode")
+    .eq("agency_id", agencyId)
+    .eq("id", householdId)
+    .maybeSingle();
+  return {
+    line1: (data?.address_line1 as string | null) ?? null,
+    line2: (data?.address_line2 as string | null) ?? null,
+    city: (data?.city as string | null) ?? null,
+    county: (data?.county as string | null) ?? null,
+    postcode: (data?.postcode as string | null) ?? null,
   };
 }
 

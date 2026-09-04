@@ -236,6 +236,17 @@ a.p-iconline:hover { color: var(--p-accent-ink); }
 .p-login-mark img { height: 22px; max-width: 150px; width: auto; object-fit: contain; display: block; }
 .p-login-logo { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 10px; background: #fff; position: relative; z-index: 1; }
 
+/* ── Self-service form ───────────────────────────────────────── */
+.p-form { margin-top: 32px; }
+.p-form-sec { padding: 22px 0; border-top: 1px solid var(--p-border); }
+.p-form-sec .p-panel-h { margin-bottom: 4px; }
+.p-form-sec > div + div { margin-top: 4px; }
+.p-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.p-form .p-btn { width: auto; min-width: 180px; margin-top: 24px; }
+.p-saved { display: flex; gap: 10px; align-items: center; padding: 12px 14px; margin-top: 20px; border-radius: var(--p-r-md); font-size: 14px; color: var(--p-success); background: color-mix(in srgb, var(--p-success) 8%, transparent); border: 1px solid color-mix(in srgb, var(--p-success) 30%, transparent); }
+.p-saved svg { flex: none; }
+@media (max-width: 640px) { .p-form-row { grid-template-columns: 1fr; gap: 0; } }
+
 /* ── Skeleton (loading) ──────────────────────────────────────── */
 .p-skel { border-radius: var(--p-r-md); background: linear-gradient(90deg, var(--p-hover) 25%, var(--p-border) 37%, var(--p-hover) 63%); background-size: 400% 100%; animation: p-shimmer 1.4s ease infinite; }
 .p-skel--line { height: 14px; }
