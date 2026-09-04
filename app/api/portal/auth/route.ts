@@ -15,13 +15,13 @@ import { portalEnabled, signPortalSession, PORTAL_COOKIE, PORTAL_TTL_MS } from "
 import { createPortalClient } from "@/lib/portal/client";
 import { consumeLoginToken } from "@/lib/portal/token";
 import { AGENCY_SLUG_RE } from "@/lib/portal/lookup";
-import { safeNextPath } from "@/lib/portal/invite";
+import { safeNextPath, portalBaseUrl } from "@/lib/portal/invite";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const base = (process.env.PORTAL_BASE_URL || new URL(request.url).origin).replace(/\/$/, "");
+  const base = portalBaseUrl(request.url);
   if (!portalEnabled()) return NextResponse.redirect(`${base}/portal/login`);
 
   const url = new URL(request.url);

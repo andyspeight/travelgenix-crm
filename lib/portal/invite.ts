@@ -33,10 +33,32 @@ export function safeNextPath(next: string | null | undefined): string | null {
   return value;
 }
 
-/** The public base for customer-facing links. */
+/**
+ * The public base for customer-facing links.
+ *
+ * NOT simply the request's own Host. Portal routes are exempt from the
+ * canonical-host redirect (they carry no Control cookie, so there is nothing
+ * to protect), which means a request can arrive on any host Vercel answers —
+ * a preview URL, the raw *.vercel.app — and a link built from it would be
+ * emailed to a customer pointing somewhere other than the live site. So:
+ * PORTAL_BASE_URL, else the canonical host, and the request only as a last
+ * resort. A configured value missing its scheme is repaired rather than
+ * handed to NextResponse.redirect(), which throws on a relative URL and would
+ * 500 the landing AFTER the single-use token had already been spent.
+ */
 export function portalBaseUrl(requestUrl?: string): string {
-  const configured = process.env.PORTAL_BASE_URL;
-  if (configured) return configured.replace(/\/$/, "");
+  const configured = (process.env.PORTAL_BASE_URL ?? "").trim().replace(/^["']|["']$/g, "");
+  if (configured) {
+    const withScheme = /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
+    try {
+      return new URL(withScheme).origin;
+    } catch {
+      // Unusable value: fall through to the canonical host rather than
+      // emitting a link that cannot be redirected to.
+    }
+  }
+  const canonical = (process.env.CANONICAL_HOST ?? "").trim();
+  if (canonical) return `https://${canonical.replace(/^https?:\/\//i, "").replace(/\/$/, "")}`;
   if (requestUrl) {
     try {
       return new URL(requestUrl).origin;

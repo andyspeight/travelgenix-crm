@@ -84,9 +84,22 @@ function isAlwaysOpen(pathname: string): boolean {
     // (travellers). It authenticates them with its own magic-link session
     // (lib/portal/session), never the Control/agency sign-in, so it is let
     // through this gate exactly like the widget and webhook routes.
+    //
+    // TRAVELLER ROUTES ONLY, named one by one. An earlier version allow-listed
+    // the whole `/api/portal/` prefix, which silently exempted
+    // /api/portal/invite — the AGENT's endpoint, whose only authorisation is
+    // the agency session. In single-tenant mode that session is granted
+    // unconditionally BECAUSE this gate is assumed to have run, so the prefix
+    // handed an unauthenticated caller the ability to email a customer a login
+    // link. Listing the routes fails closed: a new portal route is gated until
+    // someone deliberately adds it here.
     pathname === "/portal" ||
     pathname.startsWith("/portal/") ||
-    pathname.startsWith("/api/portal/") ||
+    pathname === "/api/portal/auth" ||
+    pathname === "/api/portal/logout" ||
+    pathname === "/api/portal/request-link" ||
+    pathname === "/api/portal/details" ||
+    pathname.startsWith("/api/portal/quotes/") ||
     // The browser posts CSP violation reports here with no session (and often
     // no credentials). The route only logs a capped, rate-limited line.
     pathname === "/api/csp-report" ||
@@ -99,8 +112,28 @@ function isAlwaysOpen(pathname: string): boolean {
   );
 }
 
+/** Portal paths, for the "is it switched on at all?" check below. */
+function isPortalPath(pathname: string): boolean {
+  return (
+    pathname === "/portal" ||
+    pathname.startsWith("/portal/") ||
+    pathname.startsWith("/api/portal/")
+  );
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // The portal ships dark: with no signing secret it must not exist at all.
+  // The page layout also calls notFound(), but a Suspense boundary (the
+  // segment's loading.tsx) commits a 200 status before that throws, so every
+  // /portal path answered 200 with a 404 body — and /portal/<slug> reached the
+  // database to look an agency up, which is an existence oracle for slugs.
+  // Refusing at the edge is the only place that is actually decisive.
+  if (isPortalPath(pathname) && !process.env.PORTAL_SESSION_SECRET) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   if (isAlwaysOpen(pathname)) return NextResponse.next();
 
   const controlBase = process.env.CONTROL_BASE_URL;

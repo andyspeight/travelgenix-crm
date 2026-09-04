@@ -24,6 +24,7 @@ import { enforceRateLimit, clientKey } from "@/lib/ai/rate-limit";
 import { portalEnabled } from "@/lib/portal/session";
 import { createPortalClient } from "@/lib/portal/client";
 import { AGENCY_SLUG_RE, findAgencyBySlug, findContactsByEmail } from "@/lib/portal/lookup";
+import { portalBaseUrl } from "@/lib/portal/invite";
 import { createLoginToken } from "@/lib/portal/token";
 import { sendLoginLink } from "@/lib/portal/mailer";
 
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
         const agency = await findAgencyBySlug(supabase, slug);
         matches = agency ? matches.filter((m) => m.agencyId === agency.agencyId) : [];
       }
-      const base = (process.env.PORTAL_BASE_URL || new URL(request.url).origin).replace(/\/$/, "");
+      const base = portalBaseUrl(request.url);
       for (const m of matches) {
         const token = await createLoginToken(supabase, {
           agencyId: m.agencyId,

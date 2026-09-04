@@ -50,6 +50,18 @@ export type SendRequest = {
   /** The formatted version, when the agent used the composer. Rendered by
    *  the server from a validated document, never accepted as HTML. */
   bodyHtml?: string | null;
+  /**
+   * What to STORE, when it must differ from what was sent.
+   *
+   * The timeline and email_sends keep the body verbatim, which is right for
+   * correspondence an agent needs to re-read. It is wrong when the body
+   * carries a credential: a portal magic link contains a single-use token
+   * that would then sit at rest in two tables and be shown to every agent who
+   * opens the customer's timeline. Those senders pass a redacted version here.
+   * Leave unset and the sent body is recorded, as before.
+   */
+  recordBody?: string | null;
+  recordBodyHtml?: string | null;
   attachments?: AttachmentRef[];
   purpose: SendPurpose;
   context?: string | null;
@@ -202,6 +214,11 @@ export async function sendCrmEmail(req: SendRequest): Promise<SendOutcome> {
     });
   }
 
+  // What goes to the recipient, and what goes on the record, are the same
+  // thing unless the caller says otherwise (see recordBody).
+  const recordBody = req.recordBody ?? req.body;
+  const recordBodyHtml = req.recordBody != null ? (req.recordBodyHtml ?? null) : (req.bodyHtml ?? null);
+
   const result = await sendEmail({
     purpose: req.purpose,
     toEmail: toEmail!,
@@ -233,7 +250,7 @@ export async function sendCrmEmail(req: SendRequest): Promise<SendOutcome> {
           formatted: Boolean(req.bodyHtml),
         },
         subject: req.subject,
-        body: req.body,
+        body: recordBody,
         is_read: true,
         is_triaged: true,
         occurred_at: new Date().toISOString(),
@@ -253,10 +270,10 @@ export async function sendCrmEmail(req: SendRequest): Promise<SendOutcome> {
       contact_id: req.contactId ?? null,
       to_email: toEmail,
       subject: req.subject,
-      body: req.body,
+      body: recordBody,
       purpose: req.purpose,
       context: req.context ?? null,
-      body_html: req.bodyHtml ?? null,
+      body_html: recordBodyHtml,
       attachments: (req.attachments ?? []).map((a) => ({
         filename: a.filename,
         content_type: a.contentType,

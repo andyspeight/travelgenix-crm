@@ -104,13 +104,34 @@ function keyring(): Buffer[] {
   const keys: Buffer[] = [];
   const primary = primaryKey();
   if (primary) keys.push(primary);
-  const old = parseKey(process.env.LUNA_FIELD_KEY_OLD, "LUNA_FIELD_KEY_OLD");
+  // A malformed RETIRING key must never cost us the primary one. Parsed on its
+  // own and discarded if unusable: the alternative — letting it throw — meant a
+  // stray character in LUNA_FIELD_KEY_OLD made every passport number in the
+  // database unreadable while writes carried on succeeding.
+  let old: Buffer | null = null;
+  try {
+    old = parseKey(process.env.LUNA_FIELD_KEY_OLD, "LUNA_FIELD_KEY_OLD");
+  } catch {
+    warnOnce(
+      "old-key",
+      "LUNA_FIELD_KEY_OLD is set but is not 64 hex characters; ignoring it. Values sealed with the retiring key cannot be read until it is corrected."
+    );
+  }
   // A rotation that forgets to change the key is a configuration mistake, not
-  // two keys — keep the ring honest so keyFor() cannot report a false match.
+  // two keys — keep the ring honest so a stored key id cannot match twice.
   if (old && !(primary && old.length === primary.length && timingSafeEqual(old, primary))) {
     keys.push(old);
   }
   return keys;
+}
+
+/** Warnings that would otherwise repeat on every request. */
+const warned = new Set<string>();
+function warnOnce(key: string, message: string): void {
+  if (warned.has(key)) return;
+  warned.add(key);
+  // Names the variable and the consequence. Never the key material.
+  console.error(`[field-crypto] ${message}`);
 }
 
 /** True when a key is configured and encryption will actually happen. */
@@ -119,7 +140,14 @@ export function fieldCryptoConfigured(): boolean {
     return primaryKey() !== null;
   } catch {
     // A malformed key is not a configured one. The write path throws with the
-    // real reason; a status check must not.
+    // real reason; a status check must not. But say so once, or the operator
+    // sees "not set" for a key they can plainly see they have set — the
+    // difference between a missing value and a mistyped one is invisible
+    // otherwise.
+    warnOnce(
+      "primary-key",
+      "LUNA_FIELD_KEY is set but is not 64 hex characters (32 bytes), so it is being treated as absent. Passport numbers cannot be stored until it is corrected."
+    );
     return false;
   }
 }

@@ -24,6 +24,9 @@ import { formatMoney, formatRange } from "@/lib/portal/format";
 
 export type PortalEmailKind = "quote_ready" | "quote_nudge" | "trip_booked";
 
+/** Stands in for the real link on the CRM's own copy. Never a working URL. */
+const LINK_PLACEHOLDER = "[secure one-time link, not stored]";
+
 export type PortalEmailArgs = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any>;
@@ -45,6 +48,12 @@ export type PortalEmailArgs = {
 
 export async function sendPortalEmail(args: PortalEmailArgs): Promise<SendOutcome> {
   const copy = compose(args);
+  // The sent body carries a single-use login token. The RECORDED body must not:
+  // it would otherwise sit at rest in interactions and email_sends, and every
+  // agent who opened the customer's timeline would be looking at a working
+  // link into that customer's portal. The record keeps everything else, so an
+  // agent can still see exactly what was said.
+  const redacted = compose({ ...args, link: LINK_PLACEHOLDER });
   return sendCrmEmail({
     supabase: args.supabase,
     agencyId: args.agencyId,
@@ -53,6 +62,8 @@ export async function sendPortalEmail(args: PortalEmailArgs): Promise<SendOutcom
     subject: copy.subject,
     body: copy.text,
     bodyHtml: copy.html,
+    recordBody: redacted.text,
+    recordBodyHtml: redacted.html,
     purpose: "operational",
     context: `portal:${args.kind}`,
   });

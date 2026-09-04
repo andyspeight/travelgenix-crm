@@ -84,3 +84,16 @@ describe("safeNextPath", () => {
     }
   });
 });
+
+describe("what is recorded on the CRM's own copy", () => {
+  it("the sent body carries the link; the recorded body must not", () => {
+    const sent = compose({ ...base, kind: "quote_ready" });
+    const recorded = compose({ ...base, kind: "quote_ready", link: "[secure one-time link, not stored]" });
+    expect(sent.text).toContain("token=");
+    expect(recorded.text).not.toContain("token=");
+    expect(recorded.html).not.toContain("token=");
+    // Everything an agent needs to see is still there.
+    expect(recorded.text).toContain("Santorini, Greece");
+    expect(recorded.text).toContain("Sunshine Travel");
+  });
+});
